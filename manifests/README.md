@@ -6,7 +6,20 @@ Application manifests are ForgeLab's declaration of intent: they say **what** ru
 
 ## `application.schema.yaml`
 
-The canonical schema for an application manifest. Curated example manifests will live alongside it as `<name>.example.yaml` and be validated against this schema.
+The canonical schema for an application manifest. Curated example manifests live alongside it as `<name>.example.yaml` and are validated against this schema by the core CLI:
+
+```sh
+# from the repository root
+make validate FILE=manifests/hello.example.yaml
+make validate FILE=manifests/shop-backend.example.yaml
+```
+
+## Example manifests
+
+| File | Demonstrates |
+|---|---|
+| `hello.example.yaml` | Minimal single-container monolith (runtimes, ports) |
+| `shop-backend.example.yaml` | Multi-component app (database + reverse proxy, scaling, env) |
 
 ## Manifest principles
 
