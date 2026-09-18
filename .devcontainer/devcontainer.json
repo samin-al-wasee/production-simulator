@@ -1,0 +1,37 @@
+{
+  "name": "ForgeLab",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "moby": true
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "EditorConfig.EditorConfig",
+        "redhat.vscode-yaml",
+        "streetsidesoftware.code-spell-checker"
+      ],
+      "settings": {
+        "go.useLanguageServer": true,
+        "editor.formatOnSave": true,
+        "yaml.validate": true,
+        "yaml.schemas": {
+          "https://forgelab.dev/schemas/application.schema.yaml": [
+            "manifests/*.example.yaml"
+          ]
+        }
+      }
+    }
+  },
+  "postCreateCommand": ".devcontainer/scripts/post-create.sh",
+  "remoteUser": "vscode"
+}
