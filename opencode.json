@@ -1,0 +1,24 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["AGENTS.md"],
+  "permission": {
+    "bash": {
+      "git *": "allow",
+      "go *": "allow",
+      "gofmt *": "allow",
+      "goimports *": "allow",
+      "npm *": "allow",
+      "npx *": "allow",
+      "pnpm *": "allow",
+      "yarn *": "allow",
+      "bun *": "allow",
+      "node *": "allow",
+      "pip *": "allow",
+      "python *": "allow",
+      "pytest *": "allow",
+      "ruff *": "allow",
+      "cargo *": "allow",
+      "*": "ask"
+    }
+  }
+}
