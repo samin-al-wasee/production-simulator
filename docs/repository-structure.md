@@ -1,0 +1,89 @@
+# ForgeLab Repository Structure
+
+**Document status:** Baseline · v1.0
+
+The layout is stable. New files must fit into an existing folder; structural changes require updating this document and, if architectural, an ADR.
+
+## Top-level map
+
+```text
+ForgeLab/
+├── README.md                Project overview and documentation map
+├── AGENTS.md                Rules for AI agents and collaborators
+├── CONTRIBUTING.md          Contribution guide
+├── ROADMAP.md               Phased plan (authorization for work)
+├── LICENSE                  Apache-2.0
+├── CHANGELOG.md             Release history
+├── .gitignore               Ignore rules
+├── .editorconfig            Editor/formatting defaults
+├── Makefile                 Development helper targets
+├── .env.example             Environment template
+│
+├── docs/                    All architecture, principles, catalog, scenarios, decisions
+├── applications/            Plugged-in sample/user applications (never core)
+├── manifests/               Application manifest schema, validation, examples
+├── components/              Optional production components, grouped by domain
+├── environments/            local / staging / cloud presets
+├── scenarios/               Reproducible drills grouped by category
+├── scripts/                 Development and validation helpers
+├── templates/               Reusable starting points (apps, services, manifests)
+└── .github/                 Issue/PR templates and CI workflows
+```
+
+## Folder ownership
+
+| Folder | Contains | Owns |
+|---|---|---|
+| `docs/` | Vision, architecture, principles, catalog, scenarios, glossary, learning path, decisions | Every conceptual document |
+| `applications/` | One self-contained sample per plugged-in application: `applications/<name>/` | Application samples; never core code |
+| `manifests/` | `application.schema.yaml`, validation tooling, curated examples | Manifest schema and validation rules |
+| `components/` | One directory per domain: networking, compute, databases, messaging, storage, observability, security, infrastructure, cicd, reliability | Component implementations and their READMEs |
+| `environments/` | `local/`, `staging/`, `cloud/` presets composing components | Environment definitions |
+| `scenarios/` | Categories + one folder per scenario: traffic, failures, security, scaling, performance | Scenario definitions |
+| `scripts/` | Helper scripts (validation, generators) | Scripts |
+| `templates/` | `application/`, `service/`, `manifests/` starting points | Templates |
+| `.github/` | Issue templates, PR template, workflows | GitHub automation |
+
+## Docs layout
+
+| Document | Purpose |
+|---|---|
+| `docs/vision.md` | Why ForgeLab exists |
+| `docs/architecture.md` | Conceptual, composable architecture |
+| `docs/principles.md` | Design principles |
+| `docs/repository-structure.md` | This document |
+| `docs/component-catalog.md` | Catalog of planned components by domain |
+| `docs/scenarios.md` | Scenario template + planned scenarios |
+| `docs/learning-path.md` | Progressive learning roadmap |
+| `docs/glossary.md` | Terminology reference |
+| `docs/decisions/` | Architecture Decision Records (ADR) |
+
+## Components layout
+
+```text
+components/<domain>/
+└── <component>/
+    └── README.md    # purpose, provided services, dependencies, config, status
+```
+
+## Scenarios layout
+
+```text
+scenarios/<category>/
+└── <scenario-name>/
+    └── README.md    # Goal, Components involved, Expected symptoms,
+                     # Investigation, Success criteria (see docs/scenarios.md)
+```
+
+## Environments layout
+
+```text
+environments/
+├── local/        # laptop runtimes (Docker Compose, processes)
+├── staging/      # closer-to-prod with persistence and observability
+└── cloud/        # managed clusters (Kubernetes + cloud presets)
+```
+
+## Cross-cutting rule
+
+A change that spans ownership (e.g. a new scenario needing a new component) must touch the owning folders **and** their catalog/scenario docs together (see `AGENTS.md` §5, §8).
