@@ -24,3 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.github/` — issue templates, PR template, workflows placeholder.
 - `AGENTS.md`, `CONTRIBUTING.md`, `.editorconfig`, `.gitignore`, `.env.example`, `Makefile`.
 - Apache-2.0 `LICENSE`.
+- `.devcontainer/` — development container (Go, Docker-in-Docker, Node LTS) for isolated local lab work.
+- `core/` — Go simulation core, with `forgelab validate` for application manifests (`docs/decisions/0002-local-single-node-runtime.md`).
+- `manifests/hello.example.yaml` and `manifests/shop-backend.example.yaml` — curated example manifests validated by the core CLI.
+
+### Changed
+
+- `ROADMAP.md` — Phase 1 (Local single-node) marked in progress.
+- `docs/architecture.md`, `docs/repository-structure.md`, `AGENTS.md` — document the local single-node envelope and `core/` placement.
