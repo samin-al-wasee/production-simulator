@@ -1,0 +1,50 @@
+# ---- OS ----
+.DS_Store
+Thumbs.db
+
+# ---- Env / secrets ----
+.env
+.env.*
+!.env.example
+
+# ---- Go ----
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+coverage.out
+
+# ---- Node / Next.js ----
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+.eslintcache
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- Tooling / editors ----
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ---- Terraform ----
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# ---- Logs / runtime ----
+*.log
+logs/
+tmp/
