@@ -185,8 +185,9 @@ When documents conflict, stop and identify the conflict instead of silently choo
 > This section is a placeholder. No infrastructure exists yet.
 
 1. Clone the repository.
-2. Read [`docs/vision.md`](docs/vision.md) and [`docs/architecture.md`](docs/architecture.md).
-3. Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before contributing.
+2. **Recommended:** open the repo in VS Code / Cursor with the Dev Containers extension and reopen in the container (`.devcontainer/`), which provides Go, Node.js, and Docker-in-Docker. Developing outside the container works too, but the toolchain versions you need (Go, Node.js, Docker, Make) must be installed manually.
+3. Read [`docs/vision.md`](docs/vision.md) and [`docs/architecture.md`](docs/architecture.md).
+4. Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before contributing.
 
 Tooling is expected to include: Go, Node.js (Next.js), Docker, and optionally Python. Exact prerequisites and commands will be documented here once the first runnable increment lands.
 
