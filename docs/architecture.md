@@ -99,6 +99,10 @@ The layer that makes failure a feature:
 3. **The dashboards/UI is a consumer.** The Next.js dashboard reads the runtime API; it never reimplements simulation logic.
 4. **Documentation precedes implementation.** A layer may not be built before its catalog entry and phase exist.
 
+## Local single-node envelope (Phase 1)
+
+The first runnable shape is a single-node **Docker Compose** stack for the `local` preset: a reverse proxy, one user application, and one database (PostgreSQL). Details, rationale, and the placement of the Go core in `core/` are recorded in [`docs/decisions/0002-local-single-node-runtime.md`](decisions/0002-local-single-node-runtime.md). Later phases reuse this envelope when composing observability, messaging, and reliability around it.
+
 ## Boundary: platform vs application
 
 ```text
