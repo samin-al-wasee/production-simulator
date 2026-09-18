@@ -11,21 +11,20 @@ help: ## Show available targets
 docs: ## Validate that the documentation index links resolve (once a checker exists)
 
 .PHONY: lint-go
-lint-go: ## Go: gofmt -l and go vet ./...
-	@if [ -f go.mod ]; then \
-		gofmt -l . ; \
-		go vet ./... ; \
-	else \
-		echo "No Go module yet — skipping." ; \
-	fi
+lint-go: ## Go: gofmt -l and go vet ./... (from core/)
+	cd core && gofmt -l . && go vet ./...
 
 .PHONY: test-go
-test-go: ## Go: go test ./...
-	@if [ -f go.mod ]; then \
-		go test ./... ; \
-	else \
-		echo "No Go module yet — skipping." ; \
-	fi
+test-go: ## Go: go test ./... (from core/)
+	cd core && go test ./...
+
+.PHONY: build-core
+build-core: ## Build the forgelab CLI into bin/
+	cd core && go build -o ../bin/forgelab ./cmd/forgelab
+
+.PHONY: validate
+validate: build-core ## Validate a manifest: make validate FILE=manifests/hello.example.yaml
+	./bin/forgelab validate $(FILE)
 
 .PHONY: lint-fe
 lint-fe: ## Next.js: lint + typecheck
