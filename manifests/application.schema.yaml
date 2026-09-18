@@ -1,0 +1,154 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://forgelab.dev/schemas/application.schema.yaml
+title: ForgeLab Application
+description: >-
+  Declares an application and the optional production components it uses.
+  Every component is optional; composition is explicit.
+type: object
+required:
+  - apiVersion
+  - kind
+  - metadata
+  - spec
+properties:
+  apiVersion:
+    type: string
+    const: forgelab/v1
+  kind:
+    type: string
+    const: Application
+  metadata:
+    type: object
+    required:
+      - name
+    properties:
+      name:
+        type: string
+        pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+        description: Unique, kebab-case identifier for the application.
+      description:
+        type: string
+      owner:
+        type: string
+    additionalProperties: false
+  spec:
+    type: object
+    required:
+      - shape
+      - runtime
+    properties:
+      shape:
+        type: string
+        enum:
+          - monolith
+          - server-rendered
+          - spa-plus-api
+          - microservices
+          - event-driven
+          - background-workers
+          - distributed-system
+        description: Architecture shape of the application.
+      runtime:
+        type: object
+        required:
+          - image
+        properties:
+          image:
+            type: string
+            description: Container image:tag to run.
+          command:
+            type: array
+            items:
+              type: string
+          ports:
+            type: array
+            items:
+              type: integer
+              minimum: 1
+              maximum: 65535
+          env:
+            type: array
+            items:
+              type: string
+              description: Name of environment variable; value resolved from the environment.
+          replicas:
+            type: integer
+            minimum: 1
+            default: 1
+        additionalProperties: false
+      components:
+        type: object
+        description: >-
+          Optional platform components to enable. A missing key means the
+          component is off.
+        properties:
+          networking:
+            type: array
+            items:
+              $ref: '#/$defs/componentRef'
+          compute:
+            type: array
+            items:
+              $ref: '#/$defs/componentRef'
+          databases:
+            type: array
+            items:
+              $ref: '#/$defs/componentRef'
+          messaging:
+            type: array
+            items:
+              $ref: '#/$defs/componentRef'
+          storage:
+            type: array
+            items:
+              $ref: '#/$defs/componentRef'
+          observability:
+            type: array
+            items:
+              $ref: '#/$defs/componentRef'
+          security:
+            type: array
+            items:
+              $ref: '#/$defs/componentRef'
+          reliability:
+            type: array
+            items:
+              $ref: '#/$defs/componentRef'
+        additionalProperties: false
+      scaling:
+        type: object
+        description: Optional scaling behavior.
+        properties:
+          autoscale:
+            type: boolean
+            default: false
+          minReplicas:
+            type: integer
+            minimum: 1
+          maxReplicas:
+            type: integer
+            minimum: 1
+          targetCpuPercent:
+            type: integer
+            minimum: 1
+            maximum: 100
+        additionalProperties: false
+    additionalProperties: false
+$defs:
+  componentRef:
+    type: object
+    required:
+      - name
+      - version
+    properties:
+      name:
+        type: string
+        description: Component name from docs/component-catalog.md.
+      version:
+        type: string
+        description: Tag or version of the component.
+      config:
+        type: object
+        description: Component-specific settings.
+        additionalProperties: true
+    additionalProperties: false
