@@ -7,6 +7,7 @@ This directory records ForgeLab's architecture decisions. Rules live in `AGENTS.
 | ADR | Status | Title |
 |---|---|---|
 | [0001](0001-apply-stack-foundations.md) | Accepted | Stack foundations: Go core, Next.js dashboard, optional Python, composable monorepo |
+| [0002](0002-local-single-node-runtime.md) | Proposed | Local single-node runtime: Docker Compose local preset and Go core in `core/` |
 
 ## Conventions
 

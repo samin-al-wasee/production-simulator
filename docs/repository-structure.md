@@ -20,6 +20,7 @@ ForgeLab/
 ├── .env.example             Environment template
 │
 ├── docs/                    All architecture, principles, catalog, scenarios, decisions
+├── core/                    Go simulation core, CLI, and manifest validation
 ├── applications/            Plugged-in sample/user applications (never core)
 ├── manifests/               Application manifest schema, validation, examples
 ├── components/              Optional production components, grouped by domain
@@ -27,6 +28,7 @@ ForgeLab/
 ├── scenarios/               Reproducible drills grouped by category
 ├── scripts/                 Development and validation helpers
 ├── templates/               Reusable starting points (apps, services, manifests)
+├── .devcontainer/           Development container (Go, Node, Docker-in-Docker)
 └── .github/                 Issue/PR templates and CI workflows
 ```
 
@@ -35,6 +37,7 @@ ForgeLab/
 | Folder | Contains | Owns |
 |---|---|---|
 | `docs/` | Vision, architecture, principles, catalog, scenarios, glossary, learning path, decisions | Every conceptual document |
+| `core/` | `cmd/forgelab` CLI, `internal/manifest` validation, later simulation packages | Simulation core and its tooling |
 | `applications/` | One self-contained sample per plugged-in application: `applications/<name>/` | Application samples; never core code |
 | `manifests/` | `application.schema.yaml`, validation tooling, curated examples | Manifest schema and validation rules |
 | `components/` | One directory per domain: networking, compute, databases, messaging, storage, observability, security, infrastructure, cicd, reliability | Component implementations and their READMEs |
@@ -42,6 +45,7 @@ ForgeLab/
 | `scenarios/` | Categories + one folder per scenario: traffic, failures, security, scaling, performance | Scenario definitions |
 | `scripts/` | Helper scripts (validation, generators) | Scripts |
 | `templates/` | `application/`, `service/`, `manifests/` starting points | Templates |
+| `.devcontainer/` | `devcontainer.json`, base `Dockerfile`, container setup scripts | Development container definition |
 | `.github/` | Issue templates, PR template, workflows | GitHub automation |
 
 ## Docs layout

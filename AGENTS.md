@@ -95,6 +95,7 @@ Conflicts between documents are never resolved silently — state both sides and
 |---|---|
 | `docs/` | All architecture, principles, catalog, scenarios, decisions |
 | `applications/` | Plugged-in sample/user applications (never core) |
+| `core/` | Go simulation core, CLI, and validation tooling (never UI/dashboard code) |
 | `manifests/` | Application manifest schema, validation, and examples |
 | `components/` | One subdirectory per domain; each component keeps its own README |
 | `environments/` | `local/`, `staging/`, `cloud/` presets |
@@ -129,7 +130,7 @@ Before adding a component:
 - **Always read the docs before acting** — at minimum `README.md`, `ROADMAP.md`, and the folder READMEs that the change touches.
 - **Plan before code** — for any non-trivial task, state the files to change, the docs to update, and the verification plan.
 - **Verify after meaningful changes** — run the appropriate test and lint commands. See `.opencode/command/` (`test.md`, `lint.md`). Current expectations:
-  - Go: `go test ./...`, `gofmt -l`, `go vet ./...` (from the Go module root, once it exists)
+  - Go: `go test ./...`, `gofmt -l`, `go vet ./...` (from `core/`)
   - Next.js: the app's `lint` and `typecheck` scripts (once the app exists)
   - Report results honestly; a failing suite is never "probably fine."
 - **Never run destructive commands without asking.**

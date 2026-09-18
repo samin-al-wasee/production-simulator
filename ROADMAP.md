@@ -18,7 +18,7 @@ Legend: ⬜ planned · 🔨 in progress · ✅ done
 - [x] Contribution and agent conventions (`CONTRIBUTING.md`, `AGENTS.md`)
 - [x] Getting-started placeholder in `README.md`
 
-## Phase 1 — Local single-node
+## Phase 1 — Local single-node *🔨 in progress*
 
 > Run a user-provided application in a production-like local environment.
 
