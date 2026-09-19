@@ -21,6 +21,7 @@ ForgeLab/
 │
 ├── docs/                    All architecture, principles, catalog, scenarios, decisions
 ├── core/                    Go simulation core, CLI, and manifest validation
+├── simulation/              Planning sketch: resource virtualization modules (Phase 0.5, not implemented)
 ├── applications/            Plugged-in sample/user applications (never core)
 ├── manifests/               Application manifest schema, validation, examples
 ├── components/              Optional production components, grouped by domain
@@ -38,6 +39,7 @@ ForgeLab/
 |---|---|---|
 | `docs/` | Vision, architecture, principles, catalog, scenarios, glossary, learning path, decisions | Every conceptual document |
 | `core/` | `cmd/forgelab` CLI, `internal/manifest` validation, later simulation packages | Simulation core and its tooling |
+| `simulation/` | Planned (Phase 0.5) capacity-engine, resource-virtualization, scaling-model, traffic-model, calibration, profiles | Resource Virtualization Engine planning |
 | `applications/` | One self-contained sample per plugged-in application: `applications/<name>/` | Application samples; never core code |
 | `manifests/` | `application.schema.yaml`, validation tooling, curated examples | Manifest schema and validation rules |
 | `components/` | One directory per domain: networking, compute, databases, messaging, storage, observability, security, infrastructure, cicd, reliability | Component implementations and their READMEs |
@@ -86,6 +88,20 @@ environments/
 ├── local/        # laptop runtimes (Docker Compose, processes)
 ├── staging/      # closer-to-prod with persistence and observability
 └── cloud/        # managed clusters (Kubernetes + cloud presets)
+```
+
+## Simulation layout
+
+Planned (Phase 0.5 — Simulation Foundation, not yet implemented):
+
+```text
+simulation/
+├── capacity-engine/
+├── resource-virtualization/
+├── scaling-model/
+├── traffic-model/
+├── calibration/
+└── profiles/
 ```
 
 ## Cross-cutting rule

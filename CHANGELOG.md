@@ -27,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.devcontainer/` — development container (Go, Docker-in-Docker, Node LTS) for isolated local lab work.
 - `core/` — Go simulation core, with `forgelab validate` for application manifests (`docs/decisions/0002-local-single-node-runtime.md`).
 - `manifests/hello.example.yaml` and `manifests/shop-backend.example.yaml` — curated example manifests validated by the core CLI.
+- `docs/decisions/0003-resource-virtualization-engine.md` — Resource Virtualization Engine ADR and Phase 0.5 simulation roadmap.
+- `docs/architecture.md` — three-layer model (Physical / Simulation / Production View) and `simulation/` module layout.
+- `docs/principles.md` — principles 9–12 (Physical ≠ Virtual, virtualize capacity, preserve dynamics, dual metrics).
+- `docs/component-catalog.md` — Simulation domain: Resource Virtualization Engine, Capacity Engine, Scaling Model, Traffic Model, Hardware Calibration, Resource Profiles.
+- `ROADMAP.md` — Phase 0.5 Simulation Foundation (planned).
+- `docs/vision.md` — Production Systems Simulator framing.
 
 ### Changed
 

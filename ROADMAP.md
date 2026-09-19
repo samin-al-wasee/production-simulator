@@ -18,6 +18,17 @@ Legend: ⬜ planned · 🔨 in progress · ✅ done
 - [x] Contribution and agent conventions (`CONTRIBUTING.md`, `AGENTS.md`)
 - [x] Getting-started placeholder in `README.md`
 
+## Phase 0.5 — Simulation Foundation *⬜ planned*
+
+> Introduce the **Resource Virtualization Engine** so ForgeLab can represent production systems much larger than the host hardware. No production components yet; this phase is the virtual resource model under everything else.
+
+- [ ] Hardware detection and calibration
+- [ ] Physical resource budgeting
+- [ ] Virtual cluster model
+- [ ] Scale factor engine
+- [ ] Capacity modeling (CPU, RAM, storage, database)
+- [ ] Physical vs virtual dashboard metrics (Dual Metrics Mode)
+
 ## Phase 1 — Local single-node *🔨 in progress*
 
 > Run a user-provided application in a production-like local environment.

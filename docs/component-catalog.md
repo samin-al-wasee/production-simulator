@@ -10,6 +10,7 @@ Reference for naming and structure: `AGENTS.md` §9. A component becomes real wh
 
 ```mermaid
 flowchart LR
+    SIM[Simulation]
     NW[Networking]
     CP[Compute]
     DB[Databases]
@@ -20,10 +21,21 @@ flowchart LR
     IN[Infrastructure]
     CI[CI/CD]
     RE[Reliability]
-    APP[Your Application] --> NW & CP & DB & MS & ST & OB & SE & IN & CI & RE
+    APP[Your Application] --> SIM & NW & CP & DB & MS & ST & OB & SE & IN & CI & RE
 ```
 
 ## Catalog by domain
+
+### Simulation
+
+| Component | Provides | Depends on | Status |
+|---|---|---|---|
+| Hardware Calibration | Host detection, CPU/RAM/disk measurement, physical resource budgeting | — | planned |
+| Resource Virtualization Engine | Physical ↔ virtual resource translation; scale factor application across the whole production view | Hardware Calibration, Resource Profiles | planned |
+| Capacity Engine | Virtual capacity modeling: CPU, RAM, storage, and database capacity | Resource Virtualization Engine | planned |
+| Scaling Model | Horizontal and vertical scaling virtualization; capacity exhaustion simulation | Resource Virtualization Engine | planned |
+| Traffic Model | Virtual RPS / request scaling and load shaping; physical ↔ virtual traffic translation | Scaling Model | planned |
+| Resource Profiles | Named virtual hardware profiles (node sizes, storage tiers) for composing virtual clusters | Hardware Calibration | planned |
 
 ### Networking
 

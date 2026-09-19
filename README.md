@@ -144,15 +144,16 @@ See [`docs/principles.md`](docs/principles.md).
 ## Future Roadmap (summary)
 
 1. **Foundation** — bootstrap docs, conventions, manifest schema *(current)*
-2. **Local single-node** — Docker Compose runtimes, first components
-3. **Observability** — metrics/logs/traces wired into every component
-4. **Messaging & queues** — RabbitMQ/Kafka, DLQs, async patterns
-5. **Kubernetes** — clusters, scaling, rollout strategies
-6. **Reliability & chaos** — fault injection, outage drills, DR
-7. **Cloud presets** — Terraform + AWS/GCP
-8. **CI/CD & dashboard** — pipeline simulation, lab UI
-9. **Security drills** — attack simulation, secrets, compliance
-10. **Production Simulator** — the full experience, end to end
+2. **Simulation Foundation** — Resource Virtualization Engine, physical vs virtual metrics
+3. **Local single-node** — Docker Compose runtimes, first components
+4. **Observability** — metrics/logs/traces wired into every component
+5. **Messaging & queues** — RabbitMQ/Kafka, DLQs, async patterns
+6. **Kubernetes** — clusters, scaling, rollout strategies
+7. **Reliability & chaos** — fault injection, outage drills, DR
+8. **Cloud presets** — Terraform + AWS/GCP
+9. **CI/CD & dashboard** — pipeline simulation, lab UI
+10. **Security drills** — attack simulation, secrets, compliance
+11. **Production Simulator** — the full experience, end to end
 
 Full detail in [`ROADMAP.md`](ROADMAP.md) and [`docs/learning-path.md`](docs/learning-path.md).
 
