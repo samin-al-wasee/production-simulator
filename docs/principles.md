@@ -52,11 +52,20 @@ Scaling the displayed capacity must not erase the system dynamics that make prod
 
 Every infrastructure surface shows both host metrics and virtual production metrics, with the current simulation scale (e.g. ×64, ×128) always visible. Virtual values are labeled and never presented as real hardware measurements.
 
+## 13. Optimize for system behavior, not business functionality
+
+ForgeLab's goal is not to recreate Amazon, Uber, a banking platform, or a travel platform. It is to reproduce the **engineering characteristics** of such systems: read-heavy, write-heavy, CPU-heavy, memory-heavy, DB-heavy, cache-heavy, network-heavy, message-heavy, concurrency-heavy, latency-sensitive, failure-prone, highly distributed. Reproducing those characteristics lets ForgeLab generate thousands of different production-system configurations without requiring thousands of custom applications.
+
+## 14. Business labels are visualization; operations are the model
+
+Business-domain terminology ("Checkout", "Search Flights", "Transfer Money") is a feature label used for visualization. The actual simulation model is the underlying **operational workload** — the HTTP requests, database reads/writes, cache operations, messaging, latency, and concurrency. A feature is not behavior; behavior is the operations. The same workload may be presented under any feature label without changing the system.
+
 ---
 
 ## Derived rules
 
 * **Deterministic core** — simulation logic runs identically every time and is testable without a UI (see coding philosophy in `AGENTS.md`). The scale factor is deterministic for a given host and manifest.
+* **Behavior over features** — synthetic applications model operations (requests, DB/cache/messaging, latency, concurrency), never business logic; feature labels are a presentation concern.
 * **Clean boundaries** — application, runtime, and dashboard stay separable; dependencies flow one way.
 * **No secrets** — never log, store, or commit passwords, tokens, or keys.
 * **Explicit before magical** — plain, reviewable code beats framework cleverness.

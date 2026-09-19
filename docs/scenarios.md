@@ -43,19 +43,30 @@ How does the operator prove the scenario is understood/resolved?
 | Scenario | Folder | Status |
 |---|---|---|
 | Traffic spike | `traffic/traffic-spike/` | planned |
+| Traffic distribution change | `traffic/traffic-distribution-change/` | planned |
 
 ### Failures (`scenarios/failures/`)
 
 | Scenario | Folder | Status |
 |---|---|---|
+| Cache failure | `failures/cache-failure/` | planned |
 | Database slowdown | `failures/db-slowdown/` | planned |
 | Database outage | `failures/db-outage/` | planned |
+| Database lock contention | `failures/db-lock-contention/` | planned |
+| Connection pool exhaustion | `failures/connection-pool-exhaustion/` | planned |
 | Redis outage | `failures/redis-outage/` | planned |
+| Redis eviction | `failures/redis-eviction/` | planned |
 | RabbitMQ backlog | `failures/rabbitmq-backlog/` | planned |
 | Kafka consumer lag | `failures/kafka-consumer-lag/` | planned |
+| CPU saturation | `failures/cpu-saturation/` | planned |
+| External API latency | `failures/external-api-latency/` | planned |
+| External API failure | `failures/external-api-failure/` | planned |
+| Retry storm | `failures/retry-storm/` | planned |
+| Timeout cascade | `failures/timeout-cascade/` | planned |
+| Service failure | `failures/service-failure/` | planned |
+| Deployment regression | `failures/deployment-regression/` | planned |
 | Pod crash | `failures/pod-crash/` | planned |
 | Memory leak | `failures/memory-leak/` | planned |
-| CPU saturation | `failures/cpu-saturation/` | planned |
 | Network latency | `failures/network-latency/` | planned |
 | Packet loss | `failures/packet-loss/` | planned |
 | Rolling deployment | `failures/rolling-deployment/` | planned |
@@ -80,6 +91,30 @@ How does the operator prove the scenario is understood/resolved?
 | Scenario | Folder | Status |
 |---|---|---|
 | Load testing baseline | `performance/load-test-baseline/` | planned |
+
+## Synthetic applications & scenarios
+
+**Synthetic applications are the designed substrate for scenarios.** Because they model production operations (HTTP, DB, cache, messaging, workers, latency) they can be driven through realistic incident chains without shipping a real business application:
+
+```text
+Generate traffic
+       ↓
+Synthetic application
+       ↓
+Database becomes saturated
+       ↓
+Latency increases
+       ↓
+Queue backlog grows
+       ↓
+Workers scale
+       ↓
+Database remains bottleneck
+       ↓
+Incident
+```
+
+Scenario targets designed to run against synthetic apps (many already cataloged above): cache failure, database slowdown, database lock contention, connection pool exhaustion, Redis eviction, RabbitMQ backlog, Kafka consumer lag, CPU saturation, memory pressure, external API latency, external API failure, retry storm, timeout cascade, traffic spike, traffic distribution change, pod failure, service failure, network latency, packet loss, deployment regression. Synthesis and coordination are described in `docs/architecture.md` → Synthetic Applications / Workload Engine.
 
 ## Planned scenario notes (`docs/scenarios.md` placeholder sections)
 

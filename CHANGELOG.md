@@ -32,7 +32,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/principles.md` — principles 9–12 (Physical ≠ Virtual, virtualize capacity, preserve dynamics, dual metrics).
 - `docs/component-catalog.md` — Simulation domain: Resource Virtualization Engine, Capacity Engine, Scaling Model, Traffic Model, Hardware Calibration, Resource Profiles.
 - `ROADMAP.md` — Phase 0.5 Simulation Foundation (planned).
-- `docs/vision.md` — Production Systems Simulator framing.
+- `docs/vision.md` — Production Systems Simulation and Engineering Platform framing.
+- `docs/decisions/0004-synthetic-applications-workload-engine.md` — Synthetic Applications / Workload Engine ADR (behavior over features, Workload DSL, templates).
+- `docs/architecture.md` — Synthetic Applications / Workload Engine subsystem: Mode A/B, Workload DSL, generator structure, dashboard integration.
+- `docs/vision.md` — three inputs → one production model; "Production Systems Simulation and Engineering Platform" framing.
+- `docs/principles.md` — principles 13–14 (system behavior over business functionality; business labels are visualization).
+- `docs/component-catalog.md` — Synthetic Applications domain: Workload Engine, generators, Operation Engine, data/concurrency models, Telemetry Generator, Workload Templates.
+- `docs/repository-structure.md` — `synthetic-apps/` planned layout.
+- `docs/scenarios.md` — synthetic applications as scenario substrate; added cache/lock/exhaustion/eviction/external-API/retry/timeout/regression scenario rows.
+- `docs/glossary.md` — Synthetic Application, Workload DSL, Production Operation, Feature Label, Workload Template.
+- `ROADMAP.md` — Proposed Synthetic Applications roadmap (planning sketch, non-committal).
 
 ### Changed
 
