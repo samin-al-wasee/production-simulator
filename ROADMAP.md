@@ -92,6 +92,21 @@ Legend: ⬜ planned · 🔨 in progress · ✅ done
 
 ---
 
+## Proposed: Synthetic Applications roadmap (planning sketch)
+
+> **Non-committal.** These are the currently proposed phases for the **Synthetic Applications / Workload Engine** subsystem (`docs/decisions/0004-synthetic-applications-workload-engine.md`). They are **not locked commitments** and do **not** replace the authoritative phases above. When authorized, this work is folded into the numbered phases. Phases listed in the sketch's "current proposed" order, not implementation order.
+
+- **Phase 1 — Synthetic Application Foundation:** Workload DSL, service model, endpoint model, operation model, synthetic service generator, basic HTTP workloads
+- **Phase 2 — Production Operations:** PostgreSQL operations, Redis operations, RabbitMQ operations, Kafka operations, background workers, concurrency, transactions, external calls
+- **Phase 3 — Production Infrastructure:** load balancer, reverse proxy, API gateway, containers, Kubernetes, service discovery, networking
+- **Phase 4 — Resource Virtualization:** physical resource detection, virtual resource model, capacity scaling, logical RPS scaling, virtual replicas, virtual memory/CPU/storage
+- **Phase 5 — Scenarios and Reliability:** failure injection, chaos, traffic manipulation, scaling scenarios, incidents, recovery
+- **Phase 6 — Dashboard:** application builder, topology visualization, live metrics, scenario controls, resource controls
+
+Note: the sketch's "Phase 4 — Resource Virtualization" covers the same territory as the authoritative **Phase 0.5 — Simulation Foundation** above; only one of the two will be active once this work is authorized.
+
+---
+
 ## How phases are advanced
 
 1. Documentation for the phase lands first (architecture + catalog updates).

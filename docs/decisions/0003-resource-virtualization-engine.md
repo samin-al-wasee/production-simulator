@@ -69,5 +69,5 @@ The engine **never fakes behavior, only virtualizes capacity**: bottlenecks, lat
 - `docs/principles.md` (principles 9–12: Physical ≠ Virtual, virtualize capacity, preserve dynamics, dual metrics)
 - `docs/component-catalog.md` (Simulation domain: Resource Virtualization Engine, Capacity Engine, Scaling Model, Traffic Model, Hardware Calibration, Resource Profiles)
 - `ROADMAP.md` Phase 0.5 — Simulation Foundation
-- `docs/vision.md` (Production Systems Simulator framing)
+- `docs/vision.md` (Production Systems Simulation and Engineering Platform framing)
 - `docs/decisions/0001-apply-stack-foundations.md` (Go core, composable monorepo)

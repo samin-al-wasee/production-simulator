@@ -22,6 +22,7 @@ ForgeLab/
 ├── docs/                    All architecture, principles, catalog, scenarios, decisions
 ├── core/                    Go simulation core, CLI, and manifest validation
 ├── simulation/              Planning sketch: resource virtualization modules (Phase 0.5, not implemented)
+├── synthetic-apps/          Planning sketch: workload engine and workload templates (not implemented)
 ├── applications/            Plugged-in sample/user applications (never core)
 ├── manifests/               Application manifest schema, validation, examples
 ├── components/              Optional production components, grouped by domain
@@ -40,6 +41,7 @@ ForgeLab/
 | `docs/` | Vision, architecture, principles, catalog, scenarios, glossary, learning path, decisions | Every conceptual document |
 | `core/` | `cmd/forgelab` CLI, `internal/manifest` validation, later simulation packages | Simulation core and its tooling |
 | `simulation/` | Planned (Phase 0.5) capacity-engine, resource-virtualization, scaling-model, traffic-model, calibration, profiles | Resource Virtualization Engine planning |
+| `synthetic-apps/` | Planned workload-engine, application/service/endpoint generators, operation-engine, models, telemetry-generator, templates | Synthetic Applications / Workload Engine planning |
 | `applications/` | One self-contained sample per plugged-in application: `applications/<name>/` | Application samples; never core code |
 | `manifests/` | `application.schema.yaml`, validation tooling, curated examples | Manifest schema and validation rules |
 | `components/` | One directory per domain: networking, compute, databases, messaging, storage, observability, security, infrastructure, cicd, reliability | Component implementations and their READMEs |
@@ -102,6 +104,30 @@ simulation/
 ├── traffic-model/
 ├── calibration/
 └── profiles/
+```
+
+## Synthetic apps layout
+
+Planned (Synthetic Applications / Workload Engine, not yet implemented):
+
+```text
+synthetic-apps/
+├── workload-engine/
+├── application-generator/
+├── service-generator/
+├── endpoint-generator/
+├── operation-engine/
+├── db-model/
+├── cache-model/
+├── messaging-model/
+├── concurrency-model/
+├── telemetry-generator/
+└── templates/
+    ├── generic/       # crud-api, read-heavy-api, write-heavy-api, ...
+    ├── ecommerce/     # catalog, cart, checkout, inventory
+    ├── travel/        # search, booking, notification
+    ├── banking/       # account, transfer, ledger
+    └── social/        # feed, chat, notification, media
 ```
 
 ## Cross-cutting rule

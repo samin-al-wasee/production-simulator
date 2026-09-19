@@ -4,6 +4,23 @@
 
 Common production systems terms as used in ForgeLab. Written for learners, not as exhaustive definitions.
 
+## Synthetic Applications & Workload
+
+### Synthetic Application
+A production-like application generated entirely from configuration, with no real business logic. Instead of a product's code, it models the underlying **production operations** — HTTP endpoints, database reads/writes, cache operations, messaging, latency, concurrency — that create real system behavior. ForgeLab treats it as a first-class input alongside real applications.
+
+### Workload DSL
+The future declarative configuration model for synthetic applications: services, endpoints, operations, latency, and concurrency. The exact schema is explicitly **not finalized** and will evolve.
+
+### Production Operation
+A unit of simulated work inside a synthetic application, e.g. `db_read`, `db_write`, `cache_read`, `publish_event`, `external_call`, `transaction`, `cpu`. Operations, not features, are what the simulator actually executes.
+
+### Feature Label
+A human-readable, business-domain name shown in visualization (e.g. "Checkout", "Search Flights"). It is a presentation detail: relabeling a workload does not change the simulated system behavior. Business-domain terminology is visualization; operations are the model.
+
+### Workload Template
+A reusable workload profile shipped with the platform — e.g. `crud-api`, `read-heavy-api`, `background-worker`, `checkout`, `search`. Templates describe engineering characteristics (read-heavy, write-heavy, message-heavy), not a specific product.
+
 ## Networking
 
 ### Load Balancer

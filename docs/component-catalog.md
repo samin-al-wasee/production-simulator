@@ -10,6 +10,7 @@ Reference for naming and structure: `AGENTS.md` §9. A component becomes real wh
 
 ```mermaid
 flowchart LR
+    SA[Synthetic Applications]
     SIM[Simulation]
     NW[Networking]
     CP[Compute]
@@ -21,10 +22,24 @@ flowchart LR
     IN[Infrastructure]
     CI[CI/CD]
     RE[Reliability]
-    APP[Your Application] --> SIM & NW & CP & DB & MS & ST & OB & SE & IN & CI & RE
+    APP[Your Application] --> SA & SIM & NW & CP & DB & MS & ST & OB & SE & IN & CI & RE
 ```
 
 ## Catalog by domain
+
+### Synthetic Applications
+
+| Component | Provides | Depends on | Status |
+|---|---|---|---|
+| Workload Engine | Interprets the Workload DSL and drives the synthetic application lifecycle | Service Generator, Operation Engine | planned |
+| Application Generator | Composes a synthetic application from a workload definition / selected templates | Workload Engine, Service Generator | planned |
+| Service Generator | Emits service definitions (HTTP, worker, scheduler) from the application model | Endpoint Generator | planned |
+| Endpoint Generator | Emits endpoints with their operation chains and latency profiles | Operation Engine | planned |
+| Operation Engine | Executes production operations: HTTP, db reads/writes, cache, messaging, cpu, memory, file, latency, retries | Data Models, Concurrency Model | planned |
+| Data Models | Operation profiles for PostgreSQL, Redis, RabbitMQ/Kafka, storage | Resource Virtualization Engine | planned |
+| Concurrency Model | Worker concurrency, connection pools, rate limiting | Resource Virtualization Engine | planned |
+| Telemetry Generator | Emits metrics/logs/traces for synthetic workloads | Observability | planned |
+| Workload Templates | Reusable workload profiles (crud-api, read-heavy-api, checkout, search, …) declared in the Workload DSL | Workload DSL | planned |
 
 ### Simulation
 
