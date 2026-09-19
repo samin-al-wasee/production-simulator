@@ -98,10 +98,87 @@ The layer that makes failure a feature:
 2. **Composition is explicit.** Every component used is declared by the user.
 3. **The dashboards/UI is a consumer.** The Next.js dashboard reads the runtime API; it never reimplements simulation logic.
 4. **Documentation precedes implementation.** A layer may not be built before its catalog entry and phase exist.
+5. **Physical ≠ Virtual.** Every environment has a physical footprint and a virtual production surface. The simulator scales capacity, never correctness; all virtual metrics carry their scale factor.
 
 ## Local single-node envelope (Phase 1)
 
 The first runnable shape is a single-node **Docker Compose** stack for the `local` preset: a reverse proxy, one user application, and one database (PostgreSQL). Details, rationale, and the placement of the Go core in `core/` are recorded in [`docs/decisions/0002-local-single-node-runtime.md`](decisions/0002-local-single-node-runtime.md). Later phases reuse this envelope when composing observability, messaging, and reliability around it.
+
+## Resource Virtualization Engine
+
+ForgeLab runs on a developer's finite local hardware (e.g. 16 GB RAM, 8 CPU cores) yet must simulate production systems that can span hundreds of servers, terabytes of memory, and millions of requests per second. The virtualization engine is the subsystem that reconciles the two: it **never fakes behavior, only virtualizes capacity**.
+
+It distinguishes two kinds of resources:
+
+* **Physical Resources** — the user's actual hardware: real CPU cores, RAM, disk, and running containers/processes.
+* **Virtual Production Resources** — the simulated production environment ForgeLab presents: virtual nodes, RAM, storage, RPS, replicas, and database capacity.
+
+### Three-layer model
+
+```mermaid
+flowchart LR
+    subgraph PHYS["Physical Layer (host)"]
+        HW["Real hardware<br/>CPU cores · RAM · disk"]
+        RT["Real containers / processes<br/>Docker, app, database"]
+    end
+
+    subgraph SIM["Simulation Layer — Resource Virtualization Engine"]
+        CAL["Hardware Calibration"]
+        BUD["Physical Resource Budget"]
+        SCF["Scale Factor Engine"]
+        VMOD["Virtual Resource Model"]
+        CAP["Capacity Engine"]
+        TRM["Traffic Model"]
+        SCL["Scaling Model"]
+    end
+
+    subgraph VIEW["Production View (virtual cluster)"]
+        VCLU["Virtual cluster<br/>nodes · RAM · RPS · storage · replicas"]
+        DASH["Dashboard — Dual Metrics Mode<br/>physical + virtual, always scaled"]
+    end
+
+    HW --> CAL
+    CAL --> BUD
+    BUD --> SCF
+    SCF --> VMOD
+    RT --> BUD
+    CAP --> VMOD
+    TRM --> VMOD
+    SCL --> VMOD
+    VMOD --> VCLU
+    VCLU --> DASH
+```
+
+The layers:
+
+1. **Physical Layer** — the actual host. Hardware detection, remaining free resources, and the real containers/processes ForgeLab orchestrates.
+2. **Simulation Layer** — the Resource Virtualization Engine. Calibrates the host, budgets physical resources, computes a deterministic **scale factor** (×64, ×128, …), and maintains the virtual resource model of the declared production topology.
+3. **Production View** — the virtual cluster the user interacts with: the nodes, capacities, traffic, and topologies of the simulated production environment, with all metrics presented in virtual terms.
+
+The engine preserves real system dynamics: the same bottleneck, latency, or exhaustion behavior that would occur in real production is reproduced, but the *displayed capacity* is scaled by the active factor.
+
+### Planned module structure (`simulation/`)
+
+The engine is planned as modules under `simulation/` at the repository root, kept as pure Go, deterministic, and headless-testable (see `docs/component-catalog.md` → **Simulation** domain):
+
+```text
+simulation/
+├── capacity-engine/
+├── resource-virtualization/
+├── scaling-model/
+├── traffic-model/
+├── calibration/
+└── profiles/
+```
+
+### Dashboard: Dual Metrics Mode
+
+The dashboard consumes the runtime API and must render, for every infrastructure view, both:
+
+* **Physical Host Metrics** — real CPU, RAM, disk, containers.
+* **Virtual Production Metrics** — virtual nodes, RAM, RPS, storage, replicas.
+
+The UI must always display the current simulation scale (e.g. ×64, ×128) and must **never present virtual values as real hardware measurements**. Virtual values are labelled and visually distinct from host metrics.
 
 ## Boundary: platform vs application
 

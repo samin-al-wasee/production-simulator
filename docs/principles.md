@@ -36,11 +36,27 @@ Local-first: the same manifest runs on a laptop and in the cloud. Cloud presets 
 
 Architecture and decisions precede implementation. A component may not be built before it is documented in the catalog and authorized by a roadmap phase. Docs and code ship together.
 
+## 9. Physical ≠ Virtual
+
+ForgeLab's physical resources (the user's actual hardware) are distinct from its virtual production resources (the simulated environment it presents). The two are never conflated: virtual capacity is an artifact of the simulator, not a claim about the host.
+
+## 10. Never fake behavior, only virtualize capacity
+
+The simulator scales how much capacity the production view *displays* — nodes, RAM, RPS, replicas — but never fakes how a real system would *behave*. Bottlenecks, latency, backpressure, and exhaustion occur for the same reasons they would in real production, at the scale the view claims.
+
+## 11. Preserve bottlenecks and system dynamics
+
+Scaling the displayed capacity must not erase the system dynamics that make production interesting. If the database is the bottleneck at ×1, it remains the bottleneck at ×128. The scale factor changes capacity, not the shape of the system.
+
+## 12. Always expose both physical and virtual metrics
+
+Every infrastructure surface shows both host metrics and virtual production metrics, with the current simulation scale (e.g. ×64, ×128) always visible. Virtual values are labeled and never presented as real hardware measurements.
+
 ---
 
 ## Derived rules
 
-* **Deterministic core** — simulation logic runs identically every time and is testable without a UI (see coding philosophy in `AGENTS.md`).
+* **Deterministic core** — simulation logic runs identically every time and is testable without a UI (see coding philosophy in `AGENTS.md`). The scale factor is deterministic for a given host and manifest.
 * **Clean boundaries** — application, runtime, and dashboard stay separable; dependencies flow one way.
 * **No secrets** — never log, store, or commit passwords, tokens, or keys.
 * **Explicit before magical** — plain, reviewable code beats framework cleverness.

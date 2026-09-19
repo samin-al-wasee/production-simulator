@@ -8,6 +8,7 @@ This directory records ForgeLab's architecture decisions. Rules live in `AGENTS.
 |---|---|---|
 | [0001](0001-apply-stack-foundations.md) | Accepted | Stack foundations: Go core, Next.js dashboard, optional Python, composable monorepo |
 | [0002](0002-local-single-node-runtime.md) | Proposed | Local single-node runtime: Docker Compose local preset and Go core in `core/` |
+| [0003](0003-resource-virtualization-engine.md) | Proposed | Resource Virtualization Engine: physical vs virtual resource model and `simulation/` modules (Phase 0.5) |
 
 ## Conventions
 
