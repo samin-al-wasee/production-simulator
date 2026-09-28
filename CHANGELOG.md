@@ -9,7 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Dual metrics now apply each resource's own virtual/physical ratio to its usage, so utilization matches in both views (previously the single binding factor could show virtual CPU above 100% on a lightly loaded host).
+- Phase 7 completed: `core/internal/pipeline` and `forgelab pipeline run` (virtual-clock build/test/deploy simulation with rolling, canary, blue/green and rollback), `core/internal/api` and `forgelab serve`, the `dashboard/` Next.js app (Overview with Dual Metrics Mode, Experiments, Pipelines), and `make serve`/`dashboard-dev` (ADR-0010).
+- Phase 6 completed: Terraform presets for AWS (EKS, RDS, ElastiCache, SQS+DLQ, Budgets) and GCP (GKE, Cloud SQL, Memorystore, Pub/Sub+DLQ, budget) with validated safe defaults, `environments/cloud/cost-guard.yaml`, `core/internal/costguard` and `forgelab costguard check`, `scripts/cloud-validate.sh`, `scripts/cloud-plan.sh` (never applies), and `make cloud-validate`/`cloud-plan` (ADR-0009).
+- Phase 5 completed: `core/internal/chaos` and `forgelab chaos` (declared experiments with hypothesis probes), `core/internal/loadtest` and `forgelab loadtest` (constant/ramp/spike, open-loop, virtual RPS), outage drills for database, Redis, Kafka and network latency, `scripts/db-backup.sh`, `db-restore.sh`, `dr-drill.sh`, and `make chaos`/`loadtest`/`backup` (ADR-0008).
+- Phase 4 completed: Kubernetes environment on `kind` (`environments/cloud/kubernetes/` — base, canary and blue-green strategies, HPA, ingress-nginx, metrics-server), `make k8s-up`/`k8s-down`, `scripts/k8s-*.sh`, four scenarios (rolling, canary, blue/green, HPA scale-out), and `/version`, `cpu_ms`, `APP_UNHEALTHY` in the sample app (ADR-0007).
+- Phase 3 completed: `environments/local/compose.messaging.yaml` (Redis, RabbitMQ with declared retry/dead-letter topology, Kafka with retry and DLQ topics, exporters), Redis-backed `/api/cache` and `/api/limited` in the sample app, `core/internal/retry` and `forgelab retry`, `scripts/messaging-smoke.sh`, `scripts/dlq-requeue.sh`, `make up-msg`/`up-all`/`smoke-msg`, and new alerts (ADR-0006).
+- Phase 2 completed: `environments/local/compose.observability.yaml` (Prometheus, Grafana, Loki + Promtail, Tempo, OpenTelemetry Collector, nginx and PostgreSQL exporters), reference dashboard and alerts, `make up-obs`, and a dependency-free telemetry layer plus `/api/work` in `applications/sample-web` (ADR-0005).
 - Repository bootstrap: directory structure, conventions, and documentation.
+- `environments/local/` — implemented `local` preset: Docker Compose stack (nginx reverse proxy + sample application + PostgreSQL) with container healthchecks and dependency ordering (Phase 1, ADR-0002).
+- `environments/local/proxy/nginx.conf` — reverse-proxy configuration for the local preset.
+- `environments/local/.env.example` — credential/port template for the local preset.
+- Phase 0.5 completed: `core/internal/virtualcluster`, `scale`, `capacity`, `metrics`, `forgelab cluster`, and `manifests/cluster.example.yaml` (virtual cluster model, scale factor engine, capacity modeling, Dual Metrics translation).
+- `core/internal/calibration`, `core/internal/budget`, and `forgelab host` — hardware detection (cgroup-aware) and physical resource budgeting (Phase 0.5, ADR-0003 accepted).
+- `docs/development-loop.md`, `/dev-loop` command for OpenCode and Claude Code — agent-agnostic requirement → plan → implement → review → test → document loop.
+- `applications/sample-web/` — minimal sample application (Go, stdlib only) behind the local proxy; `/healthz` reports database reachability.
+- `components/networking/reverse-proxy/` and `components/databases/postgresql/` — component READMEs, marked implemented in `docs/component-catalog.md`.
+- `Makefile` — `up`, `down`, `ps`, `logs` targets for the `local` stack.
 - `docs/vision.md` — why ForgeLab exists and what problems it solves.
 - `docs/architecture.md` — conceptual, composable, multi-layer architecture.
 - `docs/principles.md` — design principles (platform over application, composition over configuration, production parity, etc.).
@@ -45,5 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `ROADMAP.md` — Phase 1 (Local single-node) marked done.
+- `README.md` — Status and Getting Started now document the runnable `local` preset.
+- `docs/component-catalog.md`, `environments/` READMEs, `applications/` README — component and sample status moved from planned to implemented.
 - `ROADMAP.md` — Phase 1 (Local single-node) marked in progress.
 - `docs/architecture.md`, `docs/repository-structure.md`, `AGENTS.md` — document the local single-node envelope and `core/` placement.

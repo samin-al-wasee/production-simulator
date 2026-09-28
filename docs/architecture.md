@@ -163,9 +163,9 @@ The layers:
 
 The engine preserves real system dynamics: the same bottleneck, latency, or exhaustion behavior that would occur in real production is reproduced, but the *displayed capacity* is scaled by the active factor.
 
-### Planned module structure (`simulation/`)
+### Module structure (`simulation/`)
 
-The engine is planned as modules under `simulation/` at the repository root, kept as pure Go, deterministic, and headless-testable (see `docs/component-catalog.md` → **Simulation** domain):
+The engine is organized as the modules below, kept as pure Go, deterministic, and headless-testable. They are implemented as packages under `core/internal/` (see the amendment in ADR-0003), not as a root `simulation/` directory (see `docs/component-catalog.md` → **Simulation** domain):
 
 ```text
 simulation/
@@ -176,6 +176,8 @@ simulation/
 ├── calibration/
 └── profiles/
 ```
+
+Implemented (Phase 0.5): `core/internal/calibration` (host detection, cgroup-aware), `core/internal/budget` (physical budget), `core/internal/virtualcluster` (declared virtual cluster and profiles), `core/internal/scale` (scale factor), `core/internal/capacity` (utilization, saturation, time to exhaustion), and `core/internal/metrics` (Dual Metrics Mode translation), exposed by `forgelab host` and `forgelab cluster`. The scale factor is the binding resource ratio rounded up to a power of two.
 
 ### Dashboard: Dual Metrics Mode
 

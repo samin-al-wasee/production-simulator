@@ -48,3 +48,15 @@ venv/
 *.log
 logs/
 tmp/
+# ---- Local backups (scripts/db-backup.sh) ----
+/backups/
+
+# ---- Terraform ----
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+terraform.tfvars
+*.auto.tfvars
+tfplan.json

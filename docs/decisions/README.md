@@ -8,8 +8,14 @@ This directory records ForgeLab's architecture decisions. Rules live in `AGENTS.
 |---|---|---|
 | [0001](0001-apply-stack-foundations.md) | Accepted | Stack foundations: Go core, Next.js dashboard, optional Python, composable monorepo |
 | [0002](0002-local-single-node-runtime.md) | Proposed | Local single-node runtime: Docker Compose local preset and Go core in `core/` |
-| [0003](0003-resource-virtualization-engine.md) | Proposed | Resource Virtualization Engine: physical vs virtual resource model and `simulation/` modules (Phase 0.5) |
+| [0003](0003-resource-virtualization-engine.md) | Accepted | Resource Virtualization Engine: physical vs virtual resource model and `simulation/` modules (Phase 0.5) |
 | [0004](0004-synthetic-applications-workload-engine.md) | Proposed | Synthetic Applications / Workload Engine: behavior-over-features model, Workload DSL, workload templates |
+| [0005](0005-observability-overlay.md) | Accepted | Observability as a composable Compose overlay (Phase 2) |
+| [0006](0006-messaging-overlay-and-retry-semantics.md) | Accepted | Messaging & data overlay with declared retry and dead-letter semantics (Phase 3) |
+| [0007](0007-kubernetes-environment.md) | Accepted | Kubernetes environment: kind cluster with Kustomize manifests (Phase 4) |
+| [0008](0008-chaos-load-and-recovery-tooling.md) | Accepted | Chaos, load, and recovery tooling in the Go core (Phase 5) |
+| [0009](0009-cloud-presets-and-cost-guard.md) | Accepted | Terraform cloud presets with a plan-time cost guard (Phase 6) |
+| [0010](0010-pipeline-simulation-and-dashboard.md) | Accepted | Pipeline simulation, core API, and Next.js dashboard (Phase 7) |
 
 ## Conventions
 

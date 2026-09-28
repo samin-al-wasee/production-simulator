@@ -2,7 +2,7 @@
 
 **Document status:** Baseline · v1.0
 
-Scenarios are reproducible drills that make production conditions inspectable: traffic, failures, security, scaling, and performance. **Nothing is implemented yet** — the list is cataloged so later phases can build each one.
+Scenarios are reproducible drills that make production conditions inspectable: traffic, failures, security, scaling, and performance. Scenarios marked `implemented` have a folder with a README and can be run today; the rest are cataloged so later phases can build them.
 
 ## Scenario template
 
@@ -51,10 +51,11 @@ How does the operator prove the scenario is understood/resolved?
 |---|---|---|
 | Cache failure | `failures/cache-failure/` | planned |
 | Database slowdown | `failures/db-slowdown/` | planned |
-| Database outage | `failures/db-outage/` | planned |
+| Database outage | `failures/db-outage/` | implemented |
 | Database lock contention | `failures/db-lock-contention/` | planned |
 | Connection pool exhaustion | `failures/connection-pool-exhaustion/` | planned |
-| Redis outage | `failures/redis-outage/` | planned |
+| Redis outage | `failures/redis-outage/` | implemented |
+| Kafka outage | `failures/kafka-outage/` | implemented |
 | Redis eviction | `failures/redis-eviction/` | planned |
 | RabbitMQ backlog | `failures/rabbitmq-backlog/` | planned |
 | Kafka consumer lag | `failures/kafka-consumer-lag/` | planned |
@@ -67,12 +68,12 @@ How does the operator prove the scenario is understood/resolved?
 | Deployment regression | `failures/deployment-regression/` | planned |
 | Pod crash | `failures/pod-crash/` | planned |
 | Memory leak | `failures/memory-leak/` | planned |
-| Network latency | `failures/network-latency/` | planned |
+| Network latency | `failures/network-latency/` | implemented |
 | Packet loss | `failures/packet-loss/` | planned |
-| Rolling deployment | `failures/rolling-deployment/` | planned |
-| Canary deployment | `failures/canary-deployment/` | planned |
-| Blue/Green deployment | `failures/blue-green-deployment/` | planned |
-| Disaster recovery | `failures/disaster-recovery/` | planned |
+| Rolling deployment | `failures/rolling-deployment/` | implemented |
+| Canary deployment | `failures/canary-deployment/` | implemented |
+| Blue/Green deployment | `failures/blue-green-deployment/` | implemented |
+| Disaster recovery | `failures/disaster-recovery/` | implemented |
 
 ### Security (`scenarios/security/`)
 
@@ -84,13 +85,13 @@ How does the operator prove the scenario is understood/resolved?
 
 | Scenario | Folder | Status |
 |---|---|---|
-| Autoscaling under load | `scaling/hpa-scale-out/` | planned |
+| Autoscaling under load | `scaling/hpa-scale-out/` | implemented |
 
 ### Performance (`scenarios/performance/`)
 
 | Scenario | Folder | Status |
 |---|---|---|
-| Load testing baseline | `performance/load-test-baseline/` | planned |
+| Load testing baseline | `performance/load-test-baseline/` | implemented |
 
 ## Synthetic applications & scenarios
 
