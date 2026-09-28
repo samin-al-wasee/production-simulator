@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars (git-ignored).
+project_id           = "your-dedicated-project"
+owner                = "your-name"
+region               = "us-central1"
+experiment_ttl_hours = 8
+monthly_budget_usd   = 50
+# billing_account    = "000000-000000-000000"
