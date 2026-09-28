@@ -74,6 +74,7 @@ How does the operator prove the scenario is understood/resolved?
 | Canary deployment | `failures/canary-deployment/` | implemented |
 | Blue/Green deployment | `failures/blue-green-deployment/` | implemented |
 | Disaster recovery | `failures/disaster-recovery/` | implemented |
+| Multi-failure incident | `failures/multi-failure-incident/` | implemented |
 
 ### Security (`scenarios/security/`)
 
