@@ -17,7 +17,11 @@ core/
 ├── internal/retry/        Retry backoff and dead-letter semantics — Phase 3
 ├── internal/chaos/        Declared fault-injection experiments — Phase 5
 ├── internal/loadtest/     Open-loop HTTP load generator — Phase 5
-└── internal/costguard/    Terraform plan cost guard — Phase 6
+├── internal/costguard/    Terraform plan cost guard — Phase 6
+├── internal/pipeline/     CI/CD pipeline simulation on a virtual clock — Phase 7
+├── internal/api/          HTTP API for the dashboard — Phase 7
+├── internal/compliance/   Hardening controls for Kubernetes and Compose — Phase 8
+└── internal/secretscan/   Committed-secret detection — Phase 8
 ```
 
 ## Commands (from the repository root, inside the devcontainer)

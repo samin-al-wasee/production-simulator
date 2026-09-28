@@ -47,6 +47,8 @@ func main() {
 		os.Exit(runPipeline(os.Args[2:]))
 	case "serve":
 		os.Exit(runServe(os.Args[2:]))
+	case "security":
+		os.Exit(runSecurity(os.Args[2:]))
 	default:
 		fmt.Fprintf(os.Stderr, "forgelab: unknown command %q\n\n", os.Args[1])
 		usage(os.Stderr)
@@ -67,6 +69,7 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "  costguard  check a Terraform plan (JSON) against the cost-guard rules")
 	fmt.Fprintln(w, "  pipeline   simulate a build, test, and deploy pipeline on a virtual clock")
 	fmt.Fprintln(w, "  serve      serve the core over HTTP for the dashboard")
+	fmt.Fprintln(w, "  security   scan for committed secrets and check manifests against hardening controls")
 }
 
 func runValidate(args []string) int {
