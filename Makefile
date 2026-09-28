@@ -125,6 +125,18 @@ scan-secrets: ## Scan the repository for committed credentials
 compliance: ## Check Compose files and Kubernetes manifests against hardening controls
 	sh scripts/compliance.sh
 
+.PHONY: e2e
+e2e: ## End-to-end run of the Compose lab: start, smoke, drills, benchmark, progress, tear down (E2E_KEEP=1 keeps it up)
+	sh scripts/e2e.sh
+
+.PHONY: benchmark
+benchmark: ## Baseline, ramp, and spike benchmark with a report in reports/: make benchmark URL=http://localhost:8080/api/work
+	cd core && go run ./cmd/forgelab benchmark -url $(URL) $(if $(RPS),-rps $(RPS)) $(if $(STEP),-step-duration $(STEP))
+
+.PHONY: learn
+learn: ## Show progress through the learning path
+	cd core && go run ./cmd/forgelab learn status
+
 .PHONY: down
 down: ## Stop and remove the local lab stack
 	docker compose $(ALL_COMPOSE) down
