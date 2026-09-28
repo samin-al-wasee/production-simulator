@@ -1,0 +1,28 @@
+{
+  "name": "forgelab-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ForgeLab dashboard: a thin consumer of the forgelab API.",
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "next start --port 3001",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "next": "16.3.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "^19.2.0",
+    "eslint": "^9.39.0",
+    "eslint-config-next": "16.3.6",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}

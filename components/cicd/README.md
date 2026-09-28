@@ -2,14 +2,14 @@
 
 Delivery automation: pipelines, deployment strategies, and artifacts.
 
-**Status:** cataloged in `docs/component-catalog.md` — nothing implemented yet.
+**Status:** partially implemented — Pipeline Runner (Phase 7) and Deploy Controller (Phase 4) ship; Artifact Registry is planned.
 
-## Planned components
+## Components
 
 | Component | Provides | Status |
 |---|---|---|
-| Pipeline Runner | Simulated build → test → deploy pipelines | planned |
-| Deploy Controller | Rolling, canary, blue/green rollouts | planned |
+| Pipeline Runner | Simulated build → test → deploy pipelines | implemented — see [pipeline-runner/](pipeline-runner/) |
+| Deploy Controller | Rolling, canary, blue/green rollouts | implemented — see [deploy-controller/](deploy-controller/) |
 | Artifact Registry | Versioned build artifacts | planned |
 
 CI/CD is a component like any other — optional, declarative, and reproducible.
