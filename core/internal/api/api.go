@@ -21,6 +21,7 @@ import (
 	"github.com/samin-al-wasee/production-simulator/core/internal/budget"
 	"github.com/samin-al-wasee/production-simulator/core/internal/calibration"
 	"github.com/samin-al-wasee/production-simulator/core/internal/chaos"
+	"github.com/samin-al-wasee/production-simulator/core/internal/learning"
 	"github.com/samin-al-wasee/production-simulator/core/internal/metrics"
 	"github.com/samin-al-wasee/production-simulator/core/internal/pipeline"
 	"github.com/samin-al-wasee/production-simulator/core/internal/scale"
@@ -37,6 +38,11 @@ type Config struct {
 	DiskPath string
 	// Reserve is the host reserve fraction in [0, 1).
 	Reserve float64
+	// LearningPath is the learning path file, relative to RepoRoot.
+	LearningPath string
+	// ProgressFile stores learner progress; default .forgelab/progress.json
+	// under RepoRoot.
+	ProgressFile string
 	// EnableRuns allows starting chaos experiments through the API.
 	EnableRuns bool
 	// AllowedOrigin, when set, is returned in CORS headers.
@@ -54,6 +60,8 @@ type Server struct {
 	Probe  chaos.Prober
 	Sleep  func(time.Duration)
 
+	progressMu sync.Mutex
+
 	mux  *http.ServeMux
 	mu   sync.Mutex
 	runs map[string]*ExperimentRun
@@ -67,6 +75,12 @@ func NewServer(cfg Config) *Server {
 	}
 	if cfg.DiskPath == "" {
 		cfg.DiskPath = "."
+	}
+	if cfg.LearningPath == "" {
+		cfg.LearningPath = "learning/path.yaml"
+	}
+	if cfg.ProgressFile == "" {
+		cfg.ProgressFile = filepath.Join(cfg.RepoRoot, ".forgelab", "progress.json")
 	}
 	s := &Server{
 		cfg:    cfg,
@@ -87,6 +101,8 @@ func NewServer(cfg Config) *Server {
 	s.mux.HandleFunc("POST /api/v1/experiments/{name}/runs", s.handleStartRun)
 	s.mux.HandleFunc("GET /api/v1/experiment-runs", s.handleListRuns)
 	s.mux.HandleFunc("GET /api/v1/experiment-runs/{id}", s.handleGetRun)
+	s.mux.HandleFunc("GET /api/v1/learning", s.handleLearning)
+	s.mux.HandleFunc("POST /api/v1/learning/{id}/complete", s.handleLearningComplete)
 	s.mux.HandleFunc("GET /api/v1/pipelines", s.handlePipelines)
 	s.mux.HandleFunc("POST /api/v1/pipelines/{name}/runs", s.handleSimulatePipeline)
 	return s
@@ -343,6 +359,7 @@ func (s *Server) handleStartRun(w http.ResponseWriter, r *http.Request) {
 			run.Status, run.Error = "error", err.Error()
 		case rep.Passed:
 			run.Status = "passed"
+			s.recordExperiment(e.Metadata.Name)
 		default:
 			run.Status = "failed"
 		}
@@ -483,4 +500,58 @@ func (s *Server) handleSimulatePipeline(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeJSON(w, http.StatusOK, run)
+}
+
+func (s *Server) loadLearning() (*learning.Path, learning.Progress, error) {
+	path, err := learning.LoadPath(filepath.Join(s.cfg.RepoRoot, s.cfg.LearningPath))
+	if err != nil {
+		return nil, learning.Progress{}, err
+	}
+	progress, err := learning.LoadProgress(s.cfg.ProgressFile)
+	return path, progress, err
+}
+
+// recordExperiment completes the learning exercises tied to a passing
+// experiment. Problems are ignored: a run's result must not depend on
+// bookkeeping.
+func (s *Server) recordExperiment(name string) {
+	s.progressMu.Lock()
+	defer s.progressMu.Unlock()
+	path, progress, err := s.loadLearning()
+	if err != nil {
+		return
+	}
+	if fresh := progress.Record(path, learning.EvidenceExperiment, name, time.Now()); len(fresh) > 0 {
+		progress.Save(s.cfg.ProgressFile)
+	}
+}
+
+func (s *Server) handleLearning(w http.ResponseWriter, _ *http.Request) {
+	s.progressMu.Lock()
+	path, progress, err := s.loadLearning()
+	s.progressMu.Unlock()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "%v", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, path.Status(progress))
+}
+
+func (s *Server) handleLearningComplete(w http.ResponseWriter, r *http.Request) {
+	s.progressMu.Lock()
+	defer s.progressMu.Unlock()
+	path, progress, err := s.loadLearning()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "%v", err)
+		return
+	}
+	if _, err := progress.Complete(path, r.PathValue("id"), "manual", time.Now()); err != nil {
+		writeError(w, http.StatusNotFound, "%v", err)
+		return
+	}
+	if err := progress.Save(s.cfg.ProgressFile); err != nil {
+		writeError(w, http.StatusInternalServerError, "%v", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, path.Status(progress))
 }

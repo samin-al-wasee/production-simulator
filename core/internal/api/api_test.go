@@ -86,6 +86,19 @@ spec:
       deploy: {strategy: canary, canarySteps: [50, 100], analysisDuration: 60s}
 `
 
+const learningYAML = `
+apiVersion: forgelab/v1
+kind: LearningPath
+metadata: {name: t}
+spec:
+  stages:
+    - id: s1
+      title: One
+      exercises:
+        - {id: s1-a, title: manual thing, evidence: {type: manual}}
+        - {id: s1-b, title: outage, evidence: {type: experiment, name: db-outage}}
+`
+
 func newTestServer(t *testing.T, enableRuns bool) (*Server, *fakeExec) {
 	t.Helper()
 	root := t.TempDir()
@@ -102,6 +115,7 @@ func newTestServer(t *testing.T, enableRuns bool) (*Server, *fakeExec) {
 	write("scenarios/failures/broken/experiment.yaml", "not: valid")
 	write("manifests/cluster.example.yaml", clusterYAML)
 	write("manifests/pipelines/demo.yaml", pipelineYAML)
+	write("learning/path.yaml", learningYAML)
 
 	ex := &fakeExec{}
 	s := NewServer(Config{RepoRoot: root, Reserve: 0.25, EnableRuns: enableRuns})
@@ -320,5 +334,52 @@ func TestCORS(t *testing.T) {
 	newRec.ServeHTTP(rec2, httptest.NewRequest("GET", "/healthz", nil))
 	if rec2.Header().Get("Access-Control-Allow-Origin") != "" {
 		t.Fatal("CORS header must be absent when no origin is configured")
+	}
+}
+
+func TestLearningStatusAndManualCompletion(t *testing.T) {
+	s, _ := newTestServer(t, false)
+	_, st := do(t, s, "GET", "/api/v1/learning", "")
+	if st["total"] != float64(2) || st["done"] != float64(0) || st["next"] != "s1-a" {
+		t.Fatalf("status = %v", st)
+	}
+	rec, st := do(t, s, "POST", "/api/v1/learning/s1-a/complete", "")
+	if rec.Code != 200 || st["done"] != float64(1) || st["next"] != "s1-b" {
+		t.Fatalf("code=%d status=%v", rec.Code, st)
+	}
+	if rec, _ := do(t, s, "POST", "/api/v1/learning/nope/complete", ""); rec.Code != 404 {
+		t.Fatalf("unknown exercise code = %d", rec.Code)
+	}
+	if _, err := os.Stat(s.cfg.ProgressFile); err != nil {
+		t.Fatalf("progress must be persisted: %v", err)
+	}
+}
+
+func TestPassingExperimentCompletesItsExercise(t *testing.T) {
+	s, _ := newTestServer(t, true)
+	rec, body := do(t, s, "POST", "/api/v1/experiments/db-outage/runs", "")
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("code = %d", rec.Code)
+	}
+	id := body["id"].(string)
+	for i := 0; i < 100; i++ {
+		_, run := do(t, s, "GET", "/api/v1/experiment-runs/"+id, "")
+		if run["status"] == "passed" {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	var st map[string]any
+	for i := 0; i < 100; i++ {
+		_, st = do(t, s, "GET", "/api/v1/learning", "")
+		if st["done"] == float64(1) {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	stage := st["stages"].([]any)[0].(map[string]any)
+	ex := stage["exercises"].([]any)[1].(map[string]any)
+	if ex["done"] != true || ex["completedBy"] != "experiment:db-outage" {
+		t.Fatalf("exercise = %v", ex)
 	}
 }

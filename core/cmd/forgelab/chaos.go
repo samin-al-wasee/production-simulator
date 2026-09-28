@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/samin-al-wasee/production-simulator/core/internal/chaos"
+	"github.com/samin-al-wasee/production-simulator/core/internal/learning"
 )
 
 func runChaos(args []string) int {
@@ -89,5 +90,6 @@ func chaosRun(args []string) int {
 		return exitFailed
 	}
 	fmt.Printf("\nexperiment %s PASSED: hypothesis held and the system recovered\n", rep.Experiment)
+	recordEvidence(learning.EvidenceExperiment, rep.Experiment)
 	return exitOK
 }
