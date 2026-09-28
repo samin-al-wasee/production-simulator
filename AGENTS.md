@@ -127,6 +127,7 @@ Before adding a component:
 
 ## 11. Workflow rules
 
+- **Follow the development loop** — requirement → plan → implement → review → test → document → repeat, as defined in [`docs/development-loop.md`](docs/development-loop.md). Invoke with `/dev-loop <requirement>` in OpenCode or Claude Code.
 - **Always read the docs before acting** — at minimum `README.md`, `ROADMAP.md`, and the folder READMEs that the change touches.
 - **Plan before code** — for any non-trivial task, state the files to change, the docs to update, and the verification plan.
 - **Verify after meaningful changes** — run the appropriate test and lint commands. See `.opencode/command/` (`test.md`, `lint.md`). Current expectations:
