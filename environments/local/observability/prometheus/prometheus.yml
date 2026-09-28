@@ -1,0 +1,52 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: app
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["app:8080"]
+
+  - job_name: proxy
+    static_configs:
+      - targets: ["nginx-exporter:9113"]
+
+  - job_name: database
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+
+  - job_name: otel-collector
+    static_configs:
+      - targets: ["otel-collector:8888"]
+
+  # Messaging & data targets belong to the optional compose.messaging.yaml
+  # overlay. The `optional` label keeps the generic TargetDown alert quiet
+  # when the overlay is not running.
+  - job_name: redis
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+        labels:
+          optional: "true"
+
+  - job_name: rabbitmq
+    metrics_path: /metrics/detailed
+    params:
+      family: [queue_coarse_metrics, node_coarse_metrics]
+    static_configs:
+      - targets: ["rabbitmq:15692"]
+        labels:
+          optional: "true"
+
+  - job_name: kafka
+    static_configs:
+      - targets: ["kafka-exporter:9308"]
+        labels:
+          optional: "true"
