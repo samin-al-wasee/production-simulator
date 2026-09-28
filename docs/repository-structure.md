@@ -21,7 +21,7 @@ ForgeLab/
 │
 ├── docs/                    All architecture, principles, catalog, scenarios, decisions
 ├── core/                    Go simulation core, CLI, and manifest validation
-├── simulation/              Planning sketch: resource virtualization modules (Phase 0.5, not implemented)
+├── dashboard/               Next.js dashboard (thin consumer of the core API)
 ├── synthetic-apps/          Planning sketch: workload engine and workload templates (not implemented)
 ├── applications/            Plugged-in sample/user applications (never core)
 ├── manifests/               Application manifest schema, validation, examples
@@ -39,8 +39,7 @@ ForgeLab/
 | Folder | Contains | Owns |
 |---|---|---|
 | `docs/` | Vision, architecture, principles, catalog, scenarios, glossary, learning path, decisions | Every conceptual document |
-| `core/` | `cmd/forgelab` CLI, `internal/manifest` validation, later simulation packages | Simulation core and its tooling |
-| `simulation/` | Planned (Phase 0.5) capacity-engine, resource-virtualization, scaling-model, traffic-model, calibration, profiles | Resource Virtualization Engine planning |
+| `core/` | `cmd/forgelab` CLI, `internal/manifest` validation, `internal/calibration` and `internal/budget` (Phase 0.5), later simulation packages | Simulation core and its tooling |
 | `synthetic-apps/` | Planned workload-engine, application/service/endpoint generators, operation-engine, models, telemetry-generator, templates | Synthetic Applications / Workload Engine planning |
 | `applications/` | One self-contained sample per plugged-in application: `applications/<name>/` | Application samples; never core code |
 | `manifests/` | `application.schema.yaml`, validation tooling, curated examples | Manifest schema and validation rules |
@@ -59,6 +58,7 @@ ForgeLab/
 | `docs/vision.md` | Why ForgeLab exists |
 | `docs/architecture.md` | Conceptual, composable architecture |
 | `docs/principles.md` | Design principles |
+| `docs/development-loop.md` | Agent-agnostic requirement → plan → implement → review → test → document loop |
 | `docs/repository-structure.md` | This document |
 | `docs/component-catalog.md` | Catalog of planned components by domain |
 | `docs/scenarios.md` | Scenario template + planned scenarios |
@@ -94,7 +94,7 @@ environments/
 
 ## Simulation layout
 
-Planned (Phase 0.5 — Simulation Foundation, not yet implemented):
+Phase 0.5 — Simulation Foundation, in progress. The module map below is conceptual; the code lives in `core/internal/` (ADR-0003 amendment). `calibration` and `budget` are implemented:
 
 ```text
 simulation/

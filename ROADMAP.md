@@ -18,66 +18,66 @@ Legend: ⬜ planned · 🔨 in progress · ✅ done
 - [x] Contribution and agent conventions (`CONTRIBUTING.md`, `AGENTS.md`)
 - [x] Getting-started placeholder in `README.md`
 
-## Phase 0.5 — Simulation Foundation *⬜ planned*
+## Phase 0.5 — Simulation Foundation *✅ done*
 
 > Introduce the **Resource Virtualization Engine** so ForgeLab can represent production systems much larger than the host hardware. No production components yet; this phase is the virtual resource model under everything else.
 
-- [ ] Hardware detection and calibration
-- [ ] Physical resource budgeting
-- [ ] Virtual cluster model
-- [ ] Scale factor engine
-- [ ] Capacity modeling (CPU, RAM, storage, database)
-- [ ] Physical vs virtual dashboard metrics (Dual Metrics Mode)
+- [x] Hardware detection and calibration (`core/internal/calibration`, `forgelab host`)
+- [x] Physical resource budgeting (`core/internal/budget`)
+- [x] Virtual cluster model (`core/internal/virtualcluster`)
+- [x] Scale factor engine (`core/internal/scale`)
+- [x] Capacity modeling (CPU, RAM, storage, database) (`core/internal/capacity`)
+- [x] Physical vs virtual metrics (Dual Metrics Mode) (`core/internal/metrics`, `forgelab cluster`; the dashboard surface lands with Phase 7)
 
-## Phase 1 — Local single-node *🔨 in progress*
+## Phase 1 — Local single-node *✅ done*
 
 > Run a user-provided application in a production-like local environment.
 
-- [ ] `local` environment preset (Docker Compose)
-- [ ] Minimal runtime: reverse proxy + one application + one database
-- [ ] Application manifest validation tooling
-- [ ] Health checks and basic entrypoint scripts
+- [x] `local` environment preset (Docker Compose)
+- [x] Minimal runtime: reverse proxy + one application + one database
+- [x] Application manifest validation tooling
+- [x] Health checks and basic entrypoint scripts (container healthchecks, `make up`/`down`/`logs`/`ps`)
 
-## Phase 2 — Observability
+## Phase 2 — Observability *✅ done*
 
 > Every component observable by default.
 
-- [ ] Prometheus + Grafana
-- [ ] Structured logging (Loki)
-- [ ] Distributed tracing (Tempo + OpenTelemetry)
-- [ ] Reference dashboards and alerts
+- [x] Prometheus + Grafana
+- [x] Structured logging (Loki)
+- [x] Distributed tracing (Tempo + OpenTelemetry)
+- [x] Reference dashboards and alerts
 
-## Phase 3 — Messaging & data
+## Phase 3 — Messaging & data *✅ done*
 
-- [ ] Redis (cache / pub-sub / rate limiting)
-- [ ] RabbitMQ (queues, work distribution)
-- [ ] Kafka (streams, consumer groups)
-- [ ] Dead-letter queues and retry semantics
+- [x] Redis (cache / rate limiting; pub/sub is available in the server, not yet exercised)
+- [x] RabbitMQ (queues, work distribution)
+- [x] Kafka (streams, consumer groups)
+- [x] Dead-letter queues and retry semantics
 
-## Phase 4 — Kubernetes
+## Phase 4 — Kubernetes *✅ done*
 
-- [ ] `cloud`-style environment on Kubernetes
-- [ ] Load balancer / ingress setup
-- [ ] Horizontal Pod Autoscaling
-- [ ] Rolling, canary, and blue/green deployment scenarios
+- [x] `cloud`-style environment on Kubernetes (`environments/cloud/kubernetes/`, kind)
+- [x] Load balancer / ingress setup (ingress-nginx)
+- [x] Horizontal Pod Autoscaling
+- [x] Rolling, canary, and blue/green deployment scenarios
 
-## Phase 5 — Reliability & chaos
+## Phase 5 — Reliability & chaos *✅ done*
 
-- [ ] Chaos injection tooling
-- [ ] Outage drills (database, Redis, Kafka)
-- [ ] Load testing harness
-- [ ] Disaster-recovery drills and backup/restore
+- [x] Chaos injection tooling (`core/internal/chaos`, `forgelab chaos`)
+- [x] Outage drills (database, Redis, Kafka)
+- [x] Load testing harness (`core/internal/loadtest`, `forgelab loadtest`)
+- [x] Disaster-recovery drills and backup/restore
 
-## Phase 6 — Cloud presets
+## Phase 6 — Cloud presets *✅ done*
 
-- [ ] Terraform modules (AWS, GCP)
-- [ ] Managed services variants of components
-- [ ] Cost-guard rules for experiments
+- [x] Terraform modules (AWS, GCP) (`environments/cloud/terraform/presets/`)
+- [x] Managed services variants of components (RDS/Cloud SQL, ElastiCache/Memorystore, SQS/Pub/Sub)
+- [x] Cost-guard rules for experiments (`environments/cloud/cost-guard.yaml`, `forgelab costguard`)
 
-## Phase 7 — CI/CD & dashboard
+## Phase 7 — CI/CD & dashboard *✅ done*
 
-- [ ] Pipeline simulation (build → test → deploy)
-- [ ] Next.js dashboard: launch, monitor, inspect experiments
+- [x] Pipeline simulation (build → test → deploy) (`core/internal/pipeline`, `forgelab pipeline run`)
+- [x] Next.js dashboard: launch, monitor, inspect experiments (`dashboard/`, `forgelab serve`)
 
 ## Phase 8 — Security
 

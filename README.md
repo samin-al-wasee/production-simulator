@@ -10,7 +10,12 @@ ForgeLab is not an application. It is a playground for learning, experimentation
 
 ## Status
 
-**Early bootstrap.** This repository currently contains the project foundation: documentation, architecture, conventions, and directory structure. No infrastructure has been implemented yet — the component catalog is planned, not built.
+**Phase 1 — Local single-node: done.** ForgeLab can now run a minimal
+production-like lab on one machine: a reverse proxy, a sample application,
+and a PostgreSQL database, all declared in
+[`environments/local/`](environments/local/) and started with `make up`.
+Earlier phases established the documentation foundation and the Go core
+(`forgelab validate` for application manifests).
 
 The currently implemented decisions are recorded in [`docs/decisions/`](docs/decisions/).
 
@@ -147,9 +152,9 @@ See [`docs/principles.md`](docs/principles.md).
 
 ## Future Roadmap (summary)
 
-1. **Foundation** — bootstrap docs, conventions, manifest schema *(current)*
-2. **Simulation Foundation** — Resource Virtualization Engine, physical vs virtual metrics
-3. **Local single-node** — Docker Compose runtimes, first components
+1. **Foundation** — bootstrap docs, conventions, manifest schema *(done)*
+2. **Simulation Foundation** — Resource Virtualization Engine, physical vs virtual metrics *(planned)*
+3. **Local single-node** — Docker Compose runtimes, first components *(done)*
 4. **Observability** — metrics/logs/traces wired into every component
 5. **Messaging & queues** — RabbitMQ/Kafka, DLQs, async patterns
 6. **Kubernetes** — clusters, scaling, rollout strategies
@@ -176,6 +181,8 @@ Full detail in [`ROADMAP.md`](ROADMAP.md) and [`docs/learning-path.md`](docs/lea
 | [docs/vision.md](docs/vision.md) | Why ForgeLab exists |
 | [docs/architecture.md](docs/architecture.md) | Conceptual architecture |
 | [docs/principles.md](docs/principles.md) | Design principles |
+| [dashboard/README.md](dashboard/README.md) | Dashboard: run, configuration, pages |
+| [docs/development-loop.md](docs/development-loop.md) | Requirement → plan → implement → review → test → document loop |
 | [docs/repository-structure.md](docs/repository-structure.md) | Directory map and ownership |
 | [docs/component-catalog.md](docs/component-catalog.md) | Catalog of planned components |
 | [docs/scenarios.md](docs/scenarios.md) | Planned lab scenarios |
@@ -189,14 +196,23 @@ When documents conflict, stop and identify the conflict instead of silently choo
 
 ## Getting Started
 
-> This section is a placeholder. No infrastructure exists yet.
+The fastest way to see ForgeLab run is the `local` preset — a production-like
+single-node stack (reverse proxy → sample application → PostgreSQL) declared in
+[`environments/local/`](environments/local/compose.yaml).
 
 1. Clone the repository.
-2. **Recommended:** open the repo in VS Code / Cursor with the Dev Containers extension and reopen in the container (`.devcontainer/`), which provides Go, Node.js, and Docker-in-Docker. Developing outside the container works too, but the toolchain versions you need (Go, Node.js, Docker, Make) must be installed manually.
-3. Read [`docs/vision.md`](docs/vision.md) and [`docs/architecture.md`](docs/architecture.md).
-4. Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before contributing.
+2. **Recommended:** open the repo in VS Code / Cursor with the Dev Containers extension and reopen in the container (`.devcontainer/`), which provides Go, Node.js, Docker-in-Docker, and the Compose plugin. Developing outside the container works too, but the toolchain versions you need (Go, Node.js, Docker, Make) must be installed manually.
+3. Start the lab:
 
-Tooling is expected to include: Go, Node.js (Next.js), Docker, and optionally Python. Exact prerequisites and commands will be documented here once the first runnable increment lands.
+   ```sh
+   cp environments/local/.env.example environments/local/.env   # optional
+   make up
+   ```
+
+4. Open <http://localhost:8080/> — a sample page served through the reverse proxy — or check the full chain with <http://localhost:8080/healthz>.
+5. Stop with `make down` (database data persists in the `dbdata` volume).
+
+Read [`docs/vision.md`](docs/vision.md), [`docs/architecture.md`](docs/architecture.md), and [`CONTRIBUTING.md`](CONTRIBUTING.md) before contributing.
 
 ---
 
