@@ -1,6 +1,6 @@
 # Applications
 
-Plugged-in sample and user applications. **Nothing is implemented yet.**
+Plugged-in sample and user applications. Samples land as Phase 1 ships.
 
 ## What belongs here
 
@@ -34,4 +34,4 @@ Representative shapes ForgeLab should accept:
 
 | Name | Shape | Status |
 |---|---|---|
-| — | — | (none yet — Phase 1+) |
+| [sample-web](sample-web/) | Monolith (Go HTTP, no deps) | implemented — used by the `local` preset |
