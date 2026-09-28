@@ -1,0 +1,83 @@
+apiVersion: forgelab/v1
+kind: CostGuard
+# Cost-guard rules evaluated by `forgelab costguard check` against a Terraform
+# plan before anything is applied. Prices are approximate on-demand list
+# prices (USD/hour, us-east-1 and us-central1) and exclude storage, data
+# transfer, and taxes; verify them against your provider before relying on
+# the numbers. The guard estimates and blocks; it does not measure real spend.
+spec:
+  maxMonthlyUsd: 150
+  maxTtlHours: 72
+  failOnUnpriced: true
+  requiredTags:
+    - forgelab-experiment
+    - forgelab-owner
+    - forgelab-ttl-hours
+  deniedTypes:
+    - aws_nat_gateway
+    - aws_msk_cluster
+    - aws_rds_cluster
+    - aws_redshift_cluster
+    - aws_opensearch_domain
+    - google_compute_router_nat
+    - google_bigquery_reservation
+  freeTypes:
+    - aws_vpc
+    - aws_subnet
+    - aws_internet_gateway
+    - aws_route_table
+    - aws_route_table_association
+    - aws_security_group
+    - aws_iam_role
+    - aws_iam_role_policy_attachment
+    - aws_db_subnet_group
+    - aws_elasticache_subnet_group
+    - aws_sqs_queue
+    - aws_budgets_budget
+    - google_project_service
+    - google_compute_network
+    - google_compute_subnetwork
+    - google_service_account
+    - google_compute_global_address
+    - google_service_networking_connection
+    - google_sql_database
+    - google_sql_user
+    - google_project_iam_member
+    - google_pubsub_topic
+    - google_pubsub_subscription
+    - google_pubsub_topic_iam_member
+    - google_pubsub_subscription_iam_member
+    - google_billing_budget
+  pricing:
+    - type: aws_eks_cluster
+      fixedHourlyUsd: 0.10
+    - type: aws_eks_node_group
+      instanceAttribute: instance_types.0
+      hourlyUsd: {t3.small: 0.0208, t3.medium: 0.0416}
+      countAttribute: scaling_config.0.desired_size
+      spotAttribute: capacity_type
+      spotValue: SPOT
+      spotFactor: 0.35
+    - type: aws_db_instance
+      instanceAttribute: instance_class
+      hourlyUsd: {db.t4g.micro: 0.016, db.t4g.small: 0.032}
+    - type: aws_elasticache_replication_group
+      instanceAttribute: node_type
+      hourlyUsd: {cache.t4g.micro: 0.016, cache.t4g.small: 0.032}
+      countAttribute: num_cache_clusters
+    - type: google_container_cluster
+      fixedHourlyUsd: 0.10
+    - type: google_container_node_pool
+      instanceAttribute: node_config.0.machine_type
+      hourlyUsd: {e2-small: 0.0168, e2-medium: 0.0335}
+      countAttribute: node_count
+      countMultiplier: 3
+      spotAttribute: node_config.0.spot
+      spotBool: true
+      spotFactor: 0.3
+    - type: google_sql_database_instance
+      instanceAttribute: settings.0.tier
+      hourlyUsd: {db-f1-micro: 0.0105, db-g1-small: 0.035}
+    - type: google_redis_instance
+      fixedHourlyUsd: 0.049
+      perGbAttribute: memory_size_gb
