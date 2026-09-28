@@ -16,6 +16,7 @@ This directory records ForgeLab's architecture decisions. Rules live in `AGENTS.
 | [0008](0008-chaos-load-and-recovery-tooling.md) | Accepted | Chaos, load, and recovery tooling in the Go core (Phase 5) |
 | [0009](0009-cloud-presets-and-cost-guard.md) | Accepted | Terraform cloud presets with a plan-time cost guard (Phase 6) |
 | [0010](0010-pipeline-simulation-and-dashboard.md) | Accepted | Pipeline simulation, core API, and Next.js dashboard (Phase 7) |
+| [0011](0011-security-controls-and-verification.md) | Accepted | Security controls, verification, and defensive attack drills (Phase 8) |
 
 ## Conventions
 

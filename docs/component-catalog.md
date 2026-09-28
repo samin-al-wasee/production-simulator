@@ -105,10 +105,10 @@ flowchart LR
 
 | Component | Provides | Depends on | Status |
 |---|---|---|---|
-| Secrets Management | Store/rotate credentials without leaking them | Compute | planned |
-| TLS / PKI | Certificates for all internal and external traffic | Reverse Proxy | planned |
-| Network Policy | East-west traffic segmentation, RBAC enforcement | Kubernetes | planned |
-| Scanner | Vulnerability/image/compliance scanning | Compute | planned |
+| Secrets Management | Store/rotate credentials without leaking them | Compute | implemented · Phase 8 (`components/security/secrets-management/`) |
+| TLS / PKI | Certificates for all internal and external traffic | Reverse Proxy | implemented · Phase 8 (`components/security/tls-pki/`) |
+| Network Policy | East-west traffic segmentation, RBAC enforcement | Kubernetes | implemented · Phase 8 (`components/security/network-policy/`) |
+| Scanner | Vulnerability/image/compliance scanning | Compute | implemented · Phase 8 (`components/security/scanner/`; secret and compliance scanning, no image/CVE scanning) |
 
 ### Infrastructure
 

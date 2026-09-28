@@ -182,6 +182,7 @@ Full detail in [`ROADMAP.md`](ROADMAP.md) and [`docs/learning-path.md`](docs/lea
 | [docs/architecture.md](docs/architecture.md) | Conceptual architecture |
 | [docs/principles.md](docs/principles.md) | Design principles |
 | [dashboard/README.md](dashboard/README.md) | Dashboard: run, configuration, pages |
+| [docs/security.md](docs/security.md) | Security controls and how they are verified |
 | [docs/development-loop.md](docs/development-loop.md) | Requirement → plan → implement → review → test → document loop |
 | [docs/repository-structure.md](docs/repository-structure.md) | Directory map and ownership |
 | [docs/component-catalog.md](docs/component-catalog.md) | Catalog of planned components |
