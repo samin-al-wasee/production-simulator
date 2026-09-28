@@ -79,11 +79,11 @@ Legend: ⬜ planned · 🔨 in progress · ✅ done
 - [x] Pipeline simulation (build → test → deploy) (`core/internal/pipeline`, `forgelab pipeline run`)
 - [x] Next.js dashboard: launch, monitor, inspect experiments (`dashboard/`, `forgelab serve`)
 
-## Phase 8 — Security
+## Phase 8 — Security *✅ done*
 
-- [ ] Attack simulation scenarios
-- [ ] Secrets management, TLS, RBAC
-- [ ] Compliance-oriented checks
+- [x] Attack simulation scenarios (`scenarios/security/`)
+- [x] Secrets management, TLS, RBAC (`compose.security.yaml`, Kubernetes hardening; see `docs/security.md`)
+- [x] Compliance-oriented checks (`forgelab security compliance`, `scan-secrets`)
 
 ## Phase 9 — Production Simulator
 

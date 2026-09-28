@@ -58,6 +58,7 @@ ForgeLab/
 | `docs/vision.md` | Why ForgeLab exists |
 | `docs/architecture.md` | Conceptual, composable architecture |
 | `docs/principles.md` | Design principles |
+| `docs/security.md` | Security controls, verification, limits |
 | `docs/development-loop.md` | Agent-agnostic requirement → plan → implement → review → test → document loop |
 | `docs/repository-structure.md` | This document |
 | `docs/component-catalog.md` | Catalog of planned components by domain |

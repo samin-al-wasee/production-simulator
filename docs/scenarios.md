@@ -79,7 +79,12 @@ How does the operator prove the scenario is understood/resolved?
 
 | Scenario | Folder | Status |
 |---|---|---|
-| Security attack simulation | `security/attack-simulation/` | planned |
+| Brute force and probing | `security/brute-force-and-probing/` | implemented |
+| TLS downgrade attempt | `security/tls-downgrade-attempt/` | implemented |
+| Secrets exposure | `security/secrets-exposure/` | implemented |
+| RBAC privilege escalation | `security/rbac-privilege-escalation/` | implemented |
+| Network segmentation breach | `security/network-segmentation-breach/` | implemented |
+| Privileged workload admission | `security/privileged-workload-admission/` | implemented |
 
 ### Scaling (`scenarios/scaling/`)
 
