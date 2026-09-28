@@ -76,6 +76,8 @@ services:
     volumes:
       - ./observability/promtail/promtail.yaml:/etc/promtail/promtail.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    x-forgelab-exempt:
+      COMP-002: Promtail discovers container log files through the Docker API; the socket is mounted read-only and only in the optional observability overlay.
     depends_on:
       loki:
         condition: service_healthy

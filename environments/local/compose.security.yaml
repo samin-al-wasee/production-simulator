@@ -1,0 +1,38 @@
+# Phase 8 security overlay for the local preset (ADR-0011).
+# Generate the certificate and secrets first (both are git-ignored):
+#   sh scripts/gen-dev-certs.sh && sh scripts/gen-secrets.sh
+# then: make up-secure
+#
+# - proxy: TLS on 8443, redirect from HTTP, security headers, rate limiting
+# - db: password supplied as a Docker secret file, not an environment value
+# Note: POSTGRES_PASSWORD_FILE is only read when the data volume is first
+# initialised; remove an existing dbdata volume before switching an existing
+# stack (`docker compose -f compose.yaml -f compose.security.yaml down -v`).
+# The observability overlay's postgres-exporter still receives its DSN through
+# the environment; do not combine the overlays where that matters.
+
+services:
+  proxy:
+    ports: !override
+      - "${PROXY_HTTP_PORT:-8080}:80"
+      - "${PROXY_HTTPS_PORT:-8443}:443"
+    volumes:
+      - ./security/nginx-tls.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./security/certs:/etc/nginx/certs:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "--no-check-certificate", "https://127.0.0.1/healthz"]
+
+  app:
+    environment:
+      DB_PASSWORD: !reset null
+
+  db:
+    environment:
+      POSTGRES_PASSWORD: !reset null
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
+
+secrets:
+  db_password:
+    file: ./security/secrets/db_password
