@@ -109,6 +109,22 @@ serve: ## Serve the core API for the dashboard on 127.0.0.1:8090 (add RUNS=1 to 
 dashboard-dev: ## Run the Next.js dashboard on http://localhost:3001 (needs `make serve`; runs npm install first)
 	cd dashboard && npm install && npm run dev
 
+.PHONY: up-secure
+up-secure: ## Start the local stack with the security overlay (TLS on :8443, secret files); run scripts/gen-dev-certs.sh and gen-secrets.sh first
+	docker compose -f $(LOCAL_COMPOSE) -f environments/local/compose.security.yaml up -d --build
+
+.PHONY: smoke-security
+smoke-security: ## Verify TLS, headers, rate limiting, and secret handling against the running secure stack
+	sh scripts/security-smoke.sh
+
+.PHONY: scan-secrets
+scan-secrets: ## Scan the repository for committed credentials
+	cd core && go run ./cmd/forgelab security scan-secrets ..
+
+.PHONY: compliance
+compliance: ## Check Compose files and Kubernetes manifests against hardening controls
+	sh scripts/compliance.sh
+
 .PHONY: down
 down: ## Stop and remove the local lab stack
 	docker compose $(ALL_COMPOSE) down

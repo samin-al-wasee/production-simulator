@@ -13,10 +13,23 @@ spec:
       labels:
         app: sample-web-canary
     spec:
+      serviceAccountName: sample-web
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: sample-web
           image: forgelab/sample-web:local
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           ports:
             - name: http
               containerPort: 8080
@@ -61,6 +74,8 @@ metadata:
     nginx.ingress.kubernetes.io/canary-weight: "20"
 spec:
   ingressClassName: nginx
+  tls:
+    - secretName: forgelab-tls
   rules:
     - http:
         paths:

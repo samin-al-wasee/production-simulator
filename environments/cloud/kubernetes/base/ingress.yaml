@@ -3,8 +3,14 @@ kind: Ingress
 metadata:
   name: sample-web
   namespace: forgelab
+  annotations:
+    # Plain HTTP stays reachable on :8081 so drills can curl without a CA;
+    # HTTPS is served on :8444 with the local development certificate.
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   ingressClassName: nginx
+  tls:
+    - secretName: forgelab-tls
   rules:
     - http:
         paths:

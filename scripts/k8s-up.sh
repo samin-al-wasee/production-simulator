@@ -46,6 +46,23 @@ if ! kubectl -n forgelab get secret forgelab-db >/dev/null 2>&1; then
     --from-literal=POSTGRES_DB="${POSTGRES_DB:-forgelab}"
 fi
 
+# Local development certificate for the ingress (git-ignored; see
+# scripts/gen-dev-certs.sh). Created outside the manifests like the DB secret.
+sh "$ROOT/scripts/gen-dev-certs.sh" >/dev/null
+if ! kubectl -n forgelab get secret forgelab-tls >/dev/null 2>&1; then
+  kubectl -n forgelab create secret tls forgelab-tls \
+    --cert="$ROOT/environments/local/security/certs/server.crt" \
+    --key="$ROOT/environments/local/security/certs/server.key"
+fi
+
+# Serve the local certificate for any host name (the ingress rules are
+# host-less), by making it the controller's default certificate.
+if ! kubectl -n ingress-nginx get deploy ingress-nginx-controller -o jsonpath='{.spec.template.spec.containers[0].args}' | grep -q default-ssl-certificate; then
+  kubectl -n ingress-nginx patch deploy ingress-nginx-controller --type=json \
+    -p '[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--default-ssl-certificate=forgelab/forgelab-tls"}]'
+  kubectl -n ingress-nginx rollout status deploy/ingress-nginx-controller --timeout=180s
+fi
+
 kubectl apply -k "$TARGET"
 kubectl -n forgelab rollout status statefulset/postgres --timeout=180s
-echo "forgelab is up: curl http://localhost:8081/version"
+echo "forgelab is up: curl http://localhost:8081/version (HTTPS on https://localhost:8444)"
