@@ -89,6 +89,20 @@ flowchart LR
 
 ---
 
+## Tracking your progress
+
+The path is also available as data in [`learning/path.yaml`](../learning/path.yaml): 21 exercises across the ten stages, each with the command or scenario that exercises it.
+
+```sh
+make learn                            # or: forgelab learn status
+forgelab learn next                   # the next exercise, how to do it, and how it completes
+forgelab learn complete s2-dashboard  # mark a manual exercise done
+```
+
+Exercises tied to a chaos experiment (`s1-restart`, `s3-redis-outage`, `s5-latency`, `s5-kafka`, `s6-db-outage`) complete automatically when that experiment passes, from the CLI or the dashboard; `s6-benchmark` completes when a benchmark meets its SLOs. Progress lives in `.forgelab/progress.json` (git-ignored) and is shown on the dashboard's Learning path page. Order is guidance, not a gate.
+
+Stage 10 uses the [`multi-failure-incident`](../scenarios/failures/multi-failure-incident/README.md) scenario and the [postmortem template](../templates/postmortem/postmortem.md).
+
 ## Using this path
 
 * Each stage references concrete components in `docs/component-catalog.md` and scenarios in `docs/scenarios.md`.

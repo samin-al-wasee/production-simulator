@@ -22,6 +22,8 @@ ForgeLab/
 ├── docs/                    All architecture, principles, catalog, scenarios, decisions
 ├── core/                    Go simulation core, CLI, and manifest validation
 ├── dashboard/               Next.js dashboard (thin consumer of the core API)
+├── learning/                Machine-readable learning path (path.yaml)
+├── security/                Security configuration (secret-scan allowlist)
 ├── synthetic-apps/          Planning sketch: workload engine and workload templates (not implemented)
 ├── applications/            Plugged-in sample/user applications (never core)
 ├── manifests/               Application manifest schema, validation, examples
@@ -45,9 +47,12 @@ ForgeLab/
 | `manifests/` | `application.schema.yaml`, validation tooling, curated examples | Manifest schema and validation rules |
 | `components/` | One directory per domain: networking, compute, databases, messaging, storage, observability, security, infrastructure, cicd, reliability | Component implementations and their READMEs |
 | `environments/` | `local/`, `staging/`, `cloud/` presets composing components | Environment definitions |
+| `dashboard/` | Next.js app: Overview, Experiments, Pipelines, Learning path | Dashboard UI; never simulation logic |
+| `learning/` | `path.yaml` learning path | Learning path definition |
+| `security/` | `secretscan.yaml` allowlist | Security tooling configuration |
 | `scenarios/` | Categories + one folder per scenario: traffic, failures, security, scaling, performance | Scenario definitions |
 | `scripts/` | Helper scripts (validation, generators) | Scripts |
-| `templates/` | `application/`, `service/`, `manifests/` starting points | Templates |
+| `templates/` | `application/`, `service/`, `manifests/`, `postmortem/` starting points | Templates |
 | `.devcontainer/` | `devcontainer.json`, base `Dockerfile`, container setup scripts | Development container definition |
 | `.github/` | Issue templates, PR template, workflows | GitHub automation |
 

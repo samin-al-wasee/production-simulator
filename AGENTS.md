@@ -10,7 +10,7 @@ The repository exists for learning, experimentation, benchmarking, incident simu
 
 The prime directive is **modular composition, not a fixed architecture**. Every infrastructure layer is optional. Never assume a component is required.
 
-**Status:** bootstrap phase. Documentation and conventions only — **do not implement infrastructure (Docker, Kubernetes, Terraform, application code) until a roadmap phase authorizes it.**
+**Status:** roadmap phases 0 through 9 are implemented (see `ROADMAP.md`). **Do not implement new infrastructure (Docker, Kubernetes, Terraform, application code) beyond what a roadmap phase authorizes.**
 
 ## 2. Decided stack
 
@@ -101,7 +101,10 @@ Conflicts between documents are never resolved silently — state both sides and
 | `environments/` | `local/`, `staging/`, `cloud/` presets |
 | `scenarios/` | Reproducible drills grouped by category |
 | `scripts/` | Development and validation helpers |
-| `templates/` | Reusable starting points for apps, services, manifests |
+| `dashboard/` | Next.js dashboard; a thin consumer of the core API (never simulation logic) |
+| `learning/` | Machine-readable learning path |
+| `security/` | Security tooling configuration (secret-scan allowlist) |
+| `templates/` | Reusable starting points for apps, services, manifests, postmortems |
 | `.github/` | Issue/PR templates and CI workflows |
 
 Cross-cutting changes (e.g. a new scenario that needs a new component) must touch the owning folders **and** their catalog/scenario docs together.
