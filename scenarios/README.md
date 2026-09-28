@@ -1,6 +1,6 @@
 # Scenarios
 
-Reproducible drills — traffic, failures, security, scaling, and performance — that make production conditions inspectable. Each scenario folder follows the template in `docs/scenarios.md`. **Nothing is implemented yet.**
+Reproducible drills — traffic, failures, security, scaling, and performance — that make production conditions inspectable. Each scenario folder follows the template in `docs/scenarios.md`. Implemented scenarios are marked in the catalog.
 
 | Category | Purpose |
 |---|---|

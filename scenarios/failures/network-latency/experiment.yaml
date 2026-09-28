@@ -1,0 +1,16 @@
+apiVersion: forgelab/v1
+kind: Experiment
+metadata:
+  name: network-latency
+spec:
+  hypothesis: Adding 300ms of network latency to the application slows every response but causes no errors, and latency returns to normal when the fault is removed.
+  target:
+    container: forgelab-app
+  fault:
+    type: latency
+    latency: 300ms
+    duration: 25s
+  probes:
+    - {name: app-healthy, url: "http://localhost:8080/healthz", phase: before, expectStatus: 200}
+    - {name: app-still-serving, url: "http://localhost:8080/healthz", phase: during, expectStatus: 200}
+    - {name: app-recovered, url: "http://localhost:8080/healthz", phase: after, expectStatus: 200}
