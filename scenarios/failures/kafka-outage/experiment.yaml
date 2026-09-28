@@ -1,0 +1,15 @@
+apiVersion: forgelab/v1
+kind: Experiment
+metadata:
+  name: kafka-outage
+spec:
+  hypothesis: Prometheus notices the broker outage within 45 seconds (kafka target `up` becomes 0) and the target returns to 1 after the broker restarts.
+  target:
+    container: forgelab-kafka
+  fault:
+    type: stop
+    duration: 60s
+  probes:
+    - {name: kafka-scraped, url: "http://localhost:9090/api/v1/query?query=up%7Bjob%3D%22kafka%22%7D", phase: before, expectStatus: 200, expectBody: '"1"]'}
+    - {name: kafka-down-noticed, url: "http://localhost:9090/api/v1/query?query=up%7Bjob%3D%22kafka%22%7D", phase: during, expectStatus: 200, expectBody: '"0"]', within: 45s}
+    - {name: kafka-recovered, url: "http://localhost:9090/api/v1/query?query=up%7Bjob%3D%22kafka%22%7D", phase: after, expectStatus: 200, expectBody: '"1"]', within: 90s}
