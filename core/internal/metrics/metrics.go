@@ -42,6 +42,12 @@ const (
 
 // Translate builds the dual view. physicalUsed is measured on the host;
 // virtualCapacity and nodes describe the virtual cluster.
+//
+// Virtual usage applies each resource's own virtual/physical capacity ratio to
+// its physical usage, so utilization is identical in both views and real
+// bottlenecks are preserved. Multiplying every resource by the single
+// effective factor would overstate resources whose ratio is smaller than the
+// binding one. RPS uses the effective factor, the label shown to users.
 func Translate(f scale.Factor, physicalBudget, physicalUsed budget.Resources, physicalRPS float64, virtualCapacity budget.Resources, nodes int) Dual {
 	return Dual{
 		ScaleFactor: f.String(),
@@ -49,9 +55,9 @@ func Translate(f scale.Factor, physicalBudget, physicalUsed budget.Resources, ph
 		Virtual: Virtual{
 			Kind: KindVirtual,
 			Used: budget.Resources{
-				CPUCores:    physicalUsed.CPUCores * f.Effective,
-				MemoryBytes: uint64(float64(physicalUsed.MemoryBytes) * f.Effective),
-				DiskBytes:   uint64(float64(physicalUsed.DiskBytes) * f.Effective),
+				CPUCores:    physicalUsed.CPUCores * f.CPU,
+				MemoryBytes: uint64(float64(physicalUsed.MemoryBytes) * f.Memory),
+				DiskBytes:   uint64(float64(physicalUsed.DiskBytes) * f.Disk),
 			},
 			Capacity: virtualCapacity,
 			RPS:      f.ToVirtual(physicalRPS),

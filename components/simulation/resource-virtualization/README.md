@@ -25,4 +25,4 @@ Hardware Calibration (physical budget). Pure Go and deterministic.
 
 ## Notes
 
-Virtual usage is physical usage multiplied by the scale factor. Host-level disk usage includes data that is not ForgeLab's, so it can exceed the allocatable budget.
+Virtual usage applies each resource's own virtual/physical capacity ratio to its physical usage, so utilization is the same in both views and bottlenecks are preserved; the power-of-two scale factor is the label and is used for RPS. Host-level disk usage includes data that is not ForgeLab's, so it can exceed the allocatable budget.
