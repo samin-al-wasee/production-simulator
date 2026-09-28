@@ -1,6 +1,6 @@
 # Environments
 
-Reproducible presets that compose components for a target context. A manifest plus an environment preset defines a fully runnable lab. **Nothing is implemented yet.**
+Reproducible presets that compose components for a target context. A manifest plus an environment preset defines a fully runnable lab. `local/` is implemented; `staging/` and `cloud/` are planned.
 
 | Environment | Purpose |
 |---|---|
