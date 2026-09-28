@@ -1,6 +1,6 @@
 # ADR-0003: Resource Virtualization Engine (Phase 0.5)
 
-**Status:** proposed
+**Status:** accepted
 **Date:** 2026-09-19
 
 ## Context
@@ -26,7 +26,7 @@ The engine defines and maintains a three-layer model:
 
 Responsibilities of the engine: hardware detection and calibration, physical resource budgeting, virtual resource modeling, scale factor calculation, horizontal and vertical scaling virtualization, traffic/RPS virtualization, storage and database capacity modeling, capacity exhaustion simulation, and physical ↔ virtual metrics translation.
 
-Planned module structure (documented, not implemented), kept pure Go and deterministic:
+Planned module structure, kept pure Go and deterministic (see the Amendment below for where it lives in the repository):
 
 ```text
 simulation/
@@ -39,6 +39,10 @@ simulation/
 ```
 
 The engine **never fakes behavior, only virtualizes capacity**: bottlenecks, latency, backpressure, and exhaustion occur for the same reasons they would in real production, at the scale the view claims. Every dashboard surface must expose both physical and virtual metrics with the current scale factor always visible (**Dual Metrics Mode**).
+
+## Amendment (2026-09-28): code layout
+
+The `simulation/` tree above is a conceptual module map, not a repository directory. To follow ADR-0002 (one Go module in `core/`, one CLI) and AGENTS.md §8, the engine is implemented as packages under `core/internal/`, one per module: `calibration` and `budget` first, with `virtualcluster`, `scale`, `capacity`, and `metrics` to follow. No root `simulation/` directory is created.
 
 ## Consequences
 
