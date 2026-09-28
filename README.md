@@ -10,12 +10,14 @@ ForgeLab is not an application. It is a playground for learning, experimentation
 
 ## Status
 
-**Phase 1 — Local single-node: done.** ForgeLab can now run a minimal
-production-like lab on one machine: a reverse proxy, a sample application,
-and a PostgreSQL database, all declared in
-[`environments/local/`](environments/local/) and started with `make up`.
-Earlier phases established the documentation foundation and the Go core
-(`forgelab validate` for application manifests).
+**Roadmap phases 0 through 9 are implemented.** ForgeLab runs a production-like
+lab on one machine (reverse proxy, sample application, PostgreSQL) with
+optional observability, messaging, and security overlays; a Kubernetes
+environment on `kind`; opt-in AWS and GCP Terraform presets with a cost guard;
+a Go core (resource virtualization, chaos, load testing, pipeline simulation,
+compliance checks, benchmark reports, learning-path tracking); and a Next.js
+dashboard. Run `make help` for every entry point and `make e2e` for the whole
+experience.
 
 The currently implemented decisions are recorded in [`docs/decisions/`](docs/decisions/).
 
@@ -121,6 +123,9 @@ Each layer can be included or skipped per environment. See [`docs/architecture.m
 ForgeLab/
 ├── docs/            # Vision, architecture, principles, catalog, scenarios, ADRs
 ├── applications/    # User-provided sample applications (pluggable)
+├── core/            # Go simulation core and the forgelab CLI
+├── dashboard/       # Next.js dashboard (thin consumer of the core API)
+├── learning/        # Machine-readable learning path
 ├── manifests/       # Application manifest schema + examples
 ├── components/      # Optional production components, grouped by domain
 ├── environments/    # local / staging / cloud presets
@@ -153,16 +158,16 @@ See [`docs/principles.md`](docs/principles.md).
 ## Future Roadmap (summary)
 
 1. **Foundation** — bootstrap docs, conventions, manifest schema *(done)*
-2. **Simulation Foundation** — Resource Virtualization Engine, physical vs virtual metrics *(planned)*
+2. **Simulation Foundation** — Resource Virtualization Engine, physical vs virtual metrics *(done)*
 3. **Local single-node** — Docker Compose runtimes, first components *(done)*
-4. **Observability** — metrics/logs/traces wired into every component
-5. **Messaging & queues** — RabbitMQ/Kafka, DLQs, async patterns
-6. **Kubernetes** — clusters, scaling, rollout strategies
-7. **Reliability & chaos** — fault injection, outage drills, DR
-8. **Cloud presets** — Terraform + AWS/GCP
-9. **CI/CD & dashboard** — pipeline simulation, lab UI
-10. **Security drills** — attack simulation, secrets, compliance
-11. **Production Simulator** — the full experience, end to end
+4. **Observability** — metrics/logs/traces wired into every component *(done)*
+5. **Messaging & queues** — RabbitMQ/Kafka, DLQs, async patterns *(done)*
+6. **Kubernetes** — clusters, scaling, rollout strategies *(done)*
+7. **Reliability & chaos** — fault injection, outage drills, DR *(done)*
+8. **Cloud presets** — Terraform + AWS/GCP *(done)*
+9. **CI/CD & dashboard** — pipeline simulation, lab UI *(done)*
+10. **Security drills** — attack simulation, secrets, compliance *(done)*
+11. **Production Simulator** — the full experience, end to end *(done)*
 
 > **Planning sketch (non-committal):** Synthetic Applications / Workload Engine — Workload DSL, production operations, production infrastructure, resource virtualization, scenarios/reliability, dashboard. See the "Proposed: Synthetic Applications roadmap" section in [`ROADMAP.md`](ROADMAP.md).
 
@@ -212,6 +217,22 @@ single-node stack (reverse proxy → sample application → PostgreSQL) declared
 
 4. Open <http://localhost:8080/> — a sample page served through the reverse proxy — or check the full chain with <http://localhost:8080/healthz>.
 5. Stop with `make down` (database data persists in the `dbdata` volume).
+
+### Going further
+
+| Goal | Command |
+|---|---|
+| Metrics, logs, traces (Grafana on :3000) | `make up-obs` |
+| Redis, RabbitMQ, Kafka | `make up-msg`, then `make smoke-msg` |
+| Everything in the Compose lab | `make up-all` |
+| Break something on purpose | `make chaos FILE=scenarios/failures/db-outage/experiment.yaml` |
+| Measure it | `make benchmark URL=http://localhost:8080/api/work` |
+| Kubernetes on kind (needs `kind`, `kubectl`) | `make k8s-up` |
+| Dashboard (API on :8090, UI on :3001) | `make serve RUNS=1` and `make dashboard-dev` |
+| Track your progress | `make learn` |
+| The whole experience, then tear down | `make e2e` |
+
+Follow the [learning path](docs/learning-path.md) in order; `make help` lists every target.
 
 Read [`docs/vision.md`](docs/vision.md), [`docs/architecture.md`](docs/architecture.md), and [`CONTRIBUTING.md`](CONTRIBUTING.md) before contributing.
 

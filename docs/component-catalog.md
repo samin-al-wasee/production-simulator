@@ -22,7 +22,8 @@ flowchart LR
     IN[Infrastructure]
     CI[CI/CD]
     RE[Reliability]
-    APP[Your Application] --> SA & SIM & NW & CP & DB & MS & ST & OB & SE & IN & CI & RE
+    EX[Experience]
+    APP[Your Application] --> SA & SIM & NW & CP & DB & MS & ST & OB & SE & IN & CI & RE & EX
 ```
 
 ## Catalog by domain
@@ -126,6 +127,14 @@ flowchart LR
 | Pipeline Runner | Simulated build → test → deploy pipelines | Compute | implemented · Phase 7 (`components/cicd/pipeline-runner/`) |
 | Deploy Controller | Rolling, canary, blue/green rollout strategies | Kubernetes / Docker | implemented · Phase 4 (`components/cicd/deploy-controller/`) |
 | Artifact Registry | Versioned build artifacts | Object Storage | planned |
+
+### Experience
+
+| Component | Provides | Depends on | Status |
+|---|---|---|---|
+| Benchmark Reporter | Baseline/ramp/spike benchmarks with SLO verdicts; Markdown and JSON reports | Load Generator, Resource Virtualization Engine | implemented · Phase 9 (`components/experience/benchmark-reporter/`) |
+| Learning Tracker | Learning path as data, progress tracking, automatic completion from evidence | Chaos Engine, Benchmark Reporter | implemented · Phase 9 (`components/experience/learning-tracker/`) |
+| End-to-End Runner | One-command run of the Compose lab: smoke tests, drills, benchmark | Docker | implemented · Phase 9 (`components/experience/e2e-runner/`) |
 
 ### Reliability
 

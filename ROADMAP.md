@@ -4,7 +4,7 @@ This document is the source of truth for **what is authorized and what is next**
 
 Legend: ⬜ planned · 🔨 in progress · ✅ done
 
-## Phase 0 — Foundation *(current)*
+## Phase 0 — Foundation *✅ done*
 
 > Bootstrap the repository, documentation, architecture, conventions, and directory structure. No infrastructure implementation.
 
@@ -85,10 +85,10 @@ Legend: ⬜ planned · 🔨 in progress · ✅ done
 - [x] Secrets management, TLS, RBAC (`compose.security.yaml`, Kubernetes hardening; see `docs/security.md`)
 - [x] Compliance-oriented checks (`forgelab security compliance`, `scan-secrets`)
 
-## Phase 9 — Production Simulator
+## Phase 9 — Production Simulator *✅ done*
 
-- [ ] The complete ForgeLab experience, end to end
-- [ ] Benchmark reports and learning-path completion tracking
+- [x] The complete ForgeLab experience, end to end (`make e2e`, `scenarios/failures/multi-failure-incident`)
+- [x] Benchmark reports and learning-path completion tracking (`forgelab benchmark`, `forgelab learn`, dashboard Learning path)
 
 ---
 
