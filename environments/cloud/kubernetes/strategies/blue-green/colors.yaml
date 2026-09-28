@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-web-blue
+  namespace: forgelab
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sample-web
+      slot: blue
+  template:
+    metadata:
+      labels:
+        app: sample-web
+        slot: blue
+    spec:
+      containers:
+        - name: sample-web
+          image: forgelab/sample-web:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: APP_VERSION
+              value: v1-blue
+            - name: DB_HOST
+              value: postgres
+            - name: DB_PORT
+              value: "5432"
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-web-green
+  namespace: forgelab
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sample-web
+      slot: green
+  template:
+    metadata:
+      labels:
+        app: sample-web
+        slot: green
+    spec:
+      containers:
+        - name: sample-web
+          image: forgelab/sample-web:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: APP_VERSION
+              value: v2-green
+            - name: DB_HOST
+              value: postgres
+            - name: DB_PORT
+              value: "5432"
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi

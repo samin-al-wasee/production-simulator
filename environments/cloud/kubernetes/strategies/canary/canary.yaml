@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-web-canary
+  namespace: forgelab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sample-web-canary
+  template:
+    metadata:
+      labels:
+        app: sample-web-canary
+    spec:
+      containers:
+        - name: sample-web
+          image: forgelab/sample-web:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: APP_VERSION
+              value: v2-canary
+            - name: DB_HOST
+              value: postgres
+            - name: DB_PORT
+              value: "5432"
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-web-canary
+  namespace: forgelab
+spec:
+  selector:
+    app: sample-web-canary
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sample-web-canary
+  namespace: forgelab
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: "20"
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sample-web-canary
+                port:
+                  name: http
