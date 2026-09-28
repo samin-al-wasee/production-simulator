@@ -64,3 +64,7 @@ tfplan.json
 # ---- Local security material (scripts/gen-dev-certs.sh, gen-secrets.sh) ----
 environments/local/security/certs/
 environments/local/security/secrets/
+
+# ---- Generated reports and learner progress ----
+/reports/
+/.forgelab/

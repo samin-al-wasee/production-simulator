@@ -62,6 +62,33 @@ export interface PipelineInfo {
   stages: string[];
 }
 
+export interface LearningExercise {
+  id: string;
+  title: string;
+  how: string;
+  evidence: { type: "manual" | "experiment" | "benchmark"; name?: string };
+  done: boolean;
+  completedAt?: string;
+  completedBy?: string;
+}
+
+export interface LearningStage {
+  id: string;
+  title: string;
+  goal: string;
+  done: number;
+  total: number;
+  complete: boolean;
+  exercises: LearningExercise[];
+}
+
+export interface LearningStatus {
+  stages: LearningStage[];
+  done: number;
+  total: number;
+  next: string;
+}
+
 export interface AppConfig {
   runsEnabled: boolean;
   clusterFile: string;

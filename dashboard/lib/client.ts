@@ -68,3 +68,7 @@ export function simulatePipeline(name: string, options: PipelineOptions): Promis
     body: JSON.stringify(options),
   });
 }
+
+export function completeExercise(id: string): Promise<import("./api").LearningStatus> {
+  return request(`/learning/${encodeURIComponent(id)}/complete`, { method: "POST" });
+}

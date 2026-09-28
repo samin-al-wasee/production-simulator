@@ -49,6 +49,10 @@ func main() {
 		os.Exit(runServe(os.Args[2:]))
 	case "security":
 		os.Exit(runSecurity(os.Args[2:]))
+	case "benchmark":
+		os.Exit(runBenchmark(os.Args[2:]))
+	case "learn":
+		os.Exit(runLearn(os.Args[2:]))
 	default:
 		fmt.Fprintf(os.Stderr, "forgelab: unknown command %q\n\n", os.Args[1])
 		usage(os.Stderr)
@@ -70,6 +74,8 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "  pipeline   simulate a build, test, and deploy pipeline on a virtual clock")
 	fmt.Fprintln(w, "  serve      serve the core over HTTP for the dashboard")
 	fmt.Fprintln(w, "  security   scan for committed secrets and check manifests against hardening controls")
+	fmt.Fprintln(w, "  benchmark  run baseline, ramp, and spike load and write a benchmark report")
+	fmt.Fprintln(w, "  learn      show and update progress through the learning path")
 }
 
 func runValidate(args []string) int {
