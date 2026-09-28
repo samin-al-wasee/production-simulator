@@ -1,0 +1,132 @@
+{
+ "resource_changes": [
+  {
+   "address": "google_compute_network.this",
+   "type": "google_compute_network",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "after": {}
+   }
+  },
+  {
+   "address": "google_service_account.this",
+   "type": "google_service_account",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "after": {}
+   }
+  },
+  {
+   "address": "google_container_cluster.this",
+   "type": "google_container_cluster",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "after": {
+     "effective_labels": {
+      "forgelab-experiment": "forgelab",
+      "forgelab-owner": "me",
+      "forgelab-ttl-hours": "8"
+     },
+     "resource_labels": {
+      "forgelab-experiment": "forgelab",
+      "forgelab-owner": "me",
+      "forgelab-ttl-hours": "8"
+     }
+    }
+   }
+  },
+  {
+   "address": "google_container_node_pool.workers",
+   "type": "google_container_node_pool",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "after": {
+     "node_count": 1,
+     "node_config": [
+      {
+       "machine_type": "e2-medium",
+       "spot": true,
+       "labels": {
+        "forgelab-experiment": "forgelab",
+        "forgelab-owner": "me",
+        "forgelab-ttl-hours": "8"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "address": "google_sql_database_instance.postgres[0]",
+   "type": "google_sql_database_instance",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "after": {
+     "settings": [
+      {
+       "tier": "db-f1-micro",
+       "user_labels": {
+        "forgelab-experiment": "forgelab",
+        "forgelab-owner": "me",
+        "forgelab-ttl-hours": "8"
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "address": "google_redis_instance.cache[0]",
+   "type": "google_redis_instance",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "after": {
+     "memory_size_gb": 1,
+     "effective_labels": {
+      "forgelab-experiment": "forgelab",
+      "forgelab-owner": "me",
+      "forgelab-ttl-hours": "8"
+     },
+     "labels": {
+      "forgelab-experiment": "forgelab",
+      "forgelab-owner": "me",
+      "forgelab-ttl-hours": "8"
+     }
+    }
+   }
+  },
+  {
+   "address": "google_pubsub_topic.jobs[0]",
+   "type": "google_pubsub_topic",
+   "change": {
+    "actions": [
+     "create"
+    ],
+    "after": {
+     "effective_labels": {
+      "forgelab-experiment": "forgelab",
+      "forgelab-owner": "me",
+      "forgelab-ttl-hours": "8"
+     },
+     "labels": {
+      "forgelab-experiment": "forgelab",
+      "forgelab-owner": "me",
+      "forgelab-ttl-hours": "8"
+     }
+    }
+   }
+  }
+ ]
+}

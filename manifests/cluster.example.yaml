@@ -1,0 +1,20 @@
+apiVersion: forgelab/v1
+kind: Cluster
+name: prod-eu
+nodes:
+  - name: web
+    count: 200
+    profile: large
+  - name: workers
+    count: 60
+    profile: medium
+  - name: database
+    count: 3
+    resources:
+      cpuCores: 32
+      memory: 128Gi
+      disk: 4Ti
+database:
+  maxConnections: 5000
+  maxQps: 120000
+  storage: 12Ti

@@ -1,0 +1,21 @@
+apiVersion: forgelab/v1
+kind: Pipeline
+metadata:
+  name: web-release-canary
+spec:
+  stages:
+    - name: build
+      steps:
+        - {name: compile, duration: 60s, cacheHitDuration: 15s}
+        - {name: image, duration: 40s}
+    - name: test
+      parallel: true
+      steps:
+        - {name: unit, duration: 45s}
+        - {name: integration, duration: 120s, flakyPercent: 20, retries: 2}
+        - {name: lint, duration: 25s}
+    - name: deploy
+      deploy:
+        strategy: canary
+        canarySteps: [10, 50, 100]
+        analysisDuration: 120s
