@@ -6,3 +6,5 @@ resources:
   - app.yaml
   - hpa.yaml
   - ingress.yaml
+  - network-policies.yaml
+  - rbac.yaml

@@ -1,0 +1,70 @@
+# Least-privilege roles for people. Neither role can read Secrets, exec into
+# pods, or change RBAC. Bind them to your identity provider's groups.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: forgelab-viewer
+  namespace: forgelab
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "endpoints", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: forgelab-operator
+  namespace: forgelab
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "endpoints", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["get", "patch", "update"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: forgelab-viewers
+  namespace: forgelab
+subjects:
+  - kind: Group
+    name: forgelab:viewers
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: forgelab-viewer
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: forgelab-operators
+  namespace: forgelab
+subjects:
+  - kind: Group
+    name: forgelab:operators
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: forgelab-operator
+  apiGroup: rbac.authorization.k8s.io
