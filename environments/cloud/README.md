@@ -2,7 +2,7 @@
 
 Managed-cluster presets: Kubernetes plus opt-in cloud services (AWS/GCP via Terraform).
 
-**Status:** planned — implemented in Phase 6.
+**Status:** implemented — Kubernetes on `kind` (Phase 4, `kubernetes/`) and opt-in AWS/GCP Terraform presets with a cost guard (Phase 6, `terraform/`).
 
 ## Goals (placeholder)
 
