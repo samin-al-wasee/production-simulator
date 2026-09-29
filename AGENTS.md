@@ -10,7 +10,7 @@ The repository exists for learning, experimentation, benchmarking, incident simu
 
 The prime directive is **modular composition, not a fixed architecture**. Every infrastructure layer is optional. Never assume a component is required.
 
-**Status:** roadmap phases 0 through 9 are implemented (see `ROADMAP.md`). **Do not implement new infrastructure (Docker, Kubernetes, Terraform, application code) beyond what a roadmap phase authorizes.**
+**Status:** roadmap phases 0 through 9 are implemented; Phase 10 (Production Sandbox, ADR-0013) is in progress (see `ROADMAP.md`). **Do not implement new infrastructure (Docker, Kubernetes, Terraform, application code) beyond what a roadmap phase authorizes.**
 
 ## 2. Decided stack
 

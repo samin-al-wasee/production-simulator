@@ -101,7 +101,7 @@ The layer that makes failure a feature:
 
 1. **No implicit dependencies.** If a manifest omits networking, nothing proxies anything.
 2. **Composition is explicit.** Every component used is declared by the user.
-3. **The dashboards/UI is a consumer.** The Next.js dashboard reads the runtime API; it never reimplements simulation logic.
+3. **The dashboards/UI is a consumer.** The Next.js dashboard reads the runtime API; it never reimplements simulation logic. This holds in Sandbox mode too: the game's engine is in the Go core, and the dashboard renders its state.
 4. **Documentation precedes implementation.** A layer may not be built before its catalog entry and phase exist.
 5. **Physical ≠ Virtual.** Every environment has a physical footprint and a virtual production surface. The simulator scales capacity, never correctness; all virtual metrics carry their scale factor.
 6. **Simulate behavior, not features.** Synthetic applications model the operational workload (requests, DB reads/writes, cache, messaging, latency), not business logic. Feature labels are visualization, never the simulation model.
@@ -480,6 +480,92 @@ Application Type
 ```
 
 Dashboard users will be able to: create services, add endpoints, select workload templates, configure DB/cache/message-broker operations, configure worker concurrency, configure latency, failure and traffic-distribution parameters, and configure scaling policies.
+
+## Production Sandbox (Sandbox mode)
+
+**Status:** planned · Phase 10 · [ADR-0013](decisions/0013-production-sandbox-game.md)
+
+ForgeLab runs a production system in one of two modes:
+
+| | Live mode | Sandbox mode |
+|---|---|---|
+| What runs | Real containers, processes, Kubernetes, cloud presets | A deterministic model in the Go core; nothing is started |
+| Who composes it | Manifests, overlays, presets | The player, component by component, in the dashboard |
+| Scale | Host-bound, virtualized for display (×64, ×128) | Any size the player can afford |
+| Governing principle | Principle 10 — never fake behavior | Principle 15 — modelled, never scripted, always labelled |
+
+The Sandbox is a city-builder for software production. A new game is an **empty world**: an Internet traffic source and starting cash. The player places components, wires them together, and keeps the system healthy and profitable as users arrive, traffic swings, and incidents happen.
+
+### Engine layout
+
+```mermaid
+flowchart LR
+    subgraph CORE["core/internal/sandbox (pure Go, deterministic)"]
+        CMD["Command log<br/>place · connect · resize · scale · respond"]
+        WORLD["World state<br/>components · edges · users · cash"]
+        CAT["Component catalog<br/>(ruleset data)"]
+        TRF["Traffic model<br/>users × engagement × diurnal curve"]
+        FLOW["Flow solver<br/>load → utilization → latency/errors"]
+        ECO["Economy & meters<br/>revenue · cost · health · satisfaction"]
+        EVT["Event deck<br/>(seeded)"]
+    end
+    API["/api/v1/sandbox<br/>(forgelab serve)"]
+    UI["Dashboard Sandbox screen<br/>palette · React Flow canvas · HUD"]
+
+    UI -- commands --> API --> CMD --> WORLD
+    CAT --> WORLD
+    WORLD --> TRF --> FLOW --> ECO --> WORLD
+    EVT --> TRF & FLOW
+    WORLD -- tick state (SSE) --> API --> UI
+```
+
+A game is fully defined by **(ruleset version, seed, ordered command log)**. Replaying the same triple yields the same world at every tick, so games are reproducible, testable in CI, and saved as data under `.forgelab/sandbox/`.
+
+### One tick
+
+Simulated time advances in fixed ticks (initially five simulated minutes; tuning lives in the ruleset). Each tick:
+
+1. **Apply commands** queued since the last tick, after validation (cash, allowed connections, limits).
+2. **Draw events** from the seeded deck; odds depend on complexity (failures) and popularity (surges, attacks).
+3. **Generate traffic:** `RPS = active users × engagement × diurnal(t) × event modifiers`.
+4. **Solve the flow** through the topology (below).
+5. **Update the economy:** revenue for successful requests, cost for every component, operations overhead from complexity.
+6. **Update the meters and the userbase:** satisfaction from latency, errors, and availability; growth from popularity; churn from low satisfaction.
+7. **Publish** the tick state to subscribers.
+
+### Flow solver (initial model)
+
+The solver walks the topology from the Internet node. The formulas are deliberately simple and documented, so a learner can check them:
+
+* **Routing** — a node splits outgoing load across its downstream edges in proportion to downstream capacity (load balancers) or by the request mix (reads vs writes, sync vs async). A cache absorbs `hit ratio × reads`; misses continue to the database. A queue turns synchronous writes into worker load, trading latency for backlog.
+* **Utilization** — for a node with capacity `μ` (per replica) and `c` replicas receiving `λ`: `ρ = λ / (c·μ)`.
+* **Latency** — `service time / (1 − ρ)` for `ρ < 1` (an M/M/1-style approximation per replica), capped at the timeout. End-to-end latency is the sum along the request path; p95 is derived from the per-path distribution.
+* **Saturation** — when `ρ ≥ 1`, the excess `λ − c·μ` is dropped or queued (queues accumulate backlog up to their limit, then drop). Dropped and timed-out requests are errors.
+* **Success** — a request succeeds only if every node on its path serves it; availability and error rate follow from that.
+
+Bottlenecks are therefore a property of the player's design, not a script (Principle 11).
+
+### Meters
+
+| Meter | Driven by |
+|---|---|
+| RPS, userbase (total / active) | Traffic model, growth, churn |
+| p95 latency, error rate, availability | Flow solver |
+| System health (0–100) | Error rate, latency against the SLO, availability |
+| Satisfaction (0–100) | Latency, errors, outages over a rolling window |
+| Popularity | Satisfaction and events; drives new-user acquisition |
+| Engagement | Requests per active user; rises with satisfaction |
+| Complexity | Component weights and connections; raises incident odds and operations cost |
+| Scale | Tier from userbase and peak RPS |
+| Revenue, cost, cash | Successful requests × rate; component and operations cost |
+
+The economy is generic: revenue per successful request, cost per component-hour. No business domain enters the model (Principles 13–14). A game is lost when cash stays negative past a grace period.
+
+### Boundaries
+
+* The engine is **headless**; the CLI, tests, or a future analytics service can drive it without the dashboard.
+* The dashboard **renders state and sends commands**. It never computes a Sandbox value (rule 3 above).
+* Sandbox and Live mode share vocabulary (component names, scenario names) but no runtime: nothing in the Sandbox starts a container, and nothing in Live mode reads Sandbox state.
 
 ## Boundary: platform vs application
 

@@ -103,6 +103,10 @@ Exercises tied to a chaos experiment (`s1-restart`, `s3-redis-outage`, `s5-laten
 
 Stage 10 uses the [`multi-failure-incident`](../scenarios/failures/multi-failure-incident/README.md) scenario and the [postmortem template](../templates/postmortem/postmortem.md).
 
+## Sandbox mode (Phase 10, planned)
+
+The Production Sandbox ([ADR-0013](decisions/0013-production-sandbox-game.md)) gives every stage a second practice ground: build the architecture yourself, from an empty world, and watch it grow and fail. It needs no Docker, so it is also a gentle way in before Stage 1. Sandbox missions will be linked to the exercises above once the goals-and-unlocks milestone lands.
+
 ## Using this path
 
 * Each stage references concrete components in `docs/component-catalog.md` and scenarios in `docs/scenarios.md`.

@@ -44,6 +44,8 @@ ForgeLab's physical resources (the user's actual hardware) are distinct from its
 
 The simulator scales how much capacity the production view *displays* — nodes, RAM, RPS, replicas — but never fakes how a real system would *behave*. Bottlenecks, latency, backpressure, and exhaustion occur for the same reasons they would in real production, at the scale the view claims.
 
+**Scope:** this principle governs **Live mode** — every surface backed by real containers, processes, or cloud resources. **Sandbox mode** has no physical layer and is governed by Principle 15 instead (ADR-0013). The Sandbox is never precedent for faking a Live-mode value.
+
 ## 11. Preserve bottlenecks and system dynamics
 
 Scaling the displayed capacity must not erase the system dynamics that make production interesting. If the database is the bottleneck at ×1, it remains the bottleneck at ×128. The scale factor changes capacity, not the shape of the system.
@@ -52,6 +54,8 @@ Scaling the displayed capacity must not erase the system dynamics that make prod
 
 Every infrastructure surface shows both host metrics and virtual production metrics, with the current simulation scale (e.g. ×64, ×128) always visible. Virtual values are labeled and never presented as real hardware measurements.
 
+In Sandbox mode there is no host footprint to show; instead every value carries a *simulated* label (Principle 15).
+
 ## 13. Optimize for system behavior, not business functionality
 
 ForgeLab's goal is not to recreate Amazon, Uber, a banking platform, or a travel platform. It is to reproduce the **engineering characteristics** of such systems: read-heavy, write-heavy, CPU-heavy, memory-heavy, DB-heavy, cache-heavy, network-heavy, message-heavy, concurrency-heavy, latency-sensitive, failure-prone, highly distributed. Reproducing those characteristics lets ForgeLab generate thousands of different production-system configurations without requiring thousands of custom applications.
@@ -59,6 +63,10 @@ ForgeLab's goal is not to recreate Amazon, Uber, a banking platform, or a travel
 ## 14. Business labels are visualization; operations are the model
 
 Business-domain terminology ("Checkout", "Search Flights", "Transfer Money") is a feature label used for visualization. The actual simulation model is the underlying **operational workload** — the HTTP requests, database reads/writes, cache operations, messaging, latency, and concurrency. A feature is not behavior; behavior is the operations. The same workload may be presented under any feature label without changing the system.
+
+## 15. Sandbox values are modelled, never scripted, and always labelled
+
+Sandbox mode is a model of a production system, not a recording of one. Every Sandbox value — latency, errors, RPS, users, cost, satisfaction — is derived each tick from declared capacities, service times, and the player's topology, never from scripted curves or random metric values. Randomness is limited to seeded events (a surge, an outage); how the system responds to them is computed. Every Sandbox surface is labelled as simulated, and the formulas are documented so a learner can check the model against Live mode.
 
 ---
 
