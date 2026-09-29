@@ -18,6 +18,7 @@ This directory records ForgeLab's architecture decisions. Rules live in `AGENTS.
 | [0010](0010-pipeline-simulation-and-dashboard.md) | Accepted | Pipeline simulation, core API, and Next.js dashboard (Phase 7) |
 | [0011](0011-security-controls-and-verification.md) | Accepted | Security controls, verification, and defensive attack drills (Phase 8) |
 | [0012](0012-production-simulator-experience.md) | Accepted | Benchmark reports, learning-path tracking, and the end-to-end run (Phase 9) |
+| [0013](0013-production-sandbox-game.md) | Proposed | Production Sandbox: a model-driven production-system game built from an empty world (Phase 10) |
 
 ## Conventions
 

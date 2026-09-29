@@ -90,6 +90,17 @@ Legend: ⬜ planned · 🔨 in progress · ✅ done
 - [x] The complete ForgeLab experience, end to end (`make e2e`, `scenarios/failures/multi-failure-incident`)
 - [x] Benchmark reports and learning-path completion tracking (`forgelab benchmark`, `forgelab learn`, dashboard Learning path)
 
+## Phase 10 — Production Sandbox *🔨 in progress*
+
+> A city-builder for software production: the player starts from an empty world, places and wires every component in the dashboard, and runs the system as a business under growth, events, and incidents. Fully model-driven (no containers); deterministic Go core; the dashboard renders and sends commands. See ADR-0013.
+
+- [x] Documentation and ADR-0013 (architecture, principles, catalog, vision)
+- [ ] Sandbox engine: world, component catalog, traffic model, flow solver, economy, meters, deterministic ticks (`core/internal/sandbox`)
+- [ ] Sandbox API: games, commands, SSE tick stream, save/load (`/api/v1/sandbox/`)
+- [ ] Dashboard Sandbox screen: build palette, React Flow canvas, HUD, inspector, speed controls
+- [ ] Event deck and incident response actions (surges, outages, DDoS, failover, rate limiting)
+- [ ] Goals and unlocks (missions tied to the learning path)
+
 ---
 
 ## Proposed: Synthetic Applications roadmap (planning sketch)

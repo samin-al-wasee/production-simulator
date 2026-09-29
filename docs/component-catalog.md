@@ -23,7 +23,8 @@ flowchart LR
     CI[CI/CD]
     RE[Reliability]
     EX[Experience]
-    APP[Your Application] --> SA & SIM & NW & CP & DB & MS & ST & OB & SE & IN & CI & RE & EX
+    SB[Sandbox]
+    APP[Your Application] --> SA & SIM & NW & CP & DB & MS & ST & OB & SE & IN & CI & RE & EX & SB
 ```
 
 ## Catalog by domain
@@ -135,6 +136,20 @@ flowchart LR
 | Benchmark Reporter | Baseline/ramp/spike benchmarks with SLO verdicts; Markdown and JSON reports | Load Generator, Resource Virtualization Engine | implemented · Phase 9 (`components/experience/benchmark-reporter/`) |
 | Learning Tracker | Learning path as data, progress tracking, automatic completion from evidence | Chaos Engine, Benchmark Reporter | implemented · Phase 9 (`components/experience/learning-tracker/`) |
 | End-to-End Runner | One-command run of the Compose lab: smoke tests, drills, benchmark | Docker | implemented · Phase 9 (`components/experience/e2e-runner/`) |
+
+### Sandbox
+
+Model-driven production-system game (Sandbox mode, ADR-0013). These are platform components of the game itself; the components a player places in a game (load balancer, application instance, database, …) are entries in the Sandbox ruleset, not repository components.
+
+| Component | Provides | Depends on | Status |
+|---|---|---|---|
+| Sandbox Engine | Deterministic world state, command log, tick loop, save/replay (`core/internal/sandbox`) | — | planned · Phase 10 |
+| Sandbox Ruleset | Versioned data: placeable component kinds, capacities, costs, complexity weights, tuning | Sandbox Engine | planned · Phase 10 |
+| Flow Solver | Routes per-tick load through the player's topology; utilization, latency, saturation, errors | Sandbox Engine, Sandbox Ruleset | planned · Phase 10 |
+| Economy & Meters | Revenue, cost, cash; health, satisfaction, popularity, engagement, complexity, scale, userbase | Flow Solver | planned · Phase 10 |
+| Event Deck | Seeded, state-dependent events and incidents (surges, outages, DDoS, cost spikes) | Sandbox Engine | planned · Phase 10 |
+| Sandbox API | `/api/v1/sandbox/` games, commands, SSE tick stream | Sandbox Engine | planned · Phase 10 |
+| Sandbox Canvas | Dashboard screen: build palette, React Flow topology canvas, HUD, inspector, event feed, speed controls | Sandbox API | planned · Phase 10 |
 
 ### Reliability
 

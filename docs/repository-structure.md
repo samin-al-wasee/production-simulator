@@ -41,13 +41,13 @@ ForgeLab/
 | Folder | Contains | Owns |
 |---|---|---|
 | `docs/` | Vision, architecture, principles, catalog, scenarios, glossary, learning path, decisions | Every conceptual document |
-| `core/` | `cmd/forgelab` CLI, `internal/manifest` validation, `internal/calibration` and `internal/budget` (Phase 0.5), later simulation packages | Simulation core and its tooling |
+| `core/` | `cmd/forgelab` CLI, `internal/manifest` validation, `internal/calibration` and `internal/budget` (Phase 0.5), later simulation packages, `internal/sandbox` (planned, Phase 10) | Simulation core and its tooling |
 | `synthetic-apps/` | Planned workload-engine, application/service/endpoint generators, operation-engine, models, telemetry-generator, templates | Synthetic Applications / Workload Engine planning |
 | `applications/` | One self-contained sample per plugged-in application: `applications/<name>/` | Application samples; never core code |
 | `manifests/` | `application.schema.yaml`, validation tooling, curated examples | Manifest schema and validation rules |
-| `components/` | One directory per domain: networking, compute, databases, messaging, storage, observability, security, infrastructure, cicd, reliability | Component implementations and their READMEs |
+| `components/` | One directory per domain: networking, compute, databases, messaging, storage, observability, security, infrastructure, cicd, reliability, simulation, experience, sandbox | Component implementations and their READMEs |
 | `environments/` | `local/`, `staging/`, `cloud/` presets composing components | Environment definitions |
-| `dashboard/` | Next.js app: Overview, Experiments, Pipelines, Learning path | Dashboard UI; never simulation logic |
+| `dashboard/` | Next.js app: Overview, Experiments, Pipelines, Learning path; Sandbox screen (planned, Phase 10) | Dashboard UI; never simulation logic |
 | `learning/` | `path.yaml` learning path | Learning path definition |
 | `security/` | `secretscan.yaml` allowlist | Security tooling configuration |
 | `scenarios/` | Categories + one folder per scenario: traffic, failures, security, scaling, performance | Scenario definitions |

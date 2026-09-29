@@ -51,6 +51,15 @@ A laptop has maybe 16 GB of RAM and 8 CPU cores; the production system ForgeLab 
 
 That distinction — *physical resources* vs *virtual production resources* — is a core ForgeLab concept, detailed in `docs/architecture.md` (Resource Virtualization Engine) and governed by the principles in `docs/principles.md`.
 
+### Two modes: Live and Sandbox
+
+ForgeLab runs a production system in two ways:
+
+* **Live mode** — real containers, Kubernetes, and cloud presets, with virtualized capacity. The ground truth.
+* **Sandbox mode** — a city-builder for software production. The player opens the dashboard to an **empty production**, places every component (load balancers, application instances, databases, caches, queues), wires them together, and runs the result as a living system. Users arrive, traffic rises and falls, surges and incidents happen, and every choice trades off **cost, revenue, health, complexity, popularity, engagement, scale, userbase, and RPS**. The model is deterministic and computed in the Go core; bottlenecks come from the player's design, not a script (ADR-0013).
+
+Live mode teaches how production *behaves*. Sandbox mode teaches how production *evolves*, and why architectures end up the way they do.
+
 Textbook knowledge ("use a queue", "add a retry", "the database is the bottleneck") does not translate into intuition. Intuition about production comes from *observing systems under realistic conditions* — high traffic, degraded infrastructure, failing dependencies, cascading failures, and the messy work of finding out what is actually happening.
 
 ForgeLab exists to make that experience deliberate, safe, and repeatable:

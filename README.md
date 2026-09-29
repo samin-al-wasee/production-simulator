@@ -19,6 +19,11 @@ compliance checks, benchmark reports, learning-path tracking); and a Next.js
 dashboard. Run `make help` for every entry point and `make e2e` for the whole
 experience.
 
+**Next — Phase 10, Production Sandbox (in progress):** a city-builder for
+software production. The player starts from an empty world, places and wires
+every component in the dashboard, and runs the system against growth, events,
+incidents, and a budget. See [ADR-0013](docs/decisions/0013-production-sandbox-game.md).
+
 The currently implemented decisions are recorded in [`docs/decisions/`](docs/decisions/).
 
 ---
@@ -168,6 +173,7 @@ See [`docs/principles.md`](docs/principles.md).
 9. **CI/CD & dashboard** — pipeline simulation, lab UI *(done)*
 10. **Security drills** — attack simulation, secrets, compliance *(done)*
 11. **Production Simulator** — the full experience, end to end *(done)*
+12. **Production Sandbox** — build a production system from nothing and run it as a game *(in progress)*
 
 > **Planning sketch (non-committal):** Synthetic Applications / Workload Engine — Workload DSL, production operations, production infrastructure, resource virtualization, scenarios/reliability, dashboard. See the "Proposed: Synthetic Applications roadmap" section in [`ROADMAP.md`](ROADMAP.md).
 

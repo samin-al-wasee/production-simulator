@@ -21,6 +21,26 @@ A human-readable, business-domain name shown in visualization (e.g. "Checkout", 
 ### Workload Template
 A reusable workload profile shipped with the platform — e.g. `crud-api`, `read-heavy-api`, `background-worker`, `checkout`, `search`. Templates describe engineering characteristics (read-heavy, write-heavy, message-heavy), not a specific product.
 
+## Sandbox
+
+### Sandbox Mode
+The model-driven way of running a production system (ADR-0013). The player builds the system from an empty world in the dashboard; the Go core computes every value from declared capacities and the player's topology. Nothing is started on the host. Every value is labelled as simulated.
+
+### Live Mode
+Running a production system on real containers, processes, Kubernetes, or cloud presets: everything ForgeLab did before Phase 10.
+
+### Tick
+One fixed step of simulated time in the Sandbox (initially five simulated minutes). Commands take effect at tick boundaries.
+
+### Ruleset
+Versioned Sandbox data: the placeable component kinds with their capacity, service time, cost, and complexity weight, plus economy and event tuning. A save records its ruleset version so it can be replayed.
+
+### Command Log
+The ordered list of player actions (place, connect, resize, scale, respond). With the seed and ruleset version, it fully reproduces a game.
+
+### Flow Solver
+The Sandbox step that routes each tick's load through the topology and derives utilization, latency, saturation, and errors.
+
 ## Networking
 
 ### Load Balancer
