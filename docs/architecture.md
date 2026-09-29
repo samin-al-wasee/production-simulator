@@ -483,7 +483,7 @@ Dashboard users will be able to: create services, add endpoints, select workload
 
 ## Production Sandbox (Sandbox mode)
 
-**Status:** planned · Phase 10 · [ADR-0013](decisions/0013-production-sandbox-game.md)
+**Status:** in progress · Phase 10 · engine implemented in `core/internal/sandbox` · [ADR-0013](decisions/0013-production-sandbox-game.md)
 
 ForgeLab runs a production system in one of two modes:
 
@@ -537,9 +537,9 @@ Simulated time advances in fixed ticks (initially five simulated minutes; tuning
 
 The solver walks the topology from the Internet node. The formulas are deliberately simple and documented, so a learner can check them:
 
-* **Routing** — a node splits outgoing load across its downstream edges in proportion to downstream capacity (load balancers) or by the request mix (reads vs writes, sync vs async). A cache absorbs `hit ratio × reads`; misses continue to the database. A queue turns synchronous writes into worker load, trading latency for backlog.
+* **Routing** — a node splits outgoing load across its downstream edges in proportion to downstream capacity, so a failed node (capacity 0) receives nothing while a healthy peer exists. An application instance sends reads (80%) to a cache if connected, otherwise to database primaries and replicas; writes (20%) to a queue if connected, otherwise to primaries; and a further 10% of requests also need object storage. Missing a required target fails that share of requests. A CDN serves 30% of requests at the edge; a cache serves `hit ratio × reads` (80%) and sends misses to the database. A queue accepts writes up to its capacity and backlog limit and hands them to workers as they have capacity; the backlog carries over between ticks.
 * **Utilization** — for a node with capacity `μ` (per replica) and `c` replicas receiving `λ`: `ρ = λ / (c·μ)`.
-* **Latency** — `service time / (1 − ρ)` for `ρ < 1` (an M/M/1-style approximation per replica), capped at the timeout. End-to-end latency is the sum along the request path; p95 is derived from the per-path distribution.
+* **Latency** — `service time / (1 − ρ)` for `ρ < 1` (an M/M/1-style approximation per replica), capped at the timeout. End-to-end latency is the success-weighted mean along the request paths; p95 is approximated as `mean × ln 20 ≈ 3 × mean` (an exponential latency distribution), capped at the timeout. Asynchronous work behind a queue does not add to request latency.
 * **Saturation** — when `ρ ≥ 1`, the excess `λ − c·μ` is dropped or queued (queues accumulate backlog up to their limit, then drop). Dropped and timed-out requests are errors.
 * **Success** — a request succeeds only if every node on its path serves it; availability and error rate follow from that.
 

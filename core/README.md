@@ -21,7 +21,8 @@ core/
 ├── internal/pipeline/     CI/CD pipeline simulation on a virtual clock — Phase 7
 ├── internal/api/          HTTP API for the dashboard — Phase 7
 ├── internal/compliance/   Hardening controls for Kubernetes and Compose — Phase 8
-└── internal/secretscan/   Committed-secret detection — Phase 8
+├── internal/secretscan/   Committed-secret detection — Phase 8
+└── internal/sandbox/      Production Sandbox game engine (model-driven, deterministic) — Phase 10
 ```
 
 ## Commands (from the repository root, inside the devcontainer)

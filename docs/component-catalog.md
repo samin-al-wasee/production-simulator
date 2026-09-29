@@ -143,10 +143,10 @@ Model-driven production-system game (Sandbox mode, ADR-0013). These are platform
 
 | Component | Provides | Depends on | Status |
 |---|---|---|---|
-| Sandbox Engine | Deterministic world state, command log, tick loop, save/replay (`core/internal/sandbox`) | — | planned · Phase 10 |
-| Sandbox Ruleset | Versioned data: placeable component kinds, capacities, costs, complexity weights, tuning | Sandbox Engine | planned · Phase 10 |
-| Flow Solver | Routes per-tick load through the player's topology; utilization, latency, saturation, errors | Sandbox Engine, Sandbox Ruleset | planned · Phase 10 |
-| Economy & Meters | Revenue, cost, cash; health, satisfaction, popularity, engagement, complexity, scale, userbase | Flow Solver | planned · Phase 10 |
+| Sandbox Engine | Deterministic world state, command log, tick loop, save/replay (`core/internal/sandbox`) | — | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
+| Sandbox Ruleset | Versioned data: placeable component kinds, capacities, costs, complexity weights, tuning (`sandbox/v1`) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
+| Flow Solver | Routes per-tick load through the player's topology; utilization, latency, saturation, errors | Sandbox Engine, Sandbox Ruleset | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
+| Economy & Meters | Revenue, cost, cash; health, satisfaction, popularity, engagement, complexity, scale, userbase | Flow Solver | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 | Event Deck | Seeded, state-dependent events and incidents (surges, outages, DDoS, cost spikes) | Sandbox Engine | planned · Phase 10 |
 | Sandbox API | `/api/v1/sandbox/` games, commands, SSE tick stream | Sandbox Engine | planned · Phase 10 |
 | Sandbox Canvas | Dashboard screen: build palette, React Flow topology canvas, HUD, inspector, event feed, speed controls | Sandbox API | planned · Phase 10 |
