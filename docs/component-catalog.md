@@ -148,8 +148,8 @@ Model-driven production-system game (Sandbox mode, ADR-0013). These are platform
 | Flow Solver | Routes per-tick load through the player's topology; utilization, latency, saturation, errors | Sandbox Engine, Sandbox Ruleset | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 | Economy & Meters | Revenue, cost, cash; health, satisfaction, popularity, engagement, complexity, scale, userbase | Flow Solver | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 | Event Deck | Seeded, state-dependent events and incidents (surges, outages, DDoS, cost spikes) | Sandbox Engine | planned · Phase 10 |
-| Sandbox API | `/api/v1/sandbox/` games, commands, SSE tick stream | Sandbox Engine | planned · Phase 10 |
-| Sandbox Canvas | Dashboard screen: build palette, React Flow topology canvas, HUD, inspector, event feed, speed controls | Sandbox API | planned · Phase 10 |
+| Sandbox API | `/api/v1/sandbox/` games, commands, speed, step, save/replay, SSE tick stream (`core/internal/api`) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-api/`) |
+| Sandbox Canvas | Dashboard screen: build palette, React Flow topology canvas, HUD, inspector, speed controls (event feed with the Event Deck) | Sandbox API | implemented · Phase 10 (`components/sandbox/sandbox-canvas/`) |
 
 ### Reliability
 

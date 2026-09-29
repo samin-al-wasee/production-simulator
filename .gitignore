@@ -18,6 +18,8 @@ coverage.out
 # ---- Node / Next.js ----
 node_modules/
 .next/
+/dashboard/test-results/
+/dashboard/playwright-report/
 out/
 next-env.d.ts
 *.tsbuildinfo

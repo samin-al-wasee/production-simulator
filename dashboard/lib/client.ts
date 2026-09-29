@@ -39,7 +39,7 @@ export interface PipelineRun {
   events: PipelineEvent[];
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api/forgelab${path}`, init);
   const body = (await res.json().catch(() => ({}))) as T & { error?: string };
   if (!res.ok) throw new Error(body.error ?? `${res.status} ${res.statusText}`);

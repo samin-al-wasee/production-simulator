@@ -66,6 +66,9 @@ type Server struct {
 	mu   sync.Mutex
 	runs map[string]*ExperimentRun
 	seq  int
+
+	games   map[string]*sandboxGame
+	gameSeq int
 }
 
 // NewServer builds a Server using the real host, Docker, and HTTP.
@@ -90,6 +93,7 @@ func NewServer(cfg Config) *Server {
 		Probe:  chaos.HTTPProber{},
 		Sleep:  time.Sleep,
 		runs:   map[string]*ExperimentRun{},
+		games:  map[string]*sandboxGame{},
 	}
 	s.mux = http.NewServeMux()
 	s.mux.HandleFunc("GET /healthz", s.handleHealth)
@@ -105,6 +109,7 @@ func NewServer(cfg Config) *Server {
 	s.mux.HandleFunc("POST /api/v1/learning/{id}/complete", s.handleLearningComplete)
 	s.mux.HandleFunc("GET /api/v1/pipelines", s.handlePipelines)
 	s.mux.HandleFunc("POST /api/v1/pipelines/{name}/runs", s.handleSimulatePipeline)
+	s.registerSandbox()
 	return s
 }
 
@@ -112,7 +117,7 @@ func NewServer(cfg Config) *Server {
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if s.cfg.AllowedOrigin != "" {
 		w.Header().Set("Access-Control-Allow-Origin", s.cfg.AllowedOrigin)
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)

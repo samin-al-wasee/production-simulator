@@ -135,7 +135,7 @@ Before adding a component:
 - **Plan before code** — for any non-trivial task, state the files to change, the docs to update, and the verification plan.
 - **Verify after meaningful changes** — run the appropriate test and lint commands. See `.opencode/command/` (`test.md`, `lint.md`). Current expectations:
   - Go: `go test ./...`, `gofmt -l`, `go vet ./...` (from `core/`)
-  - Next.js: the app's `lint` and `typecheck` scripts (once the app exists)
+  - Next.js: the app's `lint`, `typecheck`, and `test` scripts; for UI changes also `make test-e2e` (Playwright), since unit tests and API checks do not exercise the browser
   - Report results honestly; a failing suite is never "probably fine."
 - **Never run destructive commands without asking.**
 - **Never commit, push, or open PRs unless the user explicitly asks.**

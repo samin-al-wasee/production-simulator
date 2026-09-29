@@ -96,8 +96,8 @@ Legend: ⬜ planned · 🔨 in progress · ✅ done
 
 - [x] Documentation and ADR-0013 (architecture, principles, catalog, vision)
 - [x] Sandbox engine: world, component catalog, traffic model, flow solver, economy, meters, deterministic ticks (`core/internal/sandbox`)
-- [ ] Sandbox API: games, commands, SSE tick stream, save/load (`/api/v1/sandbox/`)
-- [ ] Dashboard Sandbox screen: build palette, React Flow canvas, HUD, inspector, speed controls
+- [x] Sandbox API: games, commands, SSE tick stream, save/load (`/api/v1/sandbox/`)
+- [x] Dashboard Sandbox screen: build palette, React Flow canvas, HUD, inspector, speed controls
 - [ ] Event deck and incident response actions (surges, outages, DDoS, failover, rate limiting)
 - [ ] Goals and unlocks (missions tied to the learning path)
 
