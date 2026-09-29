@@ -19,7 +19,7 @@ Run a player-built production system as a model: traffic, load, latency, errors,
 
 ## Dependencies
 
-None. The engine is pure Go and headless. The Sandbox API and dashboard canvas (planned) consume it.
+None. The engine is pure Go and headless. The [Sandbox API](../sandbox-api/) and [Sandbox Canvas](../sandbox-canvas/) consume it.
 
 ## Configuration
 

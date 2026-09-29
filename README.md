@@ -208,6 +208,8 @@ When documents conflict, stop and identify the conflict instead of silently choo
 
 ## Getting Started
 
+**Play the Production Sandbox (no Docker needed):** run `make serve` and `make dashboard-dev` in two terminals, then open <http://localhost:3001/sandbox> and start a new game.
+
 The fastest way to see ForgeLab run is the `local` preset — a production-like
 single-node stack (reverse proxy → sample application → PostgreSQL) declared in
 [`environments/local/`](environments/local/compose.yaml).

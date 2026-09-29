@@ -1,0 +1,345 @@
+"use client";
+
+import "@xyflow/react/dist/style.css";
+import {
+  Background,
+  Controls,
+  MiniMap,
+  ReactFlow,
+  ReactFlowProvider,
+  useNodesState,
+  useReactFlow,
+  useUpdateNodeInternals,
+  type Connection,
+  type Edge as FlowEdge,
+  type IsValidConnection,
+} from "@xyflow/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { canConnect, formatMoney, freeSpot, newest, sandboxApi, type Command, type GameState, type Ruleset } from "@/lib/sandbox";
+import { SandboxHud } from "./SandboxHud";
+import { SandboxNode, type SandboxFlowNode } from "./SandboxNode";
+import { KIND_DRAG_TYPE, SandboxInspector, SandboxPalette } from "./SandboxPanels";
+
+const STORAGE_KEY = "forgelab.sandbox.game";
+const nodeTypes = { component: SandboxNode };
+
+function remember(id: string | null) {
+  try {
+    if (id) localStorage.setItem(STORAGE_KEY, id);
+    else localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // storage is a convenience only
+  }
+}
+
+function recall(): string | null {
+  try {
+    return localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+// useGameStream keeps the game state live: Server-Sent Events first, polling
+// if the stream cannot be held open.
+function useGameStream(id: string | undefined, onState: (g: GameState) => void) {
+  useEffect(() => {
+    if (!id) return;
+    let failures = 0;
+    let poll: ReturnType<typeof setInterval> | undefined;
+    const es = new EventSource(sandboxApi.streamUrl(id));
+    es.onmessage = (e) => {
+      failures = 0;
+      onState(JSON.parse(e.data) as GameState);
+    };
+    es.onerror = () => {
+      if (++failures < 3 || poll) return;
+      es.close();
+      poll = setInterval(() => {
+        sandboxApi.get(id).then(onState, () => undefined);
+      }, 1000);
+    };
+    return () => {
+      es.close();
+      if (poll) clearInterval(poll);
+    };
+  }, [id, onState]);
+}
+
+function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameState; onNewGame: () => void }) {
+  const [game, setGame] = useState<GameState>(initial);
+  const [toast, setToast] = useState<string | null>(null);
+  const [nodes, setNodes, onNodesChange] = useNodesState<SandboxFlowNode>([]);
+  const canvas = useRef<HTMLDivElement>(null);
+  const { screenToFlowPosition, getInternalNode } = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
+  // A node just placed by the player becomes the selection once it arrives.
+  const pendingSelect = useRef<string | null>(null);
+  // React Flow owns selection; the inspector follows it.
+  const selected = nodes.find((n) => n.selected)?.id ?? null;
+
+  const onState = useCallback((g: GameState) => setGame((cur) => newest(cur, g)), []);
+  useGameStream(game.id, onState);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  // Mirror server nodes into React Flow, keeping the selection and the
+  // position of a node the player is dragging.
+  useEffect(() => {
+    setNodes((prev) => {
+      const pending = pendingSelect.current;
+      return game.nodes.map((n) => {
+        const old = prev.find((p) => p.id === n.id);
+        const kind = rules.kinds.find((k) => k.name === n.kind);
+        return {
+          // Keep React Flow's own fields (measured size, dragging); our copy
+          // may not have the measurement yet right after placement.
+          ...old,
+          measured: old?.measured ?? getInternalNode(n.id)?.measured,
+          id: n.id,
+          type: "component",
+          position: old?.dragging ? old.position : { x: n.x, y: n.y },
+          selected: pending ? n.id === pending : (old?.selected ?? false),
+          deletable: n.kind !== "internet",
+          data: {
+            label: kind?.label ?? n.kind,
+            kind: n.kind,
+            size: n.size,
+            replicas: n.replicas,
+            down: !!n.down,
+            source: (kind?.connectsTo?.length ?? 0) > 0,
+            target: n.kind !== "internet",
+            stats: game.flow.nodes.find((s) => s.id === n.id),
+          },
+        };
+      });
+    });
+  }, [game, rules, setNodes, getInternalNode]);
+
+  // React Flow drops a node's handle positions whenever it receives the node
+  // without a measured size, and never re-measures a node whose size did not
+  // change; such a node draws no edges and cannot be wired. Heal it.
+  useEffect(() => {
+    const lost = nodes.filter((n) => n.measured && !getInternalNode(n.id)?.internals.handleBounds).map((n) => n.id);
+    if (lost.length > 0) updateNodeInternals(lost);
+  }, [nodes, getInternalNode, updateNodeInternals]);
+
+  useEffect(() => {
+    if (pendingSelect.current && selected === pendingSelect.current) pendingSelect.current = null;
+  }, [selected]);
+
+  const edges: FlowEdge[] = useMemo(
+    () =>
+      game.edges.map((e) => {
+        const from = game.flow.nodes.find((s) => s.id === e.from);
+        const to = game.flow.nodes.find((s) => s.id === e.to);
+        const saturated = (to?.utilization ?? 0) >= 1 || (to?.capacity === 0 && (to?.offered ?? 0) > 0);
+        return {
+          id: `${e.from}->${e.to}`,
+          source: e.from,
+          target: e.to,
+          animated: (from?.served ?? 0) > 0 && (to?.offered ?? 0) > 0,
+          className: saturated ? "sb-edge-bad" : undefined,
+        };
+      }),
+    [game],
+  );
+
+  const send = useCallback(
+    async (c: Command) => {
+      try {
+        const res = await sandboxApi.command(game.id, c);
+        onState(res.state);
+        return res.node;
+      } catch (err) {
+        setToast(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [game.id, onState],
+  );
+
+  const place = useCallback(
+    async (kind: string, position?: { x: number; y: number }) => {
+      let pos = position;
+      if (!pos) {
+        const r = canvas.current?.getBoundingClientRect();
+        const centre = screenToFlowPosition({ x: (r?.left ?? 0) + (r?.width ?? 0) / 2, y: (r?.top ?? 0) + (r?.height ?? 0) / 2 });
+        pos = freeSpot(centre, game.nodes);
+      }
+      const id = await send({ type: "place", kind, x: Math.round(pos.x), y: Math.round(pos.y) });
+      if (!id) return;
+      pendingSelect.current = id;
+      setNodes((prev) => prev.map((p) => ({ ...p, selected: p.id === id })));
+    },
+    [screenToFlowPosition, send, setNodes, game.nodes],
+  );
+
+  const isValidConnection: IsValidConnection = useCallback(
+    (c) => {
+      const from = game.nodes.find((n) => n.id === c.source);
+      const to = game.nodes.find((n) => n.id === c.target);
+      return !!from && !!to && canConnect(rules.kinds, from.kind, to.kind);
+    },
+    [game.nodes, rules.kinds],
+  );
+
+  async function control(action: () => Promise<GameState>) {
+    try {
+      onState(await action());
+    } catch (err) {
+      setToast(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  return (
+    <div className="sandbox">
+      <SandboxHud
+        game={game}
+        onSpeed={(s) => control(() => sandboxApi.speed(game.id, s))}
+        onSkip={(t) => control(() => sandboxApi.step(game.id, t))}
+      />
+      {game.status === "bankrupt" && (
+        <div className="notice sb-over">
+          <strong>Bankrupt.</strong> Cash stayed negative for a full day. <button onClick={onNewGame}>New game</button>
+        </div>
+      )}
+      <div className="sb-layout">
+        <SandboxPalette rules={rules} cash={game.meters.cash} onPlace={(k) => place(k)} />
+        <div
+          className="sb-canvas"
+          ref={canvas}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            const kind = e.dataTransfer.getData(KIND_DRAG_TYPE);
+            if (kind) place(kind, screenToFlowPosition({ x: e.clientX, y: e.clientY }));
+          }}
+        >
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            onNodesChange={onNodesChange}
+            onNodeDragStop={(_, n) => send({ type: "move", node: n.id, x: Math.round(n.position.x), y: Math.round(n.position.y) })}
+            onConnect={(c: Connection) => send({ type: "connect", from: c.source, to: c.target })}
+            isValidConnection={isValidConnection}
+            onDelete={({ nodes: removed, edges: cut }) => {
+              // Removing a node removes its connections on the server too.
+              const gone = new Set(removed.map((n) => n.id));
+              removed.forEach((n) => send({ type: "remove", node: n.id }));
+              cut
+                .filter((e) => !gone.has(e.source) && !gone.has(e.target))
+                .forEach((e) => send({ type: "disconnect", from: e.source, to: e.target }));
+            }}
+            deleteKeyCode={["Backspace", "Delete"]}
+            colorMode="system"
+            fitView
+            fitViewOptions={{ maxZoom: 1, padding: 0.4 }}
+          >
+            <Background />
+            <Controls showInteractive={false} fitViewOptions={{ maxZoom: 1, padding: 0.4 }} />
+            <MiniMap pannable zoomable />
+          </ReactFlow>
+          {toast && (
+            <div className="sb-toast" role="alert">
+              {toast}
+            </div>
+          )}
+        </div>
+        <SandboxInspector game={game} rules={rules} selected={selected} onCommand={send} />
+      </div>
+      <div className="sb-footer">
+        <span className="legend">
+          {game.id} · seed {game.seed} · ruleset {game.ruleset} · tick {game.tick}
+        </span>
+        <button
+          className="secondary"
+          onClick={() =>
+            sandboxApi.save(game.id).then(
+              (r) => setToast(`Saved to ${r.path}`),
+              (err: Error) => setToast(err.message),
+            )
+          }
+        >
+          Save
+        </button>
+        <button className="secondary" onClick={onNewGame}>
+          New game
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function SandboxGame() {
+  const [rules, setRules] = useState<Ruleset | null>(null);
+  const [game, setGame] = useState<GameState | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await sandboxApi.ruleset();
+        const id = recall();
+        const g = id ? await sandboxApi.get(id).catch(() => null) : null;
+        if (cancelled) return;
+        setRules(r);
+        setGame(g);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function newGame() {
+    try {
+      const previous = game?.id;
+      const g = await sandboxApi.create();
+      remember(g.id);
+      setGame(g);
+      if (previous) sandboxApi.remove(previous).catch(() => undefined);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  if (error) {
+    return (
+      <div className="notice">
+        <strong>Sandbox unavailable.</strong> {error}. Start the core with <code>make serve</code>.
+      </div>
+    );
+  }
+  if (loading || !rules) return <p className="lead">Loading…</p>;
+  if (!game) {
+    return (
+      <div className="card sb-start">
+        <h3>Start from nothing</h3>
+        <p>
+          Your production is empty: only the Internet, full of users, and {formatMoney(rules.startingCash)} in the bank. Place components,
+          wire them up, and keep the system healthy and profitable as traffic grows, surges, and breaks things.
+        </p>
+        <button onClick={newGame}>New game</button>
+      </div>
+    );
+  }
+  return (
+    <ReactFlowProvider key={game.id}>
+      <Board rules={rules} initial={game} onNewGame={newGame} />
+    </ReactFlowProvider>
+  );
+}

@@ -1,0 +1,29 @@
+import { defineConfig, devices } from "@playwright/test";
+
+// Browser tests for the dashboard. They start (or reuse) the core API and
+// the dev server, so `npm run e2e` works on its own.
+export default defineConfig({
+  testDir: "e2e",
+  timeout: 60_000,
+  retries: 0,
+  use: {
+    baseURL: "http://localhost:3001",
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
+  },
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 1000 } } }],
+  webServer: [
+    {
+      command: "cd ../core && go run ./cmd/forgelab serve -repo ..",
+      url: "http://127.0.0.1:8090/healthz",
+      reuseExistingServer: true,
+      timeout: 120_000,
+    },
+    {
+      command: "npm run dev",
+      url: "http://localhost:3001/sandbox",
+      reuseExistingServer: true,
+      timeout: 120_000,
+    },
+  ],
+});

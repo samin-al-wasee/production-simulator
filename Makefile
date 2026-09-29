@@ -47,6 +47,10 @@ test-fe: ## Next.js: test script
 		echo "No dashboard app yet — skipping." ; \
 	fi
 
+.PHONY: test-e2e
+test-e2e: ## Dashboard browser tests (Playwright; starts or reuses the API and dev server)
+	cd dashboard && npx playwright install chromium && npm run e2e
+
 .PHONY: lint
 lint: lint-go lint-fe ## Run every available linter/typechecker
 

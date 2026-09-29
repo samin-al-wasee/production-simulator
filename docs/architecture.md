@@ -483,7 +483,7 @@ Dashboard users will be able to: create services, add endpoints, select workload
 
 ## Production Sandbox (Sandbox mode)
 
-**Status:** in progress · Phase 10 · engine implemented in `core/internal/sandbox` · [ADR-0013](decisions/0013-production-sandbox-game.md)
+**Status:** in progress · Phase 10 · engine, API, and dashboard screen implemented; event deck planned · [ADR-0013](decisions/0013-production-sandbox-game.md)
 
 ForgeLab runs a production system in one of two modes:
 
