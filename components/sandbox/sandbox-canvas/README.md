@@ -2,7 +2,7 @@
 
 The dashboard screen where the Production Sandbox is played.
 
-**Status:** implemented (Phase 10, ADR-0013)
+**Status:** implemented (Phase 10, ADR-0013); Internet traffic configuration added in Phase 11 (ADR-0016)
 
 ## Purpose
 
@@ -17,6 +17,13 @@ Let a player build and run a production system visually. The canvas renders the 
 - **Meters:** cash, profit, revenue, cost, users, RPS, attack RPS (during an attack), p95 latency, errors, health, satisfaction, popularity, complexity, and tier, with sparklines over the last two simulated days. Labelled *simulated*.
 - **Event strip:** upcoming and active events with the model input each one changes and the time left, and how recent events were judged.
 - **Inspector:** per-component load (including attack and blocked traffic) and cost, size, replicas, remove, downstream connections, and **Respond** actions (restart a crashed component, fail a primary over to a replica, rate-limit a gateway). An action is offered only when the engine would accept it, and the engine validates every command.
+- **Internet:** selecting the Internet shows its source, pattern, requests, retries, and requests in flight, and a breakdown by group, region, and endpoint. **Configure traffic** opens a form with progressive sections:
+  - volume: market or load test, with the pattern and its fields
+  - traffic groups, each with its share and its requests and regions
+  - endpoints
+  - retries
+
+  The form shows running totals but corrects nothing: the engine validates the configuration and the form lists every problem it reports. A load test shows a *load test* badge in the meters and on the Internet node, and the goals strip says goals are paused.
 - **Controls:** pause, 1×, 2×, 4×, 8×, skip an hour or a day, save, new game. The game id is kept in browser storage so a reload resumes it.
 
 ## Dependencies

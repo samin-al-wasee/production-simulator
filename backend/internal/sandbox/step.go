@@ -23,6 +23,9 @@ type Meters struct {
 	Popularity   float64 `json:"popularity"`
 	Complexity   float64 `json:"complexity"`
 	Tier         string  `json:"tier"`
+	// LoadTest marks a tick of player-configured traffic: it earns nothing,
+	// and users, satisfaction, popularity, and goals hold still.
+	LoadTest bool `json:"loadTest,omitempty"`
 
 	RevenuePerHour float64 `json:"revenuePerHour"`
 	CostPerHour    float64 `json:"costPerHour"`
@@ -34,7 +37,8 @@ type Snapshot struct {
 	Meters Meters `json:"meters"`
 	Flow   Flow   `json:"flow"`
 
-	backlog []float64
+	backlog     []float64
+	attemptFail vec
 }
 
 const historyLimit = 576
@@ -55,6 +59,9 @@ func (g *Game) engagement() float64 {
 }
 
 func (g *Game) rps() float64 {
+	if tc := g.traffic(); tc != nil && tc.Source == SourceConfigured {
+		return g.patternRPS(tc.Pattern) * g.fx.traffic
+	}
 	_, hour := g.clock()
 	return g.Users * g.Rules.ActiveShare * g.engagement() * diurnal(hour) * g.fx.traffic
 }
@@ -93,6 +100,10 @@ func (g *Game) meters(f Flow) Meters {
 	cost += cx * g.Rules.OpsCostPerComplexityHour
 	overload := clamp((f.MaxUtilization-0.8)/0.2, 0, 1)
 	health := 100 * (0.5*(1-f.ErrorRate) + 0.3*g.latencyFactor(f.P95LatencyMs) + 0.2*(1-overload))
+	revenue := f.SuccessRPS * 3600 * g.Rules.RevenuePerRequest
+	if g.loadTest() {
+		revenue = 0
+	}
 	tier := ""
 	for _, t := range g.Rules.Tiers {
 		if g.Users >= t.MinUsers {
@@ -104,8 +115,8 @@ func (g *Game) meters(f Flow) Meters {
 		RPS: f.RPS, AttackRPS: f.AttackRPS, SuccessRPS: f.SuccessRPS,
 		Users: g.Users, ActiveUsers: g.Users * g.Rules.ActiveShare, Engagement: g.engagement(),
 		P95LatencyMs: f.P95LatencyMs, ErrorRate: f.ErrorRate, Health: health,
-		Satisfaction: g.Satisfaction, Popularity: g.Popularity, Complexity: cx, Tier: tier,
-		RevenuePerHour: f.SuccessRPS * 3600 * g.Rules.RevenuePerRequest, CostPerHour: cost, Cash: g.Cash,
+		Satisfaction: g.Satisfaction, Popularity: g.Popularity, Complexity: cx, Tier: tier, LoadTest: g.loadTest(),
+		RevenuePerHour: revenue, CostPerHour: cost, Cash: g.Cash,
 	}
 }
 
@@ -121,16 +132,20 @@ func (g *Game) Step() Snapshot {
 	for i, n := range g.Nodes {
 		n.Backlog = snap.backlog[i]
 	}
+	g.attemptFail = snap.attemptFail
 
 	before := g.meters(f)
 	hours := r.TickSeconds / 3600
 	g.Cash += (before.RevenuePerHour - before.CostPerHour) * hours
 
-	g.Satisfaction += (g.quality(f) - g.Satisfaction) * r.SatisfactionPull
-	g.Popularity += (g.Satisfaction - g.Popularity) * r.PopularityPull
-	growth := r.GrowthRate * g.Popularity / 100 * g.Users * (1 - g.Users/r.MarketSize)
-	churn := g.Users * r.ChurnRate * math.Pow(1-g.Satisfaction/100, 2)
-	g.Users = math.Max(1, g.Users+growth-churn)
+	// A load test's synthetic clients are not users: the market holds still.
+	if !g.loadTest() {
+		g.Satisfaction += (g.quality(f) - g.Satisfaction) * r.SatisfactionPull
+		g.Popularity += (g.Satisfaction - g.Popularity) * r.PopularityPull
+		growth := r.GrowthRate * g.Popularity / 100 * g.Users * (1 - g.Users/r.MarketSize)
+		churn := g.Users * r.ChurnRate * math.Pow(1-g.Satisfaction/100, 2)
+		g.Users = math.Max(1, g.Users+growth-churn)
+	}
 
 	if g.Cash < 0 {
 		g.negativeFor++
@@ -150,7 +165,12 @@ func (g *Game) Step() Snapshot {
 	if len(g.History) > historyLimit {
 		g.History = g.History[len(g.History)-historyLimit:]
 	}
-	g.checkGoals()
+	if g.loadTest() {
+		// A goal that must hold for several ticks starts over afterwards.
+		clear(g.streak)
+	} else {
+		g.checkGoals()
+	}
 	return snap
 }
 

@@ -220,7 +220,8 @@ button.secondary {
 
 select,
 input[type="number"],
-input[type="text"] {
+input[type="text"],
+input[type="time"] {
   font: inherit;
   padding: 5px 8px;
   border-radius: 6px;
@@ -742,4 +743,126 @@ button.danger {
   .sb-speed {
     margin-left: 0;
   }
+}
+
+.badge.load-test {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.sb-internet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sb-section summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 10px 0 4px;
+}
+
+.sb-breakdown th {
+  font-weight: 400;
+  word-break: break-all;
+}
+
+.sb-dialog {
+  width: min(680px, calc(100vw - 32px));
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+}
+
+.sb-dialog::backdrop {
+  background: rgb(0 0 0 / 0.35);
+}
+
+.sb-dialog h3 {
+  margin: 0 0 4px;
+}
+
+.sb-source {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+
+.sb-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+}
+
+.sb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px 10px;
+  margin: 6px 0;
+}
+
+.sb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.78rem;
+}
+
+.sb-field.inline {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.sb-field input[type="number"] {
+  width: 110px;
+}
+
+.grow {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.sb-group {
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+  margin-bottom: 6px;
+}
+
+.sb-group summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.sb-total {
+  font: 0.78rem var(--mono);
+  margin: 4px 0;
+}
+
+.sb-errors {
+  border: 1px solid var(--bad);
+  color: var(--bad);
+  border-radius: 8px;
+  padding: 8px 12px 8px 28px;
+  font-size: 0.85rem;
+}
+
+.sb-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
 }

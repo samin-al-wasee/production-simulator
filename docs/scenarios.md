@@ -19,6 +19,7 @@ The Live-mode drills that ran against real containers were retired by ADR-0014; 
 * **Limits.** No card can run twice at once. At most three events are pending at a time, counting announced ones. A card that needs a target, for example a database, is skipped when nothing matches.
 * **Lifecycle.** Each event goes through four phases: *upcoming* (only if announced ahead), *active*, *recovering*, then *over*.
 * **Outcome.** An event is judged one hour (`recoveryTicks`, 12) after it ends. It is **recovered** if system health is at least 80 at that point, and **not recovered** otherwise. The lowest health seen while the event ran is recorded as well.
+* **Load tests.** Events keep coming during a load test ([ADR-0016](decisions/0016-configurable-internet-traffic.md)), and traffic cards multiply the configured rate as they multiply market traffic. An event still being judged when a load test runs is marked, and its outcome does not count towards goals.
 * **Rule 1 holds throughout.** Every card changes a model input: traffic, capacity, service time, hit ratio, cost, or a failure share. The meters then follow from the flow solver.
 
 ## Incident responses

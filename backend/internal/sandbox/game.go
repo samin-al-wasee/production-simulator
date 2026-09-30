@@ -21,6 +21,7 @@ const (
 	CmdScale      = "scale"
 	CmdMove       = "move"
 	CmdRespond    = "respond"
+	CmdConfigure  = "configure"
 )
 
 // InternetID is the fixed traffic source present in every game.
@@ -43,6 +44,11 @@ type Node struct {
 	RateLimited bool `json:"rateLimited,omitempty"`
 	// Backlog is the number of messages waiting in a queue.
 	Backlog float64 `json:"backlog,omitempty"`
+	// Traffic is the Internet's configuration once the player has set one;
+	// until then the ruleset's applies. TrafficSince is the tick it was set,
+	// from which its pattern runs.
+	Traffic      *TrafficConfig `json:"traffic,omitempty"`
+	TrafficSince int            `json:"trafficSince,omitempty"`
 }
 
 // Edge sends traffic from one node to another.
@@ -63,6 +69,8 @@ type Command struct {
 	Replicas int     `json:"replicas,omitempty"`
 	X        float64 `json:"x,omitempty"`
 	Y        float64 `json:"y,omitempty"`
+	// Traffic is the Internet's new configuration for a configure command.
+	Traffic *TrafficConfig `json:"traffic,omitempty"`
 }
 
 // LoggedCommand is a command applied before a given tick was simulated.
@@ -96,6 +104,9 @@ type Game struct {
 	streak   map[string]int
 	// fx are the effects of the events active at the tick being solved.
 	fx effects
+	// attemptFail is the share of each class's request attempts that
+	// failed last tick, which decides how often clients retry this tick.
+	attemptFail vec
 
 	Last    Snapshot
 	History []Meters
@@ -169,6 +180,8 @@ func (g *Game) apply(c Command) (string, error) {
 		return "", g.scale(c.Node, c.Replicas)
 	case CmdRespond:
 		return "", g.respond(c)
+	case CmdConfigure:
+		return "", g.configure(c)
 	case CmdMove:
 		n := g.Node(c.Node)
 		if n == nil {

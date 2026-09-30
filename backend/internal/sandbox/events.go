@@ -84,6 +84,9 @@ type Event struct {
 	Phase        string  `json:"phase"`
 	LowestHealth float64 `json:"lowestHealth"`
 	Outcome      string  `json:"outcome,omitempty"`
+	// LoadTest marks an event that ran into a load test before it was
+	// judged; its outcome does not count towards goals.
+	LoadTest bool `json:"loadTest,omitempty"`
 }
 
 // settledKept is how many judged events a game keeps for its feed.
@@ -311,6 +314,7 @@ func (g *Game) track(health float64) {
 			continue
 		}
 		e.LowestHealth = math.Min(e.LowestHealth, health)
+		e.LoadTest = e.LoadTest || g.loadTest()
 		if g.Tick >= e.End+r.RecoveryTicks-1 {
 			e.Outcome = OutcomeUnrecovered
 			if health >= r.RecoveredHealth {

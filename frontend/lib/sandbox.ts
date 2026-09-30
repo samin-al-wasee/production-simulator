@@ -23,6 +23,62 @@ export interface Size {
   costFactor: number;
 }
 
+export type TrafficSource = "market" | "configured";
+export type PatternShape = "constant" | "ramp" | "spike" | "burst" | "periodic" | "schedule";
+
+export interface Weight {
+  name: string;
+  share: number;
+}
+
+export interface Endpoint {
+  method: string;
+  path: string;
+  cacheable?: boolean;
+  storage?: boolean;
+}
+
+export interface TrafficGroup {
+  name: string;
+  share: number;
+  retries?: number;
+  endpoints: Weight[];
+  regions: Weight[];
+}
+
+export interface Pattern {
+  shape: PatternShape;
+  rps: number;
+  peakRps?: number;
+  startMinutes?: number;
+  minutes?: number;
+  periodMinutes?: number;
+  schedule?: { hour: number; rps: number }[];
+}
+
+export interface TrafficConfig {
+  source: TrafficSource;
+  pattern: Pattern;
+  endpoints: Endpoint[];
+  groups: TrafficGroup[];
+}
+
+export interface Rate {
+  name: string;
+  rps: number;
+}
+
+// Traffic is what the Internet sent in a tick.
+export interface Traffic {
+  source: TrafficSource;
+  rps: number;
+  retryRps?: number;
+  concurrency: number;
+  groups?: Rate[];
+  regions?: Rate[];
+  endpoints?: Rate[];
+}
+
 export interface Ruleset {
   version: string;
   kinds: Kind[];
@@ -33,6 +89,10 @@ export interface Ruleset {
   tickSeconds: number;
   eventGraceTicks?: number;
   recoveryTicks?: number;
+  traffic?: TrafficConfig;
+  regions?: string[];
+  maxRetries?: number;
+  maxTrafficRps?: number;
 }
 
 export interface SandboxNode {
@@ -46,6 +106,8 @@ export interface SandboxNode {
   down?: boolean;
   rateLimited?: boolean;
   backlog?: number;
+  traffic?: TrafficConfig;
+  trafficSince?: number;
 }
 
 export interface Edge {
@@ -84,6 +146,7 @@ export interface Meters {
   popularity: number;
   complexity: number;
   tier: string;
+  loadTest?: boolean;
   revenuePerHour: number;
   costPerHour: number;
   cash: number;
@@ -137,7 +200,15 @@ export interface GameState {
   meters: Meters;
   nodes: SandboxNode[];
   edges: Edge[];
-  flow: { rps: number; attackRps?: number; successRps: number; errorRate: number; p95LatencyMs: number; nodes: NodeStats[] };
+  flow: {
+    rps: number;
+    attackRps?: number;
+    successRps: number;
+    errorRate: number;
+    p95LatencyMs: number;
+    nodes: NodeStats[];
+    traffic?: Traffic;
+  };
   history: Meters[] | null;
   events: SandboxEvent[] | null;
   goals: GoalStatus[] | null;
@@ -150,7 +221,8 @@ export type Command =
   | { type: "resize"; node: string; size: string }
   | { type: "scale"; node: string; replicas: number }
   | { type: "move"; node: string; x: number; y: number }
-  | { type: "respond"; action: "restart" | "failover" | "rate-limit" | "lift-rate-limit"; node: string };
+  | { type: "respond"; action: "restart" | "failover" | "rate-limit" | "lift-rate-limit"; node: string }
+  | { type: "configure"; node: string; traffic: TrafficConfig };
 
 export const SPEEDS = [0, 1, 2, 4, 8] as const;
 
@@ -345,4 +417,120 @@ export function lockedBy(kind: Kind, goals: GoalStatus[]): GoalStatus | undefine
   if (!kind.unlockedBy) return undefined;
   const goal = goals.find((g) => g.id === kind.unlockedBy);
   return goal && goal.achievedAt === undefined ? goal : undefined;
+}
+
+// The traffic form edits percentages; the engine takes shares from 0 to 1.
+// These helpers only convert between the two and never correct a value: the
+// engine validates the configuration and reports what is wrong.
+
+export interface GroupDraft {
+  // key tells rows apart while groups are added and removed.
+  key: number;
+  name: string;
+  share: number;
+  retries: number;
+  // endpoints[i] is the percentage of the group's requests to endpoint i.
+  endpoints: number[];
+  regions: Record<string, number>;
+}
+
+export interface TrafficDraft {
+  source: TrafficSource;
+  pattern: Pattern;
+  endpoints: Endpoint[];
+  groups: GroupDraft[];
+}
+
+// toPercent turns a share into a percentage without float noise (0.07 → 7).
+export function toPercent(share: number): number {
+  return Math.round(share * 1e6) / 1e4;
+}
+
+export function endpointName(e: Endpoint): string {
+  return `${e.method} ${e.path}`;
+}
+
+let draftKeys = 0;
+
+// newGroupKey returns a key no other draft group has.
+export function newGroupKey(): number {
+  return ++draftKeys;
+}
+
+export function toDraft(tc: TrafficConfig): TrafficDraft {
+  return {
+    source: tc.source,
+    pattern: { ...tc.pattern, schedule: tc.pattern.schedule?.map((s) => ({ ...s })) },
+    endpoints: tc.endpoints.map((e) => ({ ...e })),
+    groups: tc.groups.map((g) => ({
+      key: newGroupKey(),
+      name: g.name,
+      share: toPercent(g.share),
+      retries: g.retries ?? 0,
+      endpoints: tc.endpoints.map((e) => toPercent(g.endpoints.find((w) => w.name === endpointName(e))?.share ?? 0)),
+      regions: Object.fromEntries(g.regions.map((w) => [w.name, toPercent(w.share)])),
+    })),
+  };
+}
+
+// fromDraft lists every non-zero percentage; a group with none is sent as is
+// so the engine can say what is missing.
+export function fromDraft(d: TrafficDraft): TrafficConfig {
+  const pick = (entries: [string, number][]): Weight[] =>
+    entries.filter(([, v]) => v !== 0).map(([name, v]) => ({ name, share: v / 100 }));
+  return {
+    source: d.source,
+    pattern: d.pattern,
+    endpoints: d.endpoints,
+    groups: d.groups.map((g) => ({
+      name: g.name,
+      share: g.share / 100,
+      retries: g.retries,
+      endpoints: pick(d.endpoints.map((e, i) => [endpointName(e), g.endpoints[i] ?? 0])),
+      regions: pick(Object.entries(g.regions)),
+    })),
+  };
+}
+
+// percentTotal sums percentages for display, rounded like toPercent.
+export function percentTotal(values: number[]): number {
+  return Math.round(values.reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0) * 1e4) / 1e4;
+}
+
+// hasBlankNumber reports an empty or non-numeric field, which JSON would
+// send as null and the engine would read as 0.
+export function hasBlankNumber(tc: TrafficConfig): boolean {
+  let blank = false;
+  JSON.stringify(tc, (_, v) => {
+    if (typeof v === "number" && !Number.isFinite(v)) blank = true;
+    return v;
+  });
+  return blank;
+}
+
+// problems splits the engine's rejection of a configuration into its parts.
+export function problems(message: string): string[] {
+  return message
+    .replace(/^invalid command: /, "")
+    .split("; ")
+    .filter((p) => p !== "");
+}
+
+// describePattern states a configured source's shape in words.
+export function describePattern(p: Pattern): string {
+  const r = (v?: number) => `${formatCompact(v ?? 0)} RPS`;
+  switch (p.shape) {
+    case "constant":
+      return r(p.rps);
+    case "ramp":
+      return `${r(p.rps)} → ${r(p.peakRps)} over ${p.minutes} min`;
+    case "spike":
+      return `${r(p.rps)}, ${r(p.peakRps)} for ${p.minutes} min after ${p.startMinutes ?? 0} min`;
+    case "burst":
+      return `${r(p.rps)}, ${r(p.peakRps)} for ${p.minutes} of every ${p.periodMinutes} min`;
+    case "periodic":
+      return `${r(p.rps)} to ${r(p.peakRps)} every ${p.periodMinutes} min`;
+    case "schedule":
+      return (p.schedule ?? []).map((s) => `${formatClock(1, s.hour).slice(-5)} ${r(s.rps)}`).join(", ");
+  }
 }

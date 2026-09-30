@@ -206,3 +206,71 @@ test("events arrive and the player responds to them", async ({ page }) => {
   await expect(page.locator(".sb-toast")).toHaveCount(0);
   expect(errors, "browser errors").toEqual([]);
 });
+
+test("configure the Internet's traffic", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+  // The browser logs the one rejected configuration below as a failed request.
+  page.on("console", (m) => {
+    if (m.type() === "error" && !m.text().includes("status of 422")) errors.push(`console: ${m.text()}`);
+  });
+
+  // Internet → app → primary and storage, built through the API.
+  const api = page.request;
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 3 } })).json();
+  const game = `/api/forgelab/sandbox/games/${created.id}`;
+  const command = async (c: object) => {
+    const res = await api.post(`${game}/commands`, { data: c });
+    expect(res.ok(), await res.text()).toBe(true);
+    return (await res.json()) as { node?: string };
+  };
+  const app = (await command({ type: "place", kind: "app-instance", x: 300, y: 0 })).node!;
+  const db = (await command({ type: "place", kind: "db-primary", x: 600, y: -100 })).node!;
+  const st = (await command({ type: "place", kind: "object-storage", x: 600, y: 100 })).node!;
+  await command({ type: "connect", from: "internet", to: app });
+  await command({ type: "connect", from: app, to: db });
+  await command({ type: "connect", from: app, to: st });
+
+  await page.goto("/sandbox");
+  await page.evaluate((id) => localStorage.setItem("forgelab.sandbox.game", id), created.id);
+  await page.reload();
+  await node(page, "internet").click();
+  await expect(page.locator(".sb-inspector h3")).toHaveText("Internet");
+  await expect(page.locator(".sb-inspector")).toContainText("Market (your users)");
+
+  // Switch to a load test with a mistake in the group shares: the engine
+  // rejects it, the form says why, and nothing changes.
+  await page.getByRole("button", { name: "Configure traffic" }).click();
+  const dialog = page.getByRole("dialog", { name: "Internet traffic" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel(/^Load test/).check();
+  await dialog.getByLabel("Requests/s").fill("30");
+  await dialog.getByLabel("Group 1 share %").fill("60");
+  await expect(dialog.locator(".sb-total").last()).toHaveText("Groups: 90% (must be 100%)");
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("traffic group shares must sum to 100% (now 90%)");
+  await expect(page.locator(".badge.load-test")).toHaveCount(0);
+
+  // Fix it and apply: the load test drives the flow and is labelled.
+  await dialog.getByLabel("Group 1 share %").fill("70");
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.locator(".badge.load-test")).toBeVisible();
+  await expect(node(page, "internet")).toContainText("load test");
+  await expect(page.locator(".sb-goals")).toContainText("Paused during the load test");
+  await expect.poll(() => tile(page, "RPS")).toBe("30.0");
+  await page.getByText("Traffic breakdown").click();
+  await expect(page.locator(".sb-breakdown tr", { hasText: "Web users" })).toContainText("21.0/s");
+  await expect(page.locator(".sb-breakdown tr", { hasText: "asia" })).toContainText("12.0/s");
+
+  // Back to the market: users drive the volume again.
+  await page.getByRole("button", { name: "Configure traffic" }).click();
+  await dialog.getByLabel(/^Market/).check();
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.locator(".badge.load-test")).toHaveCount(0);
+  await expect(page.locator(".sb-inspector")).toContainText("Market (your users)");
+
+  await expect(page.locator(".sb-toast")).toHaveCount(0);
+  expect(errors, "browser errors").toEqual([]);
+});

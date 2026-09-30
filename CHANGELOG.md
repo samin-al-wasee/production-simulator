@@ -22,6 +22,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phase 11 started: a configurable Internet (ADR-0016), in ruleset `sandbox/v4`. New games use v4, and v1 to v3 replay as before.
+  - **Traffic configuration:** the new `configure` command sets the Internet's configuration:
+    - the source: `market` (users, as before) or a `configured` load test with a pattern (constant, ramp, spike, burst, periodic, or daily schedule)
+    - traffic groups, each with a share, an endpoint mix, a region mix, and retries
+    - endpoints, each with a method, a path, and cacheable and storage flags
+
+    Every problem is reported at once, and nothing is corrected.
+  - **Load tests:** they earn nothing; users, satisfaction, popularity, and goals hold still; and goal streaks restart. Events judged after running into a load test do not count towards goals.
+  - **Flow solver:** load is routed per request class (cacheable read, read, write). A CDN answers only cacheable reads (45% of them in v4), and the endpoint mix sets an application's read, write, and storage shares.
+  - **Retries:** they add `load × (f + … + f^N)` attempts from last tick's failure rate `f`. A request fails only if every attempt fails.
+  - **Breakdown:** the flow carries `traffic`: source, RPS, retry RPS, requests in flight (Little's law), and RPS by group, region, and endpoint. Meters carry `loadTest`, and events carry `loadTest`.
+  - **Dashboard:** the Internet inspector shows live traffic and its breakdown. A **Configure traffic** form lists the engine's validation problems. A *load test* badge appears in the meters and on the Internet node, and the goals strip notes that goals are paused.
+  - **Tests:**
+    - Go tests for every pattern, group and endpoint splits, CDN and application class routing, zero traffic, Little's law, retries (storms and recovery), load-test economics and goals, a validation table and its boundaries, JSON replay, and v4 balance
+    - an API test for `configure`
+    - unit tests for the form's conversions
+    - a browser test that configures a load test
 - Phase 10 completed: goals and unlocks, in ruleset `sandbox/v3`. New games use v3, and the API accepts `ruleset` to start an older version.
   - **Goals:** fifteen goals checked after every tick. A goal's conditions can bound a meter, a meter's change over a window, a statistic over a component kind, or a count of recovered events. A goal can also hold for several ticks or require an earlier goal. Reached goals are permanent and replay deterministically.
   - **Unlocks:** the load balancer unlocks after the first request; the cache, read replica, queue, worker, and API gateway at 10k users; the CDN at 100k users with health of 80 or more.

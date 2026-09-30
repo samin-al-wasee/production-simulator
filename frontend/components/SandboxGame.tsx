@@ -15,7 +15,17 @@ import {
   type IsValidConnection,
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { canConnect, formatMoney, freeSpot, newest, sandboxApi, type Command, type GameState, type Ruleset } from "@/lib/sandbox";
+import {
+  canConnect,
+  formatMoney,
+  freeSpot,
+  newest,
+  sandboxApi,
+  type Command,
+  type GameState,
+  type Ruleset,
+  type TrafficConfig,
+} from "@/lib/sandbox";
 import { SandboxEvents } from "./SandboxEvents";
 import { SandboxGoals } from "./SandboxGoals";
 import { SandboxHud } from "./SandboxHud";
@@ -141,6 +151,7 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
             downReplicas: n.downReplicas ?? 0,
             down: !!n.down,
             rateLimited: !!n.rateLimited,
+            loadTest: n.traffic?.source === "configured",
             source: (kind?.connectsTo?.length ?? 0) > 0,
             target: n.kind !== "internet",
             stats: game.flow.nodes.find((s) => s.id === n.id),
@@ -187,6 +198,21 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
         return res.node;
       } catch (err) {
         setToast(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [game.id, onState],
+  );
+
+  // Configuring the Internet reports a rejection to its form, not as a toast:
+  // a configuration can have several problems to fix at once.
+  const configure = useCallback(
+    async (traffic: TrafficConfig) => {
+      try {
+        const res = await sandboxApi.command(game.id, { type: "configure", node: "internet", traffic });
+        onState(res.state);
+        return null;
+      } catch (err) {
+        return err instanceof Error ? err.message : String(err);
       }
     },
     [game.id, onState],
@@ -292,7 +318,7 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
             </div>
           )}
         </div>
-        <SandboxInspector game={game} rules={rules} selected={selected} onCommand={send} />
+        <SandboxInspector game={game} rules={rules} selected={selected} onCommand={send} onConfigure={configure} />
       </div>
       <div className="sb-footer">
         <span className="legend">

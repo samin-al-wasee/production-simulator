@@ -1,7 +1,7 @@
 # ForgeLab Architecture
 
 **Document status:** v2.0 (re-scoped by [ADR-0014](decisions/0014-sandbox-only-platform.md))
-**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only)
+**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic)
 
 ForgeLab is the **Production Sandbox**: a city-builder for software production. A new game is an **empty world**, an Internet traffic source and starting cash. The player places components, wires them together, and keeps the system healthy and profitable as users arrive, traffic swings, and incidents happen. Everything is a deterministic model computed in the Go core; nothing runs on the host.
 
@@ -37,10 +37,10 @@ flowchart LR
 ```mermaid
 flowchart LR
     subgraph CORE["backend/internal/sandbox (pure Go, deterministic)"]
-        CMD["Command log<br/>place · connect · resize · scale · respond"]
+        CMD["Command log<br/>place · connect · resize · scale · respond · configure"]
         WORLD["World state<br/>components · edges · users · cash"]
         CAT["Component catalog<br/>(ruleset data)"]
-        TRF["Traffic model<br/>users × engagement × diurnal curve"]
+        TRF["Traffic model<br/>market or load test · groups · request mix · retries"]
         FLOW["Flow solver<br/>load → utilization → latency/errors"]
         ECO["Economy & meters<br/>revenue · cost · health · satisfaction"]
         EVT["Event deck<br/>(seeded)"]
@@ -63,23 +63,60 @@ Simulated time advances in fixed ticks (initially five simulated minutes; tuning
 
 1. **Apply commands** queued since the last tick, after validation (cash, allowed connections, limits).
 2. **Draw events** from the seeded deck; odds depend on complexity (failures) and popularity (surges, attacks). Each tick draws from its own random stream built from `(seed, tick)`, so a replay deals the same cards. The events active this tick become the tick's *effects* on model inputs (below).
-3. **Generate traffic:** `RPS = active users × engagement × diurnal(t) × traffic events`, plus attack traffic of `attack magnitude × RPS` during a DDoS.
+3. **Generate traffic** from the Internet's configuration (see [Traffic model](#traffic-model)): the volume, split into groups and request classes, amplified by retries, plus attack traffic of `attack magnitude × RPS` during a DDoS.
 4. **Solve the flow** through the topology (below).
 5. **Update the economy:** revenue for successful requests, cost for every component, operations overhead from complexity.
-6. **Update the meters and the userbase:** satisfaction from latency, errors, and availability; growth from popularity; churn from low satisfaction.
-7. **Track events:** record each event's lowest health, and judge it one hour after it ends (recovered when health is at least 80).
-8. **Check goals:** a goal whose conditions held for its required ticks is reached, permanently, and may unlock component kinds.
+6. **Update the meters and the userbase:** satisfaction from latency, errors, and availability; growth from popularity; churn from low satisfaction. During a load test the userbase, satisfaction, and popularity hold still, and revenue is zero.
+7. **Track events:** record each event's lowest health, and judge it one hour after it ends (recovered when health is at least 80). An event still being tracked during a load test is marked and does not count towards goals.
+8. **Check goals:** a goal whose conditions held for its required ticks is reached, permanently, and may unlock component kinds. Goals are not checked during a load test, and their hold streaks start over.
 9. **Publish** the tick state to subscribers.
+
+## Traffic model
+
+The Internet is one node on the canvas. Its configuration (`TrafficConfig`, set with the `configure` command, [ADR-0016](decisions/0016-configurable-internet-traffic.md)) describes who sends traffic, what they request, and from where. Rulesets v1 to v3 have no configuration and use their fixed shares (80% reads, 10% storage).
+
+* **Volume.** The source decides it:
+  * `market`: `RPS = active users × engagement × diurnal(t) × traffic events`.
+  * `configured` (a **load test**): `RPS = pattern(m) × traffic events`, where `m` is simulated minutes since the configuration was applied:
+
+    | Shape | `pattern(m)` |
+    |---|---|
+    | constant | `rps` |
+    | ramp | `rps + (peak − rps) × min(m / minutes, 1)`; a peak below `rps` ramps down |
+    | spike | `peak` while `start ≤ m < start + minutes`, else `rps` |
+    | burst | `peak` while `m mod period < minutes`, else `rps` |
+    | periodic | `rps + (peak − rps) × (1 − cos(2πm / period)) / 2` |
+    | schedule | the rate of the last step at or before the clock's hour; before the first step, the last step of the day holds |
+
+  A load test earns nothing and pauses the market (see [One tick](#one-tick)).
+* **Groups.** Each traffic group takes `share × RPS`. Shares sum to 100%.
+* **Endpoints and classes.** Each group splits its requests over endpoints. An endpoint's method and flags put it in a **request class**:
+  * `GET` is a read, cacheable or not
+  * any other method is a write
+  * a storage endpoint also fetches an object
+
+  The solver carries each class separately.
+* **Retries.** A group with `N` retries sends `load × (1 + f + … + f^N)` attempts per class, where `f` is that class's attempt failure rate on the previous tick. A request fails only when all `N + 1` attempts fail, so its success is `1 − (1 − p)^(N+1)` for an attempt success `p`. Retries therefore rescue transient failures (a third-party outage) and multiply the load of failures that never clear.
+* **Regions.** Each group splits over abstract regions (ruleset data). Regions are reported in the breakdown and do not yet change the model.
+* **Reported.** Each tick's flow carries `traffic`:
+  * source
+  * real RPS and retry RPS
+  * requests in flight: `attempts × mean latency` (Little's law)
+  * RPS by group, region, and endpoint
 
 ## Flow solver (initial model)
 
 The solver walks the topology from the Internet node. The formulas are deliberately simple and documented, so a learner can check them:
 
-* **Routing** — a node splits outgoing load across its downstream edges in proportion to downstream capacity, so a failed node (capacity 0) receives nothing while a healthy peer exists. An application instance sends reads (80%) to a cache if connected, otherwise to database primaries and replicas; writes (20%) to a queue if connected, otherwise to primaries; and a further 10% of requests also need object storage. Missing a required target fails that share of requests. A CDN serves 30% of requests at the edge; a cache serves `hit ratio × reads` (80%) and sends misses to the database. A queue accepts writes up to its capacity and backlog limit and hands them to workers as they have capacity; the backlog carries over between ticks.
+* **Routing** — load is carried per request class (cacheable read, read, write), with the part of each class that needs object storage. A node splits outgoing load across its downstream edges in proportion to downstream capacity, so a failed node (capacity 0) receives nothing while a healthy peer exists.
+  * **Application instance:** sends reads to a cache if connected, otherwise to database primaries and replicas. It sends writes to a queue if connected, otherwise to primaries. Storage requests also go to object storage. Missing a required target fails that share of requests. The read, write, and storage shares come from the endpoint mix: in v4's default mix about 80% of requests are reads and 12.5% need storage, while v1 to v3 use fixed shares of 80% and 10%.
+  * **CDN:** in v4, answers 45% of cacheable reads at the edge, about 30% of the default mix; in v1 to v3, it answers 30% of all requests.
+  * **Cache:** serves `hit ratio × reads` and sends misses to the database.
+  * **Queue:** accepts writes up to its capacity and backlog limit, and hands them to workers as they have capacity. The backlog carries over between ticks.
 * **Utilization** — for a node with capacity `μ` (per replica) and `c` replicas receiving `λ`: `ρ = λ / (c·μ)`.
 * **Latency** — `service time / (1 − ρ)` for `ρ < 1` (an M/M/1-style approximation per replica), capped at the timeout. End-to-end latency is the success-weighted mean along the request paths; p95 is approximated as `mean × ln 20 ≈ 3 × mean` (an exponential latency distribution), capped at the timeout. Asynchronous work behind a queue does not add to request latency.
 * **Saturation** — when `ρ ≥ 1`, the excess `λ − c·μ` is dropped or queued (queues accumulate backlog up to their limit, then drop). Dropped and timed-out requests are errors.
-* **Success** — a request succeeds only if every node on its path serves it; availability and error rate follow from that.
+* **Success** — an attempt succeeds only if every node on its path serves it. Success and latency are solved per class and combined at the Internet, weighted by each class's attempts. With retries, a request succeeds if any of its attempts does.
 
 * **Events** change inputs, never outputs. They can:
   * take replicas down: capacity becomes `up replicas × per-replica capacity`, and a component with no replica up is *down*
@@ -125,7 +162,8 @@ The economy is generic: revenue per successful request, cost per component-hour.
 |---|---|
 | `sandbox/v1` | The first ruleset: component kinds, sizes, economy, and growth. It has no events, and stays unchanged so v1 saves replay exactly. |
 | `sandbox/v2` | v1 plus the Event Deck and incident responses, with a rebalanced economy. |
-| `sandbox/v3` | v2 plus goals and unlocks. New games use it; an older version can be chosen when a game is created. |
+| `sandbox/v3` | v2 plus goals and unlocks. |
+| `sandbox/v4` | v3 plus a configurable Internet: traffic groups, endpoints, regions, retries, and load tests. The CDN's hit ratio becomes 45% of cacheable reads. New games use it; an older version can be chosen when a game is created. |
 
 **v2 rebalancing.** Under v1, one application instance costing $2/h earned about $90/h at capacity. Over-provisioning therefore always paid, and incidents never threatened solvency.
 
