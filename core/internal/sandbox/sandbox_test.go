@@ -139,8 +139,11 @@ func TestBalancerSplitsByCapacityAndSkipsFailedNodes(t *testing.T) {
 	if !near(b/a, 6, 1e-9) {
 		t.Fatalf("large (6x) should get 6x the load: %v vs %v", b, a)
 	}
-	g.Node(small).Down = true
+	inject(g, &Event{Effect: EffectCrash, Hits: []Hit{{Node: small, Replicas: 1}}})
 	s = g.preview()
+	if !g.Node(small).Down {
+		t.Fatal("a component whose only replica crashed is down")
+	}
 	if stats(t, s, small).Offered != 0 || !near(stats(t, s, large).Offered, s.Flow.RPS, 1e-9) {
 		t.Fatal("a failed instance must receive no traffic while a healthy one exists")
 	}

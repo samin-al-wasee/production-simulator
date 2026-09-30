@@ -20,6 +20,7 @@ const (
 	CmdResize     = "resize"
 	CmdScale      = "scale"
 	CmdMove       = "move"
+	CmdRespond    = "respond"
 )
 
 // InternetID is the fixed traffic source present in every game.
@@ -33,8 +34,13 @@ type Node struct {
 	Replicas int     `json:"replicas"`
 	X        float64 `json:"x"`
 	Y        float64 `json:"y"`
-	// Down marks a failed component; it serves nothing.
-	Down bool `json:"down,omitempty"`
+	// DownReplicas are replicas taken down by events; when every replica is
+	// down the component is Down and serves nothing. Both are derived from
+	// the active events each time the flow is solved.
+	DownReplicas int  `json:"downReplicas,omitempty"`
+	Down         bool `json:"down,omitempty"`
+	// RateLimited marks an API gateway that blocks most attack traffic.
+	RateLimited bool `json:"rateLimited,omitempty"`
 	// Backlog is the number of messages waiting in a queue.
 	Backlog float64 `json:"backlog,omitempty"`
 }
@@ -48,6 +54,7 @@ type Edge struct {
 // Command is one player action. Which fields apply depends on Type.
 type Command struct {
 	Type     string  `json:"type"`
+	Action   string  `json:"action,omitempty"`
 	Kind     string  `json:"kind,omitempty"`
 	Size     string  `json:"size,omitempty"`
 	Node     string  `json:"node,omitempty"`
@@ -81,6 +88,12 @@ type Game struct {
 	negativeFor  int
 	nextID       map[string]int
 
+	// Events holds upcoming, active, and recently judged events.
+	Events   []*Event
+	eventSeq int
+	// fx are the effects of the events active at the tick being solved.
+	fx effects
+
 	Last    Snapshot
 	History []Meters
 }
@@ -98,6 +111,7 @@ func New(rules *Ruleset, seed int64) *Game {
 		Popularity:   rules.StartingPopularity,
 		nextID:       map[string]int{},
 	}
+	g.fx = g.effects()
 	g.Last = g.preview()
 	return g
 }
@@ -148,6 +162,8 @@ func (g *Game) apply(c Command) (string, error) {
 		return "", g.resize(c.Node, c.Size)
 	case CmdScale:
 		return "", g.scale(c.Node, c.Replicas)
+	case CmdRespond:
+		return "", g.respond(c)
 	case CmdMove:
 		n := g.Node(c.Node)
 		if n == nil {

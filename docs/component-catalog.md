@@ -15,15 +15,15 @@ The Production Sandbox game (ADR-0013). See [`components/sandbox/`](../component
 | Component | Provides | Depends on | Status |
 |---|---|---|---|
 | Sandbox Engine | Deterministic world state, command log, tick loop, save/replay (`core/internal/sandbox`) | — | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
-| Sandbox Ruleset | Versioned data: placeable component kinds, capacities, costs, complexity weights, tuning (`sandbox/v1`) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
+| Sandbox Ruleset | Versioned data: placeable component kinds, capacities, costs, complexity weights, tuning (`sandbox/v1`; `sandbox/v2` adds the Event Deck and rebalances the economy) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 | Flow Solver | Routes per-tick load through the player's topology; utilization, latency, saturation, errors | Sandbox Engine, Sandbox Ruleset | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 | Economy & Meters | Revenue, cost, cash; health, satisfaction, popularity, engagement, complexity, scale, userbase | Flow Solver | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 | Sandbox API | `/api/v1/sandbox/` games, commands, speed, step, save/replay, SSE tick stream (`core/internal/api`) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-api/`) |
 | Sandbox Canvas | Dashboard screen: build palette, React Flow topology canvas, meters, inspector, speed controls | Sandbox API | implemented · Phase 10 (`components/sandbox/sandbox-canvas/`) |
-| Event Deck | Seeded, state-dependent events and incidents (surges, outages, DDoS, cost spikes) and responses | Sandbox Engine | planned · Phase 10 |
+| Event Deck | Seeded, state-dependent events and incidents (eleven cards: surges, crashes, zone outage, slowdowns, DDoS, cost spikes, and more) and responses (restart, failover, rate limit) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 | Goals & Unlocks | Missions with targets, unlocks, and automatic learning-path completion | Sandbox Engine, Learning Tracker | planned · Phase 10 |
 
-#### In-game component kinds (ruleset `sandbox/v1`)
+#### In-game component kinds (rulesets `sandbox/v1` and `sandbox/v2`)
 
 These are what a player places in a game. They are ruleset data, not repository components; capacities and costs are for the `small` size and one replica.
 
@@ -31,7 +31,7 @@ These are what a player places in a game. They are ruleset data, not repository 
 |---|---|---|---|
 | CDN | Serves 30% of requests at the edge, forwards the rest | 2000 | $3.00 |
 | Load balancer | Splits load across targets by capacity; skips failed targets | 5000 | $1.50 |
-| API gateway | Forwards load to balancers or application instances | 2000 | $2.00 |
+| API gateway | Forwards load to balancers or application instances; can rate-limit attack traffic (v2) | 2000 | $2.00 |
 | Application instance | Serves requests; sends reads, writes, and storage calls downstream | 50 | $2.00 |
 | Background worker | Drains a queue and writes to the database | 40 | $1.50 |
 | Database primary | Serves reads and writes | 300 | $4.00 |

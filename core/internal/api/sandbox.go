@@ -52,6 +52,8 @@ type SandboxState struct {
 	Edges     []sandbox.Edge   `json:"edges"`
 	Flow      sandbox.Flow     `json:"flow"`
 	History   []sandbox.Meters `json:"history"`
+	// Events are upcoming, active, and recently judged events, oldest first.
+	Events []sandbox.Event `json:"events"`
 }
 
 // state must be called with sg.mu held.
@@ -62,11 +64,16 @@ func (sg *sandboxGame) state() SandboxState {
 		c := *n
 		nodes[i] = &c
 	}
+	events := make([]sandbox.Event, len(g.Events))
+	for i, e := range g.Events {
+		events[i] = *e
+		events[i].Hits = append([]sandbox.Hit(nil), e.Hits...)
+	}
 	return SandboxState{
 		ID: sg.id, Simulated: true, Ruleset: g.Rules.Version, Seed: g.Seed,
 		Status: g.Status, Speed: sg.speed, Revision: sg.rev, Tick: g.Tick,
 		Meters: g.Last.Meters, Nodes: nodes, Edges: append([]sandbox.Edge{}, g.Edges...),
-		Flow: g.Last.Flow, History: append([]sandbox.Meters{}, g.History...),
+		Flow: g.Last.Flow, History: append([]sandbox.Meters{}, g.History...), Events: events,
 	}
 }
 
@@ -164,7 +171,7 @@ func (s *Server) sandboxGame(w http.ResponseWriter, r *http.Request) *sandboxGam
 }
 
 func (s *Server) handleSandboxRuleset(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, sandbox.RulesetV1())
+	writeJSON(w, http.StatusOK, sandbox.Latest())
 }
 
 func (s *Server) handleSandboxList(w http.ResponseWriter, _ *http.Request) {
@@ -217,7 +224,7 @@ func (s *Server) handleSandboxCreate(w http.ResponseWriter, r *http.Request) {
 		if req.Seed != nil {
 			seed = *req.Seed
 		}
-		g = sandbox.New(sandbox.RulesetV1(), seed)
+		g = sandbox.New(sandbox.Latest(), seed)
 	}
 
 	s.mu.Lock()

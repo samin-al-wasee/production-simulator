@@ -9,6 +9,7 @@ type Meters struct {
 	Hour float64 `json:"hour"`
 
 	RPS         float64 `json:"rps"`
+	AttackRPS   float64 `json:"attackRps,omitempty"`
 	SuccessRPS  float64 `json:"successRps"`
 	Users       float64 `json:"users"`
 	ActiveUsers float64 `json:"activeUsers"`
@@ -55,7 +56,7 @@ func (g *Game) engagement() float64 {
 
 func (g *Game) rps() float64 {
 	_, hour := g.clock()
-	return g.Users * g.Rules.ActiveShare * g.engagement() * diurnal(hour)
+	return g.Users * g.Rules.ActiveShare * g.engagement() * diurnal(hour) * g.fx.traffic
 }
 
 // Complexity sums each component's weight, extra replicas, and connections.
@@ -100,7 +101,7 @@ func (g *Game) meters(f Flow) Meters {
 	}
 	return Meters{
 		Tick: g.Tick, Day: day, Hour: hour,
-		RPS: f.RPS, SuccessRPS: f.SuccessRPS,
+		RPS: f.RPS, AttackRPS: f.AttackRPS, SuccessRPS: f.SuccessRPS,
 		Users: g.Users, ActiveUsers: g.Users * g.Rules.ActiveShare, Engagement: g.engagement(),
 		P95LatencyMs: f.P95LatencyMs, ErrorRate: f.ErrorRate, Health: health,
 		Satisfaction: g.Satisfaction, Popularity: g.Popularity, Complexity: cx, Tier: tier,
@@ -114,6 +115,7 @@ func (g *Game) Step() Snapshot {
 		return g.Last
 	}
 	r := g.Rules
+	g.draw()
 	snap := g.solve()
 	f := snap.Flow
 	for i, n := range g.Nodes {
@@ -140,7 +142,9 @@ func (g *Game) Step() Snapshot {
 	}
 
 	snap.Meters = g.meters(f)
+	g.track(snap.Meters.Health)
 	g.Tick++
+	g.phases()
 	g.Last = snap
 	g.History = append(g.History, snap.Meters)
 	if len(g.History) > historyLimit {
@@ -154,6 +158,7 @@ func (g *Game) Step() Snapshot {
 func (g *Game) preview() Snapshot {
 	snap := g.solve()
 	snap.Meters = g.meters(snap.Flow)
+	g.phases()
 	return snap
 }
 

@@ -78,6 +78,7 @@ export function SandboxHud({
         <Tile label="Cost / h" value={formatMoney(m.costPerHour)} />
         <Tile label="Users" value={formatCompact(m.users)} series={series((x) => x.users)} />
         <Tile label="RPS" value={formatCompact(m.rps)} series={series((x) => x.rps)} />
+        {!!m.attackRps && <Tile label="Attack RPS" value={formatCompact(m.attackRps)} cls="bad" />}
         <Tile
           label="p95 latency"
           value={`${m.p95LatencyMs.toFixed(0)} ms`}

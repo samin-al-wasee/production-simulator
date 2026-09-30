@@ -16,6 +16,7 @@ import {
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { canConnect, formatMoney, freeSpot, newest, sandboxApi, type Command, type GameState, type Ruleset } from "@/lib/sandbox";
+import { SandboxEvents } from "./SandboxEvents";
 import { SandboxHud } from "./SandboxHud";
 import { SandboxNode, type SandboxFlowNode } from "./SandboxNode";
 import { KIND_DRAG_TYPE, SandboxInspector, SandboxPalette } from "./SandboxPanels";
@@ -110,7 +111,9 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
             kind: n.kind,
             size: n.size,
             replicas: n.replicas,
+            downReplicas: n.downReplicas ?? 0,
             down: !!n.down,
+            rateLimited: !!n.rateLimited,
             source: (kind?.connectsTo?.length ?? 0) > 0,
             target: n.kind !== "internet",
             stats: game.flow.nodes.find((s) => s.id === n.id),
@@ -202,6 +205,7 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
         onSpeed={(s) => control(() => sandboxApi.speed(game.id, s))}
         onSkip={(t) => control(() => sandboxApi.step(game.id, t))}
       />
+      <SandboxEvents game={game} rules={rules} />
       {game.status === "bankrupt" && (
         <div className="notice sb-over">
           <strong>Bankrupt.</strong> Cash stayed negative for a full day. <button onClick={onNewGame}>New game</button>

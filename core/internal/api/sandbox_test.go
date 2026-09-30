@@ -208,3 +208,41 @@ func TestSandboxEvictsTheOldestGame(t *testing.T) {
 		t.Fatalf("want %d games, got %d", maxSandboxGames, len(list))
 	}
 }
+
+func TestSandboxEventsAndResponses(t *testing.T) {
+	srv, _ := sandboxServer(t)
+	var rules sandbox.Ruleset
+	call(t, srv, "GET", "/api/v1/sandbox/ruleset", nil, 200, &rules)
+	if rules.Version != sandbox.Latest().Version || len(rules.Events) == 0 {
+		t.Fatalf("the ruleset must carry the event deck: %s, %d cards", rules.Version, len(rules.Events))
+	}
+
+	var st SandboxState
+	call(t, srv, "POST", "/api/v1/sandbox/games", map[string]int64{"seed": 7}, 201, &st)
+	if st.Ruleset != rules.Version || st.Events == nil {
+		t.Fatalf("new games use the latest ruleset and list events: %s %v", st.Ruleset, st.Events)
+	}
+	build(t, srv, st.ID)
+	base := "/api/v1/sandbox/games/" + st.ID
+	call(t, srv, "POST", base+"/commands",
+		sandbox.Command{Type: sandbox.CmdRespond, Action: sandbox.ActRestart, Node: "app-instance-1"}, 422, nil)
+	call(t, srv, "POST", base+"/step", map[string]int{"ticks": 288 * 10}, 200, &st)
+	if len(st.Events) == 0 {
+		t.Fatal("ten simulated days should draw events")
+	}
+	for _, e := range st.Events {
+		if e.Label == "" || e.Phase == "" || e.End <= e.Start {
+			t.Fatalf("incomplete event: %+v", e)
+		}
+	}
+
+	var saved struct {
+		Save sandbox.Save `json:"save"`
+	}
+	call(t, srv, "POST", base+"/save", nil, 200, &saved)
+	var replayed SandboxState
+	call(t, srv, "POST", "/api/v1/sandbox/games", map[string]any{"save": saved.Save}, 201, &replayed)
+	if !reflect.DeepEqual(replayed.Events, st.Events) {
+		t.Fatal("a replayed game must deal the same events")
+	}
+}

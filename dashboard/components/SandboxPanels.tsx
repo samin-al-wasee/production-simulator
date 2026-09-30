@@ -74,6 +74,18 @@ export function SandboxInspector({
   const internet = node.kind === "internet";
   const replicaCost = (kind?.buildCost ?? 0) * (size?.costFactor ?? 1);
   const downstream = game.edges.filter((e) => e.from === node.id).map((e) => e.to);
+  // Mirrors the engine's rule so the button is only offered when it can work;
+  // the engine still validates the command.
+  const senders = new Set(game.edges.filter((e) => e.to === node.id).map((e) => e.from));
+  const hasReplica = game.nodes.some(
+    (n) => n.kind === "db-replica" && !n.down && game.edges.some((e) => e.to === n.id && senders.has(e.from)),
+  );
+  const downBy = (effect: string) =>
+    (game.events ?? []).some((e) => e.phase === "active" && e.effect === effect && e.hits?.some((h) => h.node === node.id));
+  const crashed = downBy("crash");
+  const zoned = downBy("zone");
+  const respond = (action: "restart" | "failover" | "rate-limit" | "lift-rate-limit") =>
+    onCommand({ type: "respond", action, node: node.id });
 
   return (
     <aside className="sb-inspector">
@@ -96,6 +108,18 @@ export function SandboxInspector({
                   <th>Dropped</th>
                   <td className={`num ${stats.dropped > 0.01 ? "bad" : ""}`}>{formatCompact(stats.dropped)}/s</td>
                 </tr>
+                {!!stats.attack && (
+                  <tr>
+                    <th>Attack</th>
+                    <td className="num bad">{formatCompact(stats.attack)}/s</td>
+                  </tr>
+                )}
+                {!!stats.blocked && (
+                  <tr>
+                    <th>Blocked</th>
+                    <td className="num">{formatCompact(stats.blocked)}/s</td>
+                  </tr>
+                )}
                 <tr>
                   <th>Capacity</th>
                   <td className="num">{formatCompact(stats.capacity)}/s</td>
@@ -158,6 +182,37 @@ export function SandboxInspector({
           <button className="secondary danger" onClick={() => onCommand({ type: "remove", node: node.id })}>
             Remove
           </button>
+        </div>
+      )}
+
+      {!internet && (crashed || zoned || node.kind === "db-primary" || node.kind === "api-gateway") && (
+        <div className="sb-respond">
+          <h4>Respond</h4>
+          {crashed && (
+            <button className="secondary" onClick={() => respond("restart")}>
+              Restart ({node.replicas - (node.downReplicas ?? 0)}/{node.replicas} up)
+            </button>
+          )}
+          {zoned && (
+            <p className="sb-hint">
+              Replicas lost with their zone come back when the zone does; a restart cannot help. More replicas spread the risk.
+            </p>
+          )}
+          {node.kind === "db-primary" && (
+            <button
+              className="secondary"
+              disabled={!hasReplica}
+              onClick={() => respond("failover")}
+              title={hasReplica ? "Promote the healthiest read replica" : "Needs a healthy read replica wired to the same senders"}
+            >
+              Fail over to a replica
+            </button>
+          )}
+          {node.kind === "api-gateway" && (
+            <button className="secondary" onClick={() => respond(node.rateLimited ? "lift-rate-limit" : "rate-limit")}>
+              {node.rateLimited ? "Lift rate limit" : "Rate limit"}
+            </button>
+          )}
         </div>
       )}
 

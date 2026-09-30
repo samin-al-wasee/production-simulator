@@ -598,6 +598,68 @@ button.danger {
   font-family: var(--mono);
 }
 
+.sb-events {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.sb-events h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.sb-event {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--warn);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  min-width: 0;
+  max-width: 320px;
+}
+
+.sb-event.phase-active {
+  border-left-color: var(--bad);
+}
+
+.sb-event.phase-recovering {
+  border-left-color: var(--accent);
+}
+
+.sb-event-phase {
+  margin-left: 6px;
+  font: 600 0.68rem var(--mono);
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.sb-event-meta {
+  font: 0.72rem var(--mono);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.sb-event-past {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font: 0.72rem var(--mono);
+  flex-basis: 100%;
+}
+
+.sb-respond {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .sb-start {
   max-width: 560px;
 }
