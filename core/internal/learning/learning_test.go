@@ -98,12 +98,13 @@ func TestProgressRoundTrip(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	bad := map[string]string{
-		"wrong kind":  strings.Replace(testPath, "LearningPath", "X", 1),
-		"no stages":   "apiVersion: forgelab/v1\nkind: LearningPath\nmetadata: {name: t}\nspec: {stages: []}\n",
-		"dup stage":   strings.Replace(testPath, "id: b\n", "id: a\n", 1),
-		"dup ex":      strings.Replace(testPath, "id: b1", "id: a1", 1),
-		"bad type":    strings.Replace(testPath, "{id: b2, title: four, evidence: {type: manual}}", "{id: b2, title: four, evidence: {type: experiment}}", 1),
-		"unknown key": strings.Replace(testPath, "metadata: {name: t}", "metadata: {name: t}\nbogus: 1", 1),
+		"wrong kind":   strings.Replace(testPath, "LearningPath", "X", 1),
+		"no stages":    "apiVersion: forgelab/v1\nkind: LearningPath\nmetadata: {name: t}\nspec: {stages: []}\n",
+		"dup stage":    strings.Replace(testPath, "id: b\n", "id: a\n", 1),
+		"dup ex":       strings.Replace(testPath, "id: b1", "id: a1", 1),
+		"bad type":     strings.Replace(testPath, "{id: b2, title: four, evidence: {type: manual}}", "{id: b2, title: four, evidence: {type: experiment}}", 1),
+		"goal no name": strings.Replace(testPath, "{type: manual}}", "{type: goal}}", 1),
+		"unknown key":  strings.Replace(testPath, "metadata: {name: t}", "metadata: {name: t}\nbogus: 1", 1),
 	}
 	for name, doc := range bad {
 		f := filepath.Join(t.TempDir(), "p.yaml")
@@ -120,7 +121,24 @@ func TestRepositoryPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(p.Spec.Stages) != 6 {
-		t.Errorf("stages = %d, want 6 (docs/learning-path.md)", len(p.Spec.Stages))
+	if len(p.Spec.Stages) != 7 {
+		t.Errorf("stages = %d, want 7 (docs/learning-path.md)", len(p.Spec.Stages))
+	}
+}
+
+func TestRecordGoal(t *testing.T) {
+	p := load(t, strings.Replace(testPath, "{id: b1, title: three, evidence: {type: manual}}", "{id: b1, title: three, evidence: {type: goal, name: g1}}", 1))
+	if got := p.Goals(); len(got) != 1 || got[0] != "g1" {
+		t.Fatalf("goals: %v", got)
+	}
+	var pr Progress
+	if done := pr.RecordGoal(p, "g1", "game-1", now); len(done) != 1 || done[0] != "b1" || pr.Completed["b1"].By != "game-1" {
+		t.Fatalf("recording g1: %v %+v", done, pr.Completed)
+	}
+	if done := pr.RecordGoal(p, "g1", "game-2", now); len(done) != 0 || pr.Completed["b1"].By != "game-1" {
+		t.Fatal("recording twice keeps the first completion")
+	}
+	if done := pr.RecordGoal(p, "other", "game-1", now); len(done) != 0 {
+		t.Fatal("an unrelated goal completes nothing")
 	}
 }

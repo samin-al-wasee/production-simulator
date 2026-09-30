@@ -16,8 +16,8 @@ Served by `forgelab serve` (`core/internal/api/sandbox.go`):
 |---|---|
 | `GET /api/v1/sandbox/ruleset` | The latest ruleset (`sandbox/v2`): placeable kinds, sizes, tuning, and the event deck |
 | `GET /api/v1/sandbox/games` | Games held by this server |
-| `POST /api/v1/sandbox/games` | New empty game (`{"seed": n}` optional), or a replay (`{"save": {...}}`) |
-| `GET /api/v1/sandbox/games/{id}` | Full state: meters, nodes, edges, per-node flow, history, and events (upcoming, active, recently judged) |
+| `POST /api/v1/sandbox/games` | New empty game (`{"seed": n, "ruleset": "sandbox/v2"}`, both optional; the latest ruleset by default), or a replay (`{"save": {...}}`) |
+| `GET /api/v1/sandbox/games/{id}` | Full state: meters, nodes, edges, per-node flow, history, events (upcoming, active, recently judged), and goals with their progress |
 | `DELETE /api/v1/sandbox/games/{id}` | End a game and its streams |
 | `POST /api/v1/sandbox/games/{id}/commands` | Apply a command, including `{"type": "respond", "action": ..., "node": ...}`; `422` with the reason when invalid |
 | `POST /api/v1/sandbox/games/{id}/speed` | `{"speed": 0\|1\|2\|4\|8}` ticks per real second; `0` pauses |
@@ -31,4 +31,4 @@ Served by `forgelab serve` (`core/internal/api/sandbox.go`):
 
 ## Configuration
 
-Games live in memory, at most 20 per server (creating one more drops the oldest), and end when the server stops. Every state carries a `revision` that increases with each change; stream events and command responses travel separately, so clients keep the state with the highest revision. The endpoints change only in-memory game state and the save directory.
+When a game reaches a goal, the server completes the learning-path exercises tied to it in the progress file (best effort; the game never reads progress). Games live in memory, at most 20 per server (creating one more drops the oldest), and end when the server stops. Every state carries a `revision` that increases with each change; stream events and command responses travel separately, so clients keep the state with the highest revision. The endpoints change only in-memory game state and the save directory.

@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/samin-al-wasee/production-simulator/core/internal/learning"
 	"github.com/samin-al-wasee/production-simulator/core/internal/sandbox"
 )
 
@@ -244,5 +245,75 @@ func TestSandboxEventsAndResponses(t *testing.T) {
 	call(t, srv, "POST", "/api/v1/sandbox/games", map[string]any{"save": saved.Save}, 201, &replayed)
 	if !reflect.DeepEqual(replayed.Events, st.Events) {
 		t.Fatal("a replayed game must deal the same events")
+	}
+}
+
+// Every goal the repository's learning path names must exist in the ruleset
+// new games are played with.
+func TestLearningPathGoalsExist(t *testing.T) {
+	p, err := learning.LoadPath("../../../learning/path.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rules := sandbox.Latest()
+	for _, gl := range p.Goals() {
+		if _, ok := rules.Goal(gl); !ok {
+			t.Errorf("learning path names goal %q, missing from %s", gl, rules.Version)
+		}
+	}
+	if len(p.Goals()) != len(rules.Goals) {
+		t.Errorf("%d goals in the path, %d in the ruleset", len(p.Goals()), len(rules.Goals))
+	}
+}
+
+func TestSandboxGoalsUnlockAndCompleteExercises(t *testing.T) {
+	srv, root := sandboxServer(t)
+	raw, err := os.ReadFile("../../../learning/path.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// A goal reached while the learning path is unreadable is recorded once
+	// it can be.
+	var early SandboxState
+	call(t, srv, "POST", "/api/v1/sandbox/games", map[string]int64{"seed": 3}, 201, &early)
+	build(t, srv, early.ID)
+	call(t, srv, "POST", "/api/v1/sandbox/games/"+early.ID+"/step", map[string]int{"ticks": 1}, 200, nil)
+	os.MkdirAll(root+"/learning", 0o755)
+	os.WriteFile(root+"/learning/path.yaml", raw, 0o644)
+	call(t, srv, "POST", "/api/v1/sandbox/games/"+early.ID+"/step", map[string]int{"ticks": 1}, 200, nil)
+	var retried learning.Status
+	call(t, srv, "GET", "/api/v1/learning", nil, 200, &retried)
+	if ex := retried.Stages[0].Exercises[0]; !ex.Done || ex.CompletedBy != "sandbox "+early.ID {
+		t.Fatalf("a goal is recorded once the path is readable: %+v", ex)
+	}
+	os.Remove(root + "/.forgelab/progress.json")
+
+	call(t, srv, "POST", "/api/v1/sandbox/games", map[string]string{"ruleset": "sandbox/v0"}, 400, nil)
+	var old SandboxState
+	call(t, srv, "POST", "/api/v1/sandbox/games", map[string]string{"ruleset": "sandbox/v2"}, 201, &old)
+	if old.Ruleset != "sandbox/v2" || len(old.Goals) != 0 {
+		t.Fatalf("an older ruleset can be chosen: %s, %d goals", old.Ruleset, len(old.Goals))
+	}
+
+	var st SandboxState
+	call(t, srv, "POST", "/api/v1/sandbox/games", map[string]int64{"seed": 3}, 201, &st)
+	base := "/api/v1/sandbox/games/" + st.ID
+	lb := sandbox.Command{Type: sandbox.CmdPlace, Kind: sandbox.KindLB}
+	call(t, srv, "POST", base+"/commands", lb, 422, nil)
+	build(t, srv, st.ID)
+	call(t, srv, "POST", base+"/commands", sandbox.Command{Type: sandbox.CmdPlace, Kind: sandbox.KindStorage}, 200, nil)
+	call(t, srv, "POST", base+"/commands", sandbox.Command{Type: sandbox.CmdConnect, From: "app-instance-1", To: "object-storage-1"}, 200, nil)
+	call(t, srv, "POST", base+"/step", map[string]int{"ticks": 1}, 200, &st)
+	if st.Goals[0].ID != "first-request" || st.Goals[0].AchievedAt == nil {
+		t.Fatalf("first goal: %+v", st.Goals[0])
+	}
+	call(t, srv, "POST", base+"/commands", lb, 200, nil)
+
+	var status learning.Status
+	call(t, srv, "GET", "/api/v1/learning", nil, 200, &status)
+	ex := status.Stages[0].Exercises[0]
+	if ex.ID != "s1-serve" || !ex.Done || ex.CompletedBy != "sandbox "+st.ID {
+		t.Fatalf("reaching the goal completes the exercise: %+v", ex)
 	}
 }

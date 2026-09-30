@@ -30,6 +30,12 @@ The Sandbox step that routes each tick's load through the topology and derives u
 ### Event Deck
 The seeded set of cards (surges, crashes, zone outage, slowdowns, DDoS, cost spikes, and more) that the Sandbox draws from each tick. A card changes model inputs while it is active, and is judged *recovered* when health is back above 80 an hour after it ends. See `docs/scenarios.md`.
 
+### Goal
+A mission the Sandbox engine checks after every tick, such as "reach 10,000 users". Reaching one is permanent, can unlock component kinds, and completes the learning-path exercises tied to it.
+
+### Unlock
+A component kind that becomes placeable only once a goal is reached, so a new game starts with a handful of kinds and the rest arrive as the system grows.
+
 ### Incident Response
 A `respond` command answering an event: restart a crashed component, fail a database primary over to a read replica, or rate-limit an API gateway.
 

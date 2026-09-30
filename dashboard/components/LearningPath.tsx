@@ -60,6 +60,13 @@ export function LearningPath({ initial }: { initial: LearningStatus }) {
                     <strong>{e.title}</strong>
                     <div className="legend">
                       {e.how}
+                      {e.evidence.type === "goal" && !e.done && (
+                        <>
+                          {" "}
+                          · <em>completes itself when a Sandbox game reaches the goal </em>
+                          <code>{e.evidence.name}</code>
+                        </>
+                      )}
                       {e.done && e.completedAt && ` · done ${e.completedAt.slice(0, 10)} (${e.completedBy})`}
                     </div>
                   </td>

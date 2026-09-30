@@ -54,6 +54,11 @@ test("build, run, scale, delete, and resume a game", async ({ page }) => {
   await page.getByRole("button", { name: "New game" }).click();
   await expect(node(page, "internet")).toBeVisible();
 
+  // Only the first kinds are unlocked; a load balancer waits for the first request.
+  const lb = page.locator('.sb-kind[data-kind="load-balancer"]');
+  await expect(lb).toBeDisabled();
+  await expect(lb).toContainText("goal: First request");
+
   // Click to place: it must not crash, and the new node becomes the selection.
   await page.locator(".sb-kind", { hasText: "Application instance" }).click();
   await expect(node(page, "app-instance-1")).toBeVisible();
@@ -89,6 +94,9 @@ test("build, run, scale, delete, and resume a game", async ({ page }) => {
 
   // Run the clock: revenue appears and errors are zero.
   await page.getByRole("button", { name: "8×" }).click();
+  await expect(page.locator(".sb-notice")).toContainText("Goal reached: First request. Unlocked Load balancer.");
+  await expect(lb).toBeEnabled();
+  await expect(page.locator('.sb-goal[data-goal="first-request"]')).toHaveCount(0);
   await expect.poll(() => tile(page, "Revenue / h"), { timeout: 10_000 }).not.toBe("$0.00");
   await expect.poll(() => tile(page, "Errors")).toBe("0.0%");
   await page.getByRole("button", { name: "❚❚" }).click();
@@ -112,6 +120,12 @@ test("build, run, scale, delete, and resume a game", async ({ page }) => {
   await expect(node(page, "app-instance-1")).toBeVisible();
   await expect(node(page, "app-instance-1")).toContainText("×2");
 
+  // Reaching the goal completed the learning-path exercise tied to it.
+  await page.getByRole("link", { name: "Learning path" }).click();
+  const serve = page.locator("tr", { hasText: "Serve your first successful request" });
+  await expect(serve).toContainText("✓");
+  await expect(serve).toContainText("sandbox game-");
+
   expect(toastSeen, "unexpected error toast").toEqual([]);
   expect(errors, "browser errors").toEqual([]);
 });
@@ -124,9 +138,10 @@ test("events arrive and the player responds to them", async ({ page }) => {
   });
 
   // A seeded game built through the API, so the deck deals the same cards on
-  // every run: Internet → gateway → app → primary, replica, storage.
+  // every run: Internet → gateway → app → primary, replica, storage. Ruleset
+  // sandbox/v2 has the deck but no locked kinds.
   const api = page.request;
-  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 7 } })).json();
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 7, ruleset: "sandbox/v2" } })).json();
   const game = `/api/forgelab/sandbox/games/${created.id}`;
   const command = async (c: object) => {
     const res = await api.post(`${game}/commands`, { data: c });

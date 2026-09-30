@@ -14,6 +14,7 @@ export interface Kind {
   connectsTo: string[] | null;
   hitRatio?: number;
   maxBacklog?: number;
+  unlockedBy?: string;
 }
 
 export interface Size {
@@ -88,6 +89,25 @@ export interface Meters {
   cash: number;
 }
 
+export interface ConditionStatus {
+  label: string;
+  unit?: "ratio";
+  value: number;
+  min?: number;
+  max?: number;
+  met: boolean;
+}
+
+export interface GoalStatus {
+  id: string;
+  title: string;
+  description: string;
+  requires?: string;
+  unlocks?: string[];
+  achievedAt?: number;
+  conditions: ConditionStatus[];
+}
+
 export type EventPhase = "upcoming" | "active" | "recovering" | "over";
 
 export interface SandboxEvent {
@@ -120,6 +140,7 @@ export interface GameState {
   flow: { rps: number; attackRps?: number; successRps: number; errorRate: number; p95LatencyMs: number; nodes: NodeStats[] };
   history: Meters[] | null;
   events: SandboxEvent[] | null;
+  goals: GoalStatus[] | null;
 }
 
 export type Command =
@@ -287,4 +308,41 @@ export function eventTiming(e: SandboxEvent, tick: number, tickSeconds: number, 
       return `judged in ${until(e.end + recoveryTicks)}`;
   }
   return e.outcome === "recovered" ? "recovered" : `not recovered (health fell to ${e.lowestHealth.toFixed(0)})`;
+}
+
+// conditionText shows a goal condition's current value against its bounds.
+// A tiny positive minimum means "more than zero".
+export function conditionText(c: ConditionStatus): string {
+  const show = (v: number) => {
+    if (v >= 1e12) return "n/a";
+    if (c.unit === "ratio") return `${Math.round(v * 100)}%`;
+    return Number.isInteger(v) && Math.abs(v) < 1e4 ? String(v) : formatCompact(v);
+  };
+  const aboveZero = c.min !== undefined && c.min > 0 && c.min <= 0.001;
+  if (c.min !== undefined && c.max === undefined && !aboveZero) return `${c.label}: ${show(c.value)} / ${show(c.min)}`;
+  const bounds = [
+    ...(c.min !== undefined ? [aboveZero ? "> 0" : `≥ ${show(c.min)}`] : []),
+    ...(c.max !== undefined ? [`≤ ${show(c.max)}`] : []),
+  ];
+  return `${c.label}: ${show(c.value)} (${bounds.join(", ")})`;
+}
+
+// goalProgress is how far a goal's conditions are along, from 0 to 1: the
+// mean of each condition's share of its minimum, counting met ones as done.
+export function goalProgress(g: GoalStatus): number {
+  if (g.achievedAt !== undefined) return 1;
+  if (g.conditions.length === 0) return 0;
+  const share = (c: ConditionStatus) => {
+    if (c.met) return 1;
+    if (c.min !== undefined && c.min > 0) return Math.min(Math.max(c.value / c.min, 0), 0.99);
+    return 0;
+  };
+  return g.conditions.reduce((sum, c) => sum + share(c), 0) / g.conditions.length;
+}
+
+// lockedBy returns the unreached goal that still locks a kind, if any.
+export function lockedBy(kind: Kind, goals: GoalStatus[]): GoalStatus | undefined {
+  if (!kind.unlockedBy) return undefined;
+  const goal = goals.find((g) => g.id === kind.unlockedBy);
+  return goal && goal.achievedAt === undefined ? goal : undefined;
 }

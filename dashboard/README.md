@@ -10,7 +10,7 @@ Next.js (App Router, TypeScript) dashboard where the Production Sandbox is playe
 |---|---|
 | Sandbox (home: `/` redirects here) | The Production Sandbox game (Phase 10, ADR-0013): build palette, React Flow topology canvas, meters with sparklines, component inspector, speed controls, save. Every value is labelled simulated and comes from `core/internal/sandbox` |
 | Pipelines | Simulated build → test → deploy runs with seed, warm cache, bad release, and forced-failure options and a stage timeline |
-| Learning path | The six-stage path of Sandbox and pipeline missions, with progress and a Mark done button |
+| Learning path | The seven-stage path of Sandbox and pipeline missions, with progress; goal-linked exercises complete themselves, and any can be marked done |
 
 Every value is simulated and labelled as such; nothing is presented as a measurement of real hardware.
 

@@ -3,8 +3,10 @@ kind: LearningPath
 metadata:
   name: forgelab-sandbox-path
 # Machine-readable form of docs/learning-path.md. Every exercise is played in
-# the Production Sandbox (or the pipeline simulator) and marked done with
-# `forgelab learn complete <id>` or the dashboard's Learning path page.
+# the Production Sandbox (or the pipeline simulator). An exercise with goal
+# evidence completes itself when a Sandbox game reaches that goal; any
+# exercise can be marked done with `forgelab learn complete <id>` or the
+# dashboard's Learning path page.
 spec:
   stages:
     - id: s1
@@ -14,7 +16,7 @@ spec:
         - id: s1-serve
           title: Serve your first successful request
           how: "New game → place an Application instance, a Database primary, and Object storage → wire Internet → app → database and storage → press 1×"
-          evidence: {type: manual}
+          evidence: {type: goal, name: first-request}
         - id: s1-missing-piece
           title: Explain the errors a missing component causes
           how: "Disconnect object storage and read the error rate; it matches the share of requests that need storage"
@@ -22,7 +24,7 @@ spec:
         - id: s1-profit
           title: End a simulated day with more cash than you started it
           how: "Run a full day (+1 day) and compare the Cash meter"
-          evidence: {type: manual}
+          evidence: {type: goal, name: profitable-day}
     - id: s2
       title: Capacity and bottlenecks
       goal: Find the component that limits the system and move the limit.
@@ -30,15 +32,15 @@ spec:
         - id: s2-saturate
           title: Saturate an application instance
           how: "Let users grow until the app's utilization bar turns red and requests drop"
-          evidence: {type: manual}
+          evidence: {type: goal, name: saturate-app}
         - id: s2-scale-out
           title: Scale out behind a load balancer
           how: "Place a Load balancer between the Internet and several app instances; watch load split by capacity"
-          evidence: {type: manual}
+          evidence: {type: goal, name: scale-out}
         - id: s2-bottleneck-moves
           title: Watch the bottleneck move to the database
           how: "Keep adding app replicas until the database becomes the saturated component"
-          evidence: {type: manual}
+          evidence: {type: goal, name: database-bottleneck}
         - id: s2-size-vs-replicas
           title: Compare a larger size with more replicas
           how: "Reach the same capacity with one large instance and with several small ones; compare cost per hour"
@@ -50,11 +52,11 @@ spec:
         - id: s3-cache
           title: Put a cache in front of the database
           how: "Wire app → cache → database and note how much the database's offered load falls"
-          evidence: {type: manual}
+          evidence: {type: goal, name: cache}
         - id: s3-replicas
           title: Spread reads across read replicas
           how: "Add Database read replicas and connect the app or cache to them"
-          evidence: {type: manual}
+          evidence: {type: goal, name: read-replicas}
     - id: s4
       title: Asynchronous work
       goal: Trade latency for backlog with queues and workers.
@@ -62,11 +64,11 @@ spec:
         - id: s4-backlog
           title: Build a backlog
           how: "Send writes to a Message queue with no workers and watch the backlog grow"
-          evidence: {type: manual}
+          evidence: {type: goal, name: backlog}
         - id: s4-drain
           title: Size workers to drain it
           how: "Add Background workers wired to the database until the backlog reaches zero"
-          evidence: {type: manual}
+          evidence: {type: goal, name: drain-backlog}
     - id: s5
       title: Growth and economics
       goal: Grow the userbase without losing money or users.
@@ -74,15 +76,15 @@ spec:
         - id: s5-startup
           title: Reach the startup tier (10k users)
           how: "Keep satisfaction high so popularity and growth stay up"
-          evidence: {type: manual}
+          evidence: {type: goal, name: startup-tier}
         - id: s5-scale-up
           title: Reach the scale-up tier (100k users) with health above 80
           how: "Scale ahead of growth; read the Health and Satisfaction sparklines"
-          evidence: {type: manual}
+          evidence: {type: goal, name: scale-up-tier}
         - id: s5-margin
           title: Keep cost below half of revenue at scale-up
           how: "Remove over-provisioned components and compare Cost / h with Revenue / h"
-          evidence: {type: manual}
+          evidence: {type: goal, name: healthy-margin}
     - id: s6
       title: Shipping changes safely
       goal: Compare deploy strategies and their rollbacks.
@@ -99,3 +101,19 @@ spec:
           title: Write a postmortem for the worst moment of your game
           how: "Use templates/postmortem/postmortem.md"
           evidence: {type: manual}
+    - id: s7
+      title: Incidents
+      goal: Keep the system you built alive through what the Event Deck deals it.
+      exercises:
+        - id: s7-recover
+          title: Recover from an incident that hurt
+          how: "When an event pushes health below 80, respond (restart, fail over, scale) until it is judged recovered"
+          evidence: {type: goal, name: recover-incident}
+        - id: s7-ddos
+          title: Weather a DDoS attack
+          how: "Put an API gateway on the entry path and rate-limit it when an attack arrives, or absorb it with capacity"
+          evidence: {type: goal, name: weather-ddos}
+        - id: s7-zone
+          title: Survive a zone outage
+          how: "Run three or more replicas of every critical component, so a lost zone takes only a third of each"
+          evidence: {type: goal, name: survive-zone-outage}

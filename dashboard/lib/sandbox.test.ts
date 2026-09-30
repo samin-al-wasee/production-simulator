@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   canConnect,
+  conditionText,
   describeEvent,
+  goalProgress,
+  lockedBy,
   eventTiming,
   formatClock,
   formatDuration,
@@ -12,6 +15,8 @@ import {
   newest,
   scoreLevel,
   sparkline,
+  type GoalStatus,
+  type Kind,
   type SandboxEvent,
 } from "./sandbox";
 
@@ -122,5 +127,33 @@ describe("events", () => {
     expect(eventTiming(event({ phase: "recovering" }), 330, 300, 12)).toBe("judged in 30m");
     expect(eventTiming(event({ phase: "over", outcome: "recovered" }), 400, 300, 12)).toBe("recovered");
     expect(eventTiming(event({ phase: "over", outcome: "unrecovered" }), 400, 300, 12)).toBe("not recovered (health fell to 42)");
+  });
+});
+
+describe("goals", () => {
+  const users = { label: "Users", value: 4200, min: 10_000, met: false };
+  const health = { label: "Health", value: 91, min: 80, met: true };
+  const goal = (over: Partial<GoalStatus>): GoalStatus => ({ id: "startup-tier", title: "Startup", description: "", conditions: [users], ...over });
+
+  it("shows a condition's value against its bounds", () => {
+    expect(conditionText(users)).toBe("Users: 4200 / 10.0k");
+    expect(conditionText({ label: "App replicas", value: 1, min: 2, met: false })).toBe("App replicas: 1 / 2");
+    expect(conditionText({ label: "LB ops/s", value: 0, min: 0.001, met: false })).toBe("LB ops/s: 0 (> 0)");
+    expect(conditionText({ label: "App utilization", unit: "ratio", value: 0.62, min: 0.001, max: 0.99, met: true })).toBe("App utilization: 62% (> 0, ≤ 99%)");
+    expect(conditionText({ label: "Cost ÷ revenue", unit: "ratio", value: 0.72, max: 0.5, met: false })).toBe("Cost ÷ revenue: 72% (≤ 50%)");
+    expect(conditionText({ label: "Cost ÷ revenue", unit: "ratio", value: Number.MAX_VALUE, max: 0.5, met: false })).toBe("Cost ÷ revenue: n/a (≤ 50%)");
+  });
+
+  it("measures progress, counting met conditions as done", () => {
+    expect(goalProgress(goal({}))).toBeCloseTo(0.42);
+    expect(goalProgress(goal({ conditions: [users, health] }))).toBeCloseTo(0.71);
+    expect(goalProgress(goal({ achievedAt: 12 }))).toBe(1);
+  });
+
+  it("finds the goal that still locks a kind", () => {
+    const cache: Kind = { name: "cache", label: "Cache", capacity: 1, serviceMs: 1, costPerHour: 1, buildCost: 1, complexity: 1, connectsTo: null, unlockedBy: "startup-tier" };
+    expect(lockedBy(cache, [goal({})])?.title).toBe("Startup");
+    expect(lockedBy(cache, [goal({ achievedAt: 3 })])).toBeUndefined();
+    expect(lockedBy({ ...cache, unlockedBy: undefined }, [goal({})])).toBeUndefined();
   });
 });

@@ -1,16 +1,27 @@
 "use client";
 
-import { formatCompact, formatMoney, level, type Command, type GameState, type Ruleset } from "@/lib/sandbox";
+import {
+  formatCompact,
+  formatMoney,
+  level,
+  lockedBy,
+  type Command,
+  type GameState,
+  type GoalStatus,
+  type Ruleset,
+} from "@/lib/sandbox";
 
 export const KIND_DRAG_TYPE = "application/x-forgelab-kind";
 
 export function SandboxPalette({
   rules,
   cash,
+  goals,
   onPlace,
 }: {
   rules: Ruleset;
   cash: number;
+  goals: GoalStatus[];
   onPlace: (kind: string) => void;
 }) {
   return (
@@ -20,11 +31,13 @@ export function SandboxPalette({
       {rules.kinds
         .filter((k) => k.name !== "internet")
         .map((k) => {
-          const affordable = cash >= k.buildCost;
+          const locked = lockedBy(k, goals);
+          const affordable = cash >= k.buildCost && !locked;
           return (
             <button
               key={k.name}
               className="sb-kind secondary"
+              data-kind={k.name}
               draggable={affordable}
               disabled={!affordable}
               onDragStart={(e) => {
@@ -36,7 +49,7 @@ export function SandboxPalette({
             >
               <span className="sb-kind-label">{k.label}</span>
               <span className="sb-kind-cost">
-                {formatMoney(k.buildCost)} + {formatMoney(k.costPerHour)}/h
+                {locked ? `🔒 goal: ${locked.title}` : `${formatMoney(k.buildCost)} + ${formatMoney(k.costPerHour)}/h`}
               </span>
             </button>
           );

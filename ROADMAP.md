@@ -6,7 +6,7 @@ Legend: ⬜ planned · 🔨 in progress · ✅ done · 🗄️ retired
 
 ForgeLab is the **Production Sandbox** ([ADR-0014](docs/decisions/0014-sandbox-only-platform.md)). Phases 0 to 9 built a real-infrastructure lab (Live mode); most of it was retired and is kept on the `archive/live-lab` branch. What survived is noted below.
 
-## Phase 10 — Production Sandbox *🔨 in progress*
+## Phase 10 — Production Sandbox *✅ done*
 
 > A city-builder for software production: the player starts from an empty world, places and wires every component in the dashboard, and runs the system as a business under growth, events, and incidents. Fully model-driven; deterministic Go core; the dashboard renders and sends commands. ADR-0013, ADR-0014.
 
@@ -16,7 +16,7 @@ ForgeLab is the **Production Sandbox** ([ADR-0014](docs/decisions/0014-sandbox-o
 - [x] Dashboard Sandbox screen: build palette, React Flow canvas, HUD, inspector, speed controls, browser tests
 - [x] Retire Live mode; the Sandbox becomes the whole product (ADR-0014)
 - [x] Event deck and incident response actions (surges, outages, DDoS, failover, rate limiting), with economy rebalancing (ruleset `sandbox/v2`)
-- [ ] Goals and unlocks (missions tied to the learning path, with automatic completion)
+- [x] Goals and unlocks (missions tied to the learning path, with automatic completion; ruleset `sandbox/v3`)
 
 ## History: phases 0 to 9
 

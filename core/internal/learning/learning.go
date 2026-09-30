@@ -1,6 +1,7 @@
 // Package learning models the ForgeLab learning path and a learner's
 // progress through it. The path is declared in learning/path.yaml; progress
-// is a small JSON file. Exercises are completed manually by the learner.
+// is a small JSON file. Exercises are completed manually by the learner, or
+// automatically when a Sandbox game reaches the goal named as evidence.
 package learning
 
 import (
@@ -13,9 +14,13 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// EvidenceManual is the only evidence type: the learner marks the exercise
-// complete.
-const EvidenceManual = "manual"
+// Evidence types. Any exercise can also be marked complete by hand.
+const (
+	// EvidenceManual: the learner marks the exercise complete.
+	EvidenceManual = "manual"
+	// EvidenceGoal: a Sandbox game reaching the goal Name completes it.
+	EvidenceGoal = "goal"
+)
 
 // Path is the declared learning path (kind: LearningPath).
 type Path struct {
@@ -89,7 +94,13 @@ func (p *Path) Validate() error {
 				return fmt.Errorf("exercise ids must be unique and exercises need a title (%q)", e.ID)
 			}
 			exercises[e.ID] = true
-			if e.Evidence.Type != EvidenceManual {
+			switch e.Evidence.Type {
+			case EvidenceManual:
+			case EvidenceGoal:
+				if e.Evidence.Name == "" {
+					return fmt.Errorf("exercise %q: goal evidence needs a name", e.ID)
+				}
+			default:
 				return fmt.Errorf("exercise %q: unknown evidence type %q", e.ID, e.Evidence.Type)
 			}
 		}
@@ -168,6 +179,36 @@ func (pr *Progress) Complete(p *Path, id, by string, at time.Time) (bool, error)
 	}
 	pr.Completed[id] = Completion{At: at.UTC(), By: by}
 	return true, nil
+}
+
+// Goals lists every goal named as evidence, in path order.
+func (p *Path) Goals() []string {
+	var out []string
+	for _, s := range p.Spec.Stages {
+		for _, e := range s.Exercises {
+			if e.Evidence.Type == EvidenceGoal {
+				out = append(out, e.Evidence.Name)
+			}
+		}
+	}
+	return out
+}
+
+// RecordGoal completes every exercise whose evidence is the goal and returns
+// the ids newly completed.
+func (pr *Progress) RecordGoal(p *Path, goal, by string, at time.Time) []string {
+	var done []string
+	for _, s := range p.Spec.Stages {
+		for _, e := range s.Exercises {
+			if e.Evidence.Type != EvidenceGoal || e.Evidence.Name != goal {
+				continue
+			}
+			if fresh, _ := pr.Complete(p, e.ID, by, at); fresh {
+				done = append(done, e.ID)
+			}
+		}
+	}
+	return done
 }
 
 // ExerciseStatus is an exercise with its completion state.

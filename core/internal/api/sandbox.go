@@ -35,6 +35,10 @@ type sandboxGame struct {
 	rev  int
 	stop chan struct{}
 	subs map[chan []byte]bool
+	// recorded are the goals already passed to record, which completes the
+	// learning-path exercises tied to them.
+	recorded map[string]bool
+	record   func(game string, goals []string) error
 }
 
 // SandboxState is the full game view sent to the dashboard.
@@ -54,6 +58,8 @@ type SandboxState struct {
 	History   []sandbox.Meters `json:"history"`
 	// Events are upcoming, active, and recently judged events, oldest first.
 	Events []sandbox.Event `json:"events"`
+	// Goals are the ruleset's goals with their progress.
+	Goals []sandbox.GoalStatus `json:"goals"`
 }
 
 // state must be called with sg.mu held.
@@ -74,12 +80,32 @@ func (sg *sandboxGame) state() SandboxState {
 		Status: g.Status, Speed: sg.speed, Revision: sg.rev, Tick: g.Tick,
 		Meters: g.Last.Meters, Nodes: nodes, Edges: append([]sandbox.Edge{}, g.Edges...),
 		Flow: g.Last.Flow, History: append([]sandbox.Meters{}, g.History...), Events: events,
+		Goals: g.Goals(),
+	}
+}
+
+// recordGoals must be called with sg.mu held. It passes newly reached goals
+// to the learning path; progress never feeds back into the game. Goals that
+// could not be recorded are offered again after the next change.
+func (sg *sandboxGame) recordGoals() {
+	var fresh []string
+	for _, gl := range sg.game.Rules.Goals {
+		if sg.game.Reached(gl.ID) && !sg.recorded[gl.ID] {
+			fresh = append(fresh, gl.ID)
+		}
+	}
+	if len(fresh) == 0 || sg.record == nil || sg.record(sg.id, fresh) != nil {
+		return
+	}
+	for _, id := range fresh {
+		sg.recorded[id] = true
 	}
 }
 
 // publish must be called with sg.mu held, after every change. Slow
 // subscribers miss intermediate states; they always receive a later one.
 func (sg *sandboxGame) publish() {
+	sg.recordGoals()
 	sg.rev++
 	if len(sg.subs) == 0 {
 		return
@@ -202,8 +228,9 @@ func (s *Server) handleSandboxList(w http.ResponseWriter, _ *http.Request) {
 // body carries one.
 func (s *Server) handleSandboxCreate(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Seed *int64        `json:"seed"`
-		Save *sandbox.Save `json:"save"`
+		Seed    *int64        `json:"seed"`
+		Ruleset string        `json:"ruleset"`
+		Save    *sandbox.Save `json:"save"`
 	}
 	if r.ContentLength != 0 {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -224,7 +251,15 @@ func (s *Server) handleSandboxCreate(w http.ResponseWriter, r *http.Request) {
 		if req.Seed != nil {
 			seed = *req.Seed
 		}
-		g = sandbox.New(sandbox.Latest(), seed)
+		rules := sandbox.Latest()
+		if req.Ruleset != "" {
+			var err error
+			if rules, err = sandbox.Rulesets(req.Ruleset); err != nil {
+				writeError(w, http.StatusBadRequest, "%v", err)
+				return
+			}
+		}
+		g = sandbox.New(rules, seed)
 	}
 
 	s.mu.Lock()
@@ -238,7 +273,10 @@ func (s *Server) handleSandboxCreate(w http.ResponseWriter, r *http.Request) {
 		delete(s.games, evicted.id)
 	}
 	s.gameSeq++
-	sg := &sandboxGame{id: fmt.Sprintf("game-%d", s.gameSeq), seq: s.gameSeq, game: g, subs: map[chan []byte]bool{}}
+	sg := &sandboxGame{
+		id: fmt.Sprintf("game-%d", s.gameSeq), seq: s.gameSeq, game: g, subs: map[chan []byte]bool{},
+		recorded: map[string]bool{}, record: s.recordGoals,
+	}
 	s.games[sg.id] = sg
 	s.mu.Unlock()
 	if evicted != nil {
@@ -247,7 +285,28 @@ func (s *Server) handleSandboxCreate(w http.ResponseWriter, r *http.Request) {
 
 	sg.mu.Lock()
 	defer sg.mu.Unlock()
+	sg.recordGoals()
 	writeJSON(w, http.StatusCreated, sg.state())
+}
+
+// recordGoals completes the learning-path exercises tied to goals a game has
+// reached. A missing or broken learning path or progress file is an error,
+// so the game offers the goals again later; the game itself never fails.
+func (s *Server) recordGoals(game string, goals []string) error {
+	s.progressMu.Lock()
+	defer s.progressMu.Unlock()
+	path, progress, err := s.loadLearning()
+	if err != nil {
+		return err
+	}
+	var done []string
+	for _, gl := range goals {
+		done = append(done, progress.RecordGoal(path, gl, "sandbox "+game, time.Now())...)
+	}
+	if len(done) == 0 {
+		return nil
+	}
+	return progress.Save(s.cfg.ProgressFile)
 }
 
 func (s *Server) handleSandboxGet(w http.ResponseWriter, r *http.Request) {

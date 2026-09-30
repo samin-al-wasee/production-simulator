@@ -29,7 +29,7 @@ flowchart LR
 | Sandbox API | `core/internal/api/sandbox.go` | Games, commands, speed, step, save/replay, SSE stream |
 | Sandbox canvas | `dashboard/app/sandbox`, `dashboard/components/Sandbox*` | Build palette, React Flow canvas, meters, inspector |
 | Pipeline simulator | `core/internal/pipeline`, `manifests/pipelines/` | Build, test, and deploy on a virtual clock (rolling, canary, blue-green, rollback) |
-| Learning path | `learning/path.yaml`, `core/internal/learning` | Missions played in the Sandbox and the pipeline simulator; progress in `.forgelab/progress.json` |
+| Learning path | `learning/path.yaml`, `core/internal/learning` | Missions played in the Sandbox and the pipeline simulator; completed automatically by Sandbox goals or by hand; progress in `.forgelab/progress.json` |
 | Secret scan | `core/internal/secretscan`, `security/secretscan.yaml` | Keeps credentials out of the repository |
 
 ## Engine layout
@@ -68,7 +68,8 @@ Simulated time advances in fixed ticks (initially five simulated minutes; tuning
 5. **Update the economy:** revenue for successful requests, cost for every component, operations overhead from complexity.
 6. **Update the meters and the userbase:** satisfaction from latency, errors, and availability; growth from popularity; churn from low satisfaction.
 7. **Track events:** record each event's lowest health, and judge it one hour after it ends (recovered when health is at least 80).
-8. **Publish** the tick state to subscribers.
+8. **Check goals:** a goal whose conditions held for its required ticks is reached, permanently, and may unlock component kinds.
+9. **Publish** the tick state to subscribers.
 
 ## Flow solver (initial model)
 
@@ -123,7 +124,8 @@ The economy is generic: revenue per successful request, cost per component-hour.
 | Version | What it is |
 |---|---|
 | `sandbox/v1` | The first ruleset: component kinds, sizes, economy, and growth. It has no events, and stays unchanged so v1 saves replay exactly. |
-| `sandbox/v2` | v1 plus the Event Deck and incident responses, with a rebalanced economy. New games use it. |
+| `sandbox/v2` | v1 plus the Event Deck and incident responses, with a rebalanced economy. |
+| `sandbox/v3` | v2 plus goals and unlocks. New games use it; an older version can be chosen when a game is created. |
 
 **v2 rebalancing.** Under v1, one application instance costing $2/h earned about $90/h at capacity. Over-provisioning therefore always paid, and incidents never threatened solvency.
 
@@ -134,6 +136,22 @@ v2 cuts revenue per successful request from $0.0005 to $0.00015. At that rate, t
 * unanswered events cost money
 
 Starting cash rises from $1,000 to $1,500 to cover the thinner early margin.
+
+## Goals and unlocks
+
+Goals (missions) are ruleset data checked by the engine after every tick. A goal is reached when all of its conditions hold for its required number of ticks, after the goal it requires. There are three kinds of condition:
+* a meter within bounds, or its change over a window (for example, cash now against one day ago)
+* a statistic over every component of a kind: total served, highest utilization, total replicas, or backlog
+* the number of events judged recovered, optionally only those that pushed health below a level
+
+Reaching a goal is permanent and deterministic, so a replay reaches the same goals at the same ticks.
+
+**Unlocks.** A kind can be locked until a goal is reached, and `place` refuses it until then. In `sandbox/v3` a game starts with application instances, database primaries, and object storage:
+* the first successful request unlocks the load balancer
+* 10,000 users (the startup tier) unlock the cache, read replica, message queue, background worker, and API gateway
+* 100,000 users with health of 80 or more unlock the CDN
+
+**The learning path.** Exercises in `learning/path.yaml` can name a goal as their evidence. When a game reaches a goal, the API completes those exercises in the learner's progress file. Data only flows from the game to progress, never back, so a game stays a function of `(ruleset, seed, command log)`. The mapping of goals to exercises is in [`learning-path.md`](learning-path.md).
 
 ## Boundaries
 
