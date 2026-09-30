@@ -11,7 +11,7 @@ Guide a learner from a first working system to growth at scale, with exercises p
 ## Provided
 
 - `learning/path.yaml`: 7 stages and 20 exercises, the machine-readable form of `docs/learning-path.md`. Fifteen exercises name a Sandbox goal as evidence.
-- `forgelab learn status|next|complete <id>` (`core/internal/learning`); progress in `.forgelab/progress.json` (git-ignored, override with `FORGELAB_PROGRESS`).
+- `forgelab learn status|next|complete <id>` (`backend/internal/learning`); progress in `.forgelab/progress.json` (git-ignored, override with `FORGELAB_PROGRESS`).
 - API (`/api/v1/learning`, `POST /api/v1/learning/{id}/complete`) and the dashboard's Learning path page.
 - Automatic completion: when a Sandbox game reaches a goal, the API completes every exercise whose evidence names it (`RecordGoal`), recorded as `sandbox <game id>`. `forgelab serve -progress <file>` records to another file.
 

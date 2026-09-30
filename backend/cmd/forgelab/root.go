@@ -6,7 +6,7 @@ import (
 )
 
 // findRepoRoot walks up from the working directory to the directory holding
-// both ROADMAP.md and core/go.mod. It returns "" when not inside the
+// both ROADMAP.md and backend/go.mod. It returns "" when not inside the
 // repository.
 func findRepoRoot() string {
 	dir, err := os.Getwd()
@@ -14,7 +14,7 @@ func findRepoRoot() string {
 		return ""
 	}
 	for {
-		if fileExists(filepath.Join(dir, "ROADMAP.md")) && fileExists(filepath.Join(dir, "core", "go.mod")) {
+		if fileExists(filepath.Join(dir, "ROADMAP.md")) && fileExists(filepath.Join(dir, "backend", "go.mod")) {
 			return dir
 		}
 		parent := filepath.Dir(dir)

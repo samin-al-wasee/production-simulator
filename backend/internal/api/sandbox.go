@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/samin-al-wasee/production-simulator/core/internal/sandbox"
+	"github.com/samin-al-wasee/production-simulator/backend/internal/sandbox"
 )
 
 // Sandbox games live in memory; each is driven by its own clock goroutine

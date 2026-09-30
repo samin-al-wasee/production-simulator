@@ -20,6 +20,7 @@ This directory records ForgeLab's architecture decisions. Rules live in `AGENTS.
 | [0012](0012-production-simulator-experience.md) | Superseded by 0014 | Benchmark reports, learning-path tracking, and the end-to-end run (Phase 9) |
 | [0013](0013-production-sandbox-game.md) | Accepted (Live mode superseded by 0014) | Production Sandbox: a model-driven production-system game built from an empty world (Phase 10) |
 | [0014](0014-sandbox-only-platform.md) | Accepted | ForgeLab is the Production Sandbox; the Live-mode lab is retired |
+| [0015](0015-backend-and-frontend-folders.md) | Accepted | Name the top-level code folders `backend/` and `frontend/` |
 
 ## Conventions
 

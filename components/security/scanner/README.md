@@ -10,7 +10,7 @@ Keep passwords, tokens, and keys out of the repository.
 
 ## Provided
 
-- `forgelab security scan-secrets [dir]` (`core/internal/secretscan`): private keys, cloud and platform tokens, and credential assignments, with redacted output.
+- `forgelab security scan-secrets [dir]` (`backend/internal/secretscan`): private keys, cloud and platform tokens, and credential assignments, with redacted output.
 - `make scan-secrets`, part of `make check`.
 
 ## Dependencies

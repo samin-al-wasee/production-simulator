@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/samin-al-wasee/production-simulator/core/internal/learning"
-	"github.com/samin-al-wasee/production-simulator/core/internal/pipeline"
+	"github.com/samin-al-wasee/production-simulator/backend/internal/learning"
+	"github.com/samin-al-wasee/production-simulator/backend/internal/pipeline"
 )
 
 // Config configures a Server.

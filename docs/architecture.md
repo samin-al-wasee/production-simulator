@@ -7,7 +7,7 @@ ForgeLab is the **Production Sandbox**: a city-builder for software production. 
 
 ```mermaid
 flowchart LR
-    subgraph CORE["core/ (Go)"]
+    subgraph CORE["backend/ (Go)"]
         SB["internal/sandbox<br/>game engine"]
         PL["internal/pipeline<br/>CI/CD simulator"]
         LE["internal/learning<br/>learning path"]
@@ -15,7 +15,7 @@ flowchart LR
         API["internal/api<br/>HTTP + SSE"]
         CLI["cmd/forgelab<br/>CLI"]
     end
-    UI["dashboard/ (Next.js)<br/>Sandbox · Pipelines · Learning path"]
+    UI["frontend/ (Next.js)<br/>Sandbox · Pipelines · Learning path"]
 
     SB & PL & LE --> API
     PL & LE & SS --> CLI
@@ -25,18 +25,18 @@ flowchart LR
 
 | Part | Where | Role |
 |---|---|---|
-| Sandbox engine | `core/internal/sandbox` | World state, ruleset, flow solver, economy, meters, save/replay |
-| Sandbox API | `core/internal/api/sandbox.go` | Games, commands, speed, step, save/replay, SSE stream |
-| Sandbox canvas | `dashboard/app/sandbox`, `dashboard/components/Sandbox*` | Build palette, React Flow canvas, meters, inspector |
-| Pipeline simulator | `core/internal/pipeline`, `manifests/pipelines/` | Build, test, and deploy on a virtual clock (rolling, canary, blue-green, rollback) |
-| Learning path | `learning/path.yaml`, `core/internal/learning` | Missions played in the Sandbox and the pipeline simulator; completed automatically by Sandbox goals or by hand; progress in `.forgelab/progress.json` |
-| Secret scan | `core/internal/secretscan`, `security/secretscan.yaml` | Keeps credentials out of the repository |
+| Sandbox engine | `backend/internal/sandbox` | World state, ruleset, flow solver, economy, meters, save/replay |
+| Sandbox API | `backend/internal/api/sandbox.go` | Games, commands, speed, step, save/replay, SSE stream |
+| Sandbox canvas | `frontend/app/sandbox`, `frontend/components/Sandbox*` | Build palette, React Flow canvas, meters, inspector |
+| Pipeline simulator | `backend/internal/pipeline`, `manifests/pipelines/` | Build, test, and deploy on a virtual clock (rolling, canary, blue-green, rollback) |
+| Learning path | `learning/path.yaml`, `backend/internal/learning` | Missions played in the Sandbox and the pipeline simulator; completed automatically by Sandbox goals or by hand; progress in `.forgelab/progress.json` |
+| Secret scan | `backend/internal/secretscan`, `security/secretscan.yaml` | Keeps credentials out of the repository |
 
 ## Engine layout
 
 ```mermaid
 flowchart LR
-    subgraph CORE["core/internal/sandbox (pure Go, deterministic)"]
+    subgraph CORE["backend/internal/sandbox (pure Go, deterministic)"]
         CMD["Command log<br/>place · connect · resize · scale · respond"]
         WORLD["World state<br/>components · edges · users · cash"]
         CAT["Component catalog<br/>(ruleset data)"]
@@ -129,7 +129,7 @@ The economy is generic: revenue per successful request, cost per component-hour.
 
 **v2 rebalancing.** Under v1, one application instance costing $2/h earned about $90/h at capacity. Over-provisioning therefore always paid, and incidents never threatened solvency.
 
-v2 cuts revenue per successful request from $0.0005 to $0.00015. At that rate, the balance test in `core/internal/sandbox/balance_test.go` shows the intended shape. It plays a simple design for a simulated week over ten seeds, re-provisioning every hour:
+v2 cuts revenue per successful request from $0.0005 to $0.00015. At that rate, the balance test in `backend/internal/sandbox/balance_test.go` shows the intended shape. It plays a simple design for a simulated week over ten seeds, re-provisioning every hour:
 * a design with about 1.5× headroom earns the most and stays solvent
 * no headroom loses money at peaks
 * 5× over-provisioning gives up at least 30% of the profit
@@ -161,7 +161,7 @@ Reaching a goal is permanent and deterministic, so a replay reaches the same goa
 
 ## Pipeline simulator
 
-`core/internal/pipeline` plays out a declared pipeline (`manifests/pipelines/*.yaml`) on a virtual clock: build and test steps with durations, cache hits, flaky retries, and a deploy stage using a rolling, canary, or blue-green strategy, with rollback on a bad release. The same pipeline, seed, and options always produce the same run. It is served at `/api/v1/pipelines` and shown on the dashboard's Pipelines page.
+`backend/internal/pipeline` plays out a declared pipeline (`manifests/pipelines/*.yaml`) on a virtual clock: build and test steps with durations, cache hits, flaky retries, and a deploy stage using a rolling, canary, or blue-green strategy, with rollback on a bad release. The same pipeline, seed, and options always produce the same run. It is served at `/api/v1/pipelines` and shown on the dashboard's Pipelines page.
 
 ## Rules
 

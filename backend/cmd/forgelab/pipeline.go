@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/samin-al-wasee/production-simulator/core/internal/pipeline"
+	"github.com/samin-al-wasee/production-simulator/backend/internal/pipeline"
 )
 
 func runPipeline(args []string) int {

@@ -2,7 +2,7 @@
 
 **Document status:** v3.0 (the Event Deck is implemented in ruleset `sandbox/v2`)
 
-In the Production Sandbox, a **scenario** is something that happens to the system the player built: a surge, an outage, an attack, a cost shock. Scenarios are cards in the **Event Deck** (`core/internal/sandbox/events.go`). They are seeded, so the same game replays the same events, and their effects are computed by the engine, never scripted (Principle 1).
+In the Production Sandbox, a **scenario** is something that happens to the system the player built: a surge, an outage, an attack, a cost shock. Scenarios are cards in the **Event Deck** (`backend/internal/sandbox/events.go`). They are seeded, so the same game replays the same events, and their effects are computed by the engine, never scripted (Principle 1).
 
 The Live-mode drills that ran against real containers were retired by ADR-0014; they are on the `archive/live-lab` branch.
 

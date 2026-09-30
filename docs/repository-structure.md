@@ -1,6 +1,6 @@
 # ForgeLab Repository Structure
 
-**Document status:** v2.0 (re-scoped by [ADR-0014](decisions/0014-sandbox-only-platform.md))
+**Document status:** v2.1 (code folders renamed by [ADR-0015](decisions/0015-backend-and-frontend-folders.md))
 
 New files must fit into an existing folder; structural changes require updating this document and, if architectural, an ADR.
 
@@ -17,8 +17,8 @@ ForgeLab/
 ├── Makefile                 Development helper targets
 │
 ├── docs/                    Vision, architecture, principles, catalog, decisions
-├── core/                    Go: Sandbox engine, pipeline simulator, learning tracker, secret scan, API, CLI
-├── dashboard/               Next.js: Sandbox, Pipelines, Learning path (thin consumer of the core API)
+├── backend/                 Go: Sandbox engine, pipeline simulator, learning tracker, secret scan, API, CLI
+├── frontend/                Next.js: Sandbox, Pipelines, Learning path (thin consumer of the backend API)
 ├── components/              One README per component, grouped by domain
 ├── manifests/               Declared pipelines for the pipeline simulator
 ├── learning/                Machine-readable learning path (path.yaml)
@@ -33,8 +33,8 @@ ForgeLab/
 | Folder | Contains | Owns |
 |---|---|---|
 | `docs/` | Vision, architecture, principles, catalog, scenarios, glossary, learning path, security, decisions | Every conceptual document |
-| `core/` | `cmd/forgelab` CLI; `internal/sandbox`, `internal/pipeline`, `internal/learning`, `internal/secretscan`, `internal/api` | Simulation logic and its tooling; never UI code |
-| `dashboard/` | Next.js app: Sandbox (home), Pipelines, Learning path; Playwright tests in `e2e/` | Dashboard UI; never simulation logic |
+| `backend/` | `cmd/forgelab` CLI; `internal/sandbox`, `internal/pipeline`, `internal/learning`, `internal/secretscan`, `internal/api` | Simulation logic and its tooling; never UI code |
+| `frontend/` | Next.js app: Sandbox (home), Pipelines, Learning path; Playwright tests in `e2e/` | Dashboard UI; never simulation logic |
 | `components/` | `sandbox/`, `cicd/`, `experience/`, `security/`, one README per component | Component documentation |
 | `manifests/` | `pipelines/*.yaml` | Pipeline declarations |
 | `learning/` | `path.yaml` | Learning path definition |

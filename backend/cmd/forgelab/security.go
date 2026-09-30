@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/samin-al-wasee/production-simulator/core/internal/secretscan"
+	"github.com/samin-al-wasee/production-simulator/backend/internal/secretscan"
 )
 
 const defaultSecretScanConfig = "security/secretscan.yaml"

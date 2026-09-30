@@ -10,7 +10,7 @@ Expose the [Sandbox Engine](../sandbox-engine/) over HTTP. The API holds games a
 
 ## Provided
 
-Served by `forgelab serve` (`core/internal/api/sandbox.go`):
+Served by `forgelab serve` (`backend/internal/api/sandbox.go`):
 
 | Endpoint | Does |
 |---|---|
