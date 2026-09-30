@@ -1,8 +1,8 @@
 # ForgeLab Repository Structure
 
-**Document status:** Baseline · v1.0
+**Document status:** v2.0 (re-scoped by [ADR-0014](decisions/0014-sandbox-only-platform.md))
 
-The layout is stable. New files must fit into an existing folder; structural changes require updating this document and, if architectural, an ADR.
+New files must fit into an existing folder; structural changes require updating this document and, if architectural, an ADR.
 
 ## Top-level map
 
@@ -14,128 +14,62 @@ ForgeLab/
 ├── ROADMAP.md               Phased plan (authorization for work)
 ├── LICENSE                  Apache-2.0
 ├── CHANGELOG.md             Release history
-├── .gitignore               Ignore rules
-├── .editorconfig            Editor/formatting defaults
 ├── Makefile                 Development helper targets
-├── .env.example             Environment template
 │
-├── docs/                    All architecture, principles, catalog, scenarios, decisions
-├── core/                    Go simulation core, CLI, and manifest validation
-├── dashboard/               Next.js dashboard (thin consumer of the core API)
+├── docs/                    Vision, architecture, principles, catalog, decisions
+├── core/                    Go: Sandbox engine, pipeline simulator, learning tracker, secret scan, API, CLI
+├── dashboard/               Next.js: Sandbox, Pipelines, Learning path (thin consumer of the core API)
+├── components/              One README per component, grouped by domain
+├── manifests/               Declared pipelines for the pipeline simulator
 ├── learning/                Machine-readable learning path (path.yaml)
-├── security/                Security configuration (secret-scan allowlist)
-├── synthetic-apps/          Planning sketch: workload engine and workload templates (not implemented)
-├── applications/            Plugged-in sample/user applications (never core)
-├── manifests/               Application manifest schema, validation, examples
-├── components/              Optional production components, grouped by domain
-├── environments/            local / staging / cloud presets
-├── scenarios/               Reproducible drills grouped by category
-├── scripts/                 Development and validation helpers
-├── templates/               Reusable starting points (apps, services, manifests)
-├── .devcontainer/           Development container (Go, Node, Docker-in-Docker)
-└── .github/                 Issue/PR templates and CI workflows
+├── security/                Secret-scan allowlist
+├── templates/               Postmortem template
+├── .devcontainer/           Development container
+└── .github/                 Issue and PR templates
 ```
 
 ## Folder ownership
 
 | Folder | Contains | Owns |
 |---|---|---|
-| `docs/` | Vision, architecture, principles, catalog, scenarios, glossary, learning path, decisions | Every conceptual document |
-| `core/` | `cmd/forgelab` CLI, `internal/manifest` validation, `internal/calibration` and `internal/budget` (Phase 0.5), later simulation packages, `internal/sandbox` (Phase 10) | Simulation core and its tooling |
-| `synthetic-apps/` | Planned workload-engine, application/service/endpoint generators, operation-engine, models, telemetry-generator, templates | Synthetic Applications / Workload Engine planning |
-| `applications/` | One self-contained sample per plugged-in application: `applications/<name>/` | Application samples; never core code |
-| `manifests/` | `application.schema.yaml`, validation tooling, curated examples | Manifest schema and validation rules |
-| `components/` | One directory per domain: networking, compute, databases, messaging, storage, observability, security, infrastructure, cicd, reliability, simulation, experience, sandbox | Component implementations and their READMEs |
-| `environments/` | `local/`, `staging/`, `cloud/` presets composing components | Environment definitions |
-| `dashboard/` | Next.js app: Overview, Experiments, Pipelines, Learning path; Sandbox screen (Phase 10) | Dashboard UI; never simulation logic |
-| `learning/` | `path.yaml` learning path | Learning path definition |
-| `security/` | `secretscan.yaml` allowlist | Security tooling configuration |
-| `scenarios/` | Categories + one folder per scenario: traffic, failures, security, scaling, performance | Scenario definitions |
-| `scripts/` | Helper scripts (validation, generators) | Scripts |
-| `templates/` | `application/`, `service/`, `manifests/`, `postmortem/` starting points | Templates |
-| `.devcontainer/` | `devcontainer.json`, base `Dockerfile`, container setup scripts | Development container definition |
-| `.github/` | Issue templates, PR template, workflows | GitHub automation |
+| `docs/` | Vision, architecture, principles, catalog, scenarios, glossary, learning path, security, decisions | Every conceptual document |
+| `core/` | `cmd/forgelab` CLI; `internal/sandbox`, `internal/pipeline`, `internal/learning`, `internal/secretscan`, `internal/api` | Simulation logic and its tooling; never UI code |
+| `dashboard/` | Next.js app: Sandbox (home), Pipelines, Learning path; Playwright tests in `e2e/` | Dashboard UI; never simulation logic |
+| `components/` | `sandbox/`, `cicd/`, `experience/`, `security/`, one README per component | Component documentation |
+| `manifests/` | `pipelines/*.yaml` | Pipeline declarations |
+| `learning/` | `path.yaml` | Learning path definition |
+| `security/` | `secretscan.yaml` | Secret-scan allowlist |
+| `templates/` | `postmortem/` | Templates |
+| `.devcontainer/` | `devcontainer.json`, `Dockerfile`, setup scripts | Development container definition |
+| `.github/` | Issue templates, PR template | GitHub automation |
+
+Generated, git-ignored local state lives in `.forgelab/`: learning progress (`progress.json`) and saved Sandbox games (`sandbox/`).
 
 ## Docs layout
 
 | Document | Purpose |
 |---|---|
-| `docs/vision.md` | Why ForgeLab exists |
-| `docs/architecture.md` | Conceptual, composable architecture |
+| `docs/vision.md` | Why ForgeLab exists and what the game teaches |
+| `docs/architecture.md` | The engine, its model and formulas, the API, the dashboard |
 | `docs/principles.md` | Design principles |
-| `docs/security.md` | Security controls, verification, limits |
-| `docs/development-loop.md` | Agent-agnostic requirement → plan → implement → review → test → document loop |
-| `docs/repository-structure.md` | This document |
-| `docs/component-catalog.md` | Catalog of planned components by domain |
-| `docs/scenarios.md` | Scenario template + planned scenarios |
-| `docs/learning-path.md` | Progressive learning roadmap |
+| `docs/component-catalog.md` | Components by domain, and the in-game component kinds |
+| `docs/scenarios.md` | Planned in-game events and incidents |
+| `docs/learning-path.md` | The six-stage learning path |
 | `docs/glossary.md` | Terminology reference |
-| `docs/decisions/` | Architecture Decision Records (ADR) |
+| `docs/security.md` | Repository security practice |
+| `docs/development-loop.md` | Requirement → plan → implement → review → test → document loop |
+| `docs/repository-structure.md` | This document |
+| `docs/decisions/` | Architecture Decision Records |
 
 ## Components layout
 
 ```text
 components/<domain>/
+├── README.md        # domain overview and component table
 └── <component>/
     └── README.md    # purpose, provided services, dependencies, config, status
 ```
 
-## Scenarios layout
-
-```text
-scenarios/<category>/
-└── <scenario-name>/
-    └── README.md    # Goal, Components involved, Expected symptoms,
-                     # Investigation, Success criteria (see docs/scenarios.md)
-```
-
-## Environments layout
-
-```text
-environments/
-├── local/        # laptop runtimes (Docker Compose, processes)
-├── staging/      # closer-to-prod with persistence and observability
-└── cloud/        # managed clusters (Kubernetes + cloud presets)
-```
-
-## Simulation layout
-
-Phase 0.5 — Simulation Foundation, in progress. The module map below is conceptual; the code lives in `core/internal/` (ADR-0003 amendment). `calibration` and `budget` are implemented:
-
-```text
-simulation/
-├── capacity-engine/
-├── resource-virtualization/
-├── scaling-model/
-├── traffic-model/
-├── calibration/
-└── profiles/
-```
-
-## Synthetic apps layout
-
-Planned (Synthetic Applications / Workload Engine, not yet implemented):
-
-```text
-synthetic-apps/
-├── workload-engine/
-├── application-generator/
-├── service-generator/
-├── endpoint-generator/
-├── operation-engine/
-├── db-model/
-├── cache-model/
-├── messaging-model/
-├── concurrency-model/
-├── telemetry-generator/
-└── templates/
-    ├── generic/       # crud-api, read-heavy-api, write-heavy-api, ...
-    ├── ecommerce/     # catalog, cart, checkout, inventory
-    ├── travel/        # search, booking, notification
-    ├── banking/       # account, transfer, ledger
-    └── social/        # feed, chat, notification, media
-```
-
 ## Cross-cutting rule
 
-A change that spans ownership (e.g. a new scenario needing a new component) must touch the owning folders **and** their catalog/scenario docs together (see `AGENTS.md` §5, §8).
+A change that touches several folders (for example a new in-game component kind that needs engine, API, and dashboard work) updates each owning folder **and** the catalog in the same change.

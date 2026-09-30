@@ -1,44 +1,29 @@
 # ForgeLab core (Go)
 
-The pure-Go simulation/runtime core, separable from any CLI, API, or UI layer (ADR-0001, ADR-0002). The simulation logic here is deterministic and testable headlessly.
+The pure-Go core: the Production Sandbox engine and the tools around it, separable from any CLI, API, or UI layer (ADR-0001, ADR-0014). Simulation logic here is deterministic and testable headlessly.
 
 ## Layout
 
 ```text
 core/
-├── cmd/forgelab/          CLI: headless interface to the core
-├── internal/manifest/     Application-manifest validation against the JSON Schema
-├── internal/calibration/  Host detection (CPU, RAM, disk; cgroup v2 limits) — Phase 0.5
-├── internal/budget/       Physical resource budget: host minus reserve — Phase 0.5
-├── internal/virtualcluster/ Virtual cluster spec, node profiles — Phase 0.5
-├── internal/scale/        Scale factor between physical budget and virtual capacity — Phase 0.5
-├── internal/capacity/     Virtual capacity, utilization, saturation, exhaustion — Phase 0.5
-├── internal/metrics/      Dual Metrics Mode translation — Phase 0.5
-├── internal/retry/        Retry backoff and dead-letter semantics — Phase 3
-├── internal/chaos/        Declared fault-injection experiments — Phase 5
-├── internal/loadtest/     Open-loop HTTP load generator — Phase 5
-├── internal/costguard/    Terraform plan cost guard — Phase 6
+├── cmd/forgelab/          CLI: serve, pipeline, learn, security
+├── internal/sandbox/      Production Sandbox engine: ruleset, flow solver, economy, save/replay — Phase 10
+├── internal/api/          HTTP API for the dashboard (Sandbox games and SSE, pipelines, learning) — Phase 7, 10
 ├── internal/pipeline/     CI/CD pipeline simulation on a virtual clock — Phase 7
-├── internal/api/          HTTP API for the dashboard — Phase 7
-├── internal/compliance/   Hardening controls for Kubernetes and Compose — Phase 8
-├── internal/secretscan/   Committed-secret detection — Phase 8
-└── internal/sandbox/      Production Sandbox game engine (model-driven, deterministic) — Phase 10
+├── internal/learning/     Learning path and progress — Phase 9
+└── internal/secretscan/   Committed-secret detection — Phase 8
 ```
 
-## Commands (from the repository root, inside the devcontainer)
+## Commands (from the repository root)
 
 ```sh
-cd core && go mod tidy
 cd core && go test ./...
 cd core && gofmt -l .
 cd core && go vet ./...
-make validate FILE=manifests/hello.example.yaml
-cd core && go run ./cmd/forgelab host [-reserve 0.25] [-json]
-cd core && go run ./cmd/forgelab retry -max-attempts 4 -failures 10
-cd core && go run ./cmd/forgelab loadtest -url http://localhost:8080/api/work -rps 50 -duration 10s
-cd core && go run ./cmd/forgelab chaos plan ../scenarios/failures/db-outage/experiment.yaml
-cd core && go run ./cmd/forgelab costguard check -rules ../environments/cloud/cost-guard.yaml <plan.json>
-cd core && go run ./cmd/forgelab cluster [-rps N] [-json] ../manifests/cluster.example.yaml
+cd core && go run ./cmd/forgelab serve -repo ..                                   # API for the dashboard
+cd core && go run ./cmd/forgelab pipeline run ../manifests/pipelines/web-release-canary.yaml
+cd core && go run ./cmd/forgelab learn status
+cd core && go run ./cmd/forgelab security scan-secrets ..
 ```
 
-Validation support is provided by `github.com/santhosh-tekuri/jsonschema/v6` (JSON Schema draft 2020-12) and `sigs.k8s.io/yaml` (YAML→JSON). The canonical schema stays at `manifests/application.schema.yaml`; the CLI reads it from that path by default (`forgelab validate -schema <path>` overrides it).
+YAML files (pipelines, learning path, secret-scan allowlist) are parsed with `sigs.k8s.io/yaml`.

@@ -1,33 +1,19 @@
 # ForgeLab Glossary
 
-**Document status:** Baseline · v1.0
+**Document status:** v2.0 (re-scoped by [ADR-0014](decisions/0014-sandbox-only-platform.md))
 
 Common production systems terms as used in ForgeLab. Written for learners, not as exhaustive definitions.
 
-## Synthetic Applications & Workload
-
-### Synthetic Application
-A production-like application generated entirely from configuration, with no real business logic. Instead of a product's code, it models the underlying **production operations** — HTTP endpoints, database reads/writes, cache operations, messaging, latency, concurrency — that create real system behavior. ForgeLab treats it as a first-class input alongside real applications.
-
-### Workload DSL
-The future declarative configuration model for synthetic applications: services, endpoints, operations, latency, and concurrency. The exact schema is explicitly **not finalized** and will evolve.
-
-### Production Operation
-A unit of simulated work inside a synthetic application, e.g. `db_read`, `db_write`, `cache_read`, `publish_event`, `external_call`, `transaction`, `cpu`. Operations, not features, are what the simulator actually executes.
-
-### Feature Label
-A human-readable, business-domain name shown in visualization (e.g. "Checkout", "Search Flights"). It is a presentation detail: relabeling a workload does not change the simulated system behavior. Business-domain terminology is visualization; operations are the model.
-
-### Workload Template
-A reusable workload profile shipped with the platform — e.g. `crud-api`, `read-heavy-api`, `background-worker`, `checkout`, `search`. Templates describe engineering characteristics (read-heavy, write-heavy, message-heavy), not a specific product.
-
 ## Sandbox
 
-### Sandbox Mode
-The model-driven way of running a production system (ADR-0013). The player builds the system from an empty world in the dashboard; the Go core computes every value from declared capacities and the player's topology. Nothing is started on the host. Every value is labelled as simulated.
+### Production Sandbox
+ForgeLab itself: a model-driven game in which the player builds a production system from an empty world in the dashboard, and the Go core computes every value from declared capacities and the player's topology. Nothing is started on the host; every value is labelled as simulated (ADR-0013, ADR-0014).
 
-### Live Mode
-Running a production system on real containers, processes, Kubernetes, or cloud presets: everything ForgeLab did before Phase 10.
+### Utilization
+Offered load divided by capacity for one component. Near 1 the component slows down sharply; above 1 it drops the excess.
+
+### Satisfaction
+The Sandbox's "happiness" meter (0–100): a rolling score of how users experience latency, errors, and outages. It drives churn, engagement, and popularity.
 
 ### Tick
 One fixed step of simulated time in the Sandbox (initially five simulated minutes). Commands take effect at tick boundaries.

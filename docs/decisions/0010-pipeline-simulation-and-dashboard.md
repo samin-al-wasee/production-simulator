@@ -1,6 +1,6 @@
 # ADR-0010: Pipeline simulation, core API, and Next.js dashboard (Phase 7)
 
-**Status:** accepted
+**Status:** accepted; the host, cluster, stack, and experiment parts are superseded by [ADR-0014](0014-sandbox-only-platform.md)
 **Date:** 2026-09-28
 
 ## Context

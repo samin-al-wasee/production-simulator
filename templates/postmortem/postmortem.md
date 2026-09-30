@@ -12,7 +12,7 @@ Two or three sentences: what broke, who or what was affected, and how it ended.
 
 ## Impact
 
-What users or downstream systems experienced. Include numbers from the benchmark report or dashboards (error rate, latency percentiles, requests dropped) and say whether they are physical measurements or virtual (simulated) values.
+What users experienced, with numbers from the Sandbox meters (error rate, p95 latency, dropped requests, satisfaction, users lost). Every number is a simulated value; say so.
 
 ## Timeline
 

@@ -86,7 +86,7 @@ When the user explicitly asks for uninterrupted work (for example "continue unti
 - Decide using the source-of-truth priority in AGENTS.md §5; record judgment calls in an ADR or the changelog instead of asking.
 - Plan approval and per-pass checkpoints are skipped; the plan is still written down (in the ADR, docs, or final report).
 - Documentation conflicts are resolved in favor of the higher-priority source and the resolution is documented in the same change.
-- Still never done without an explicit instruction: commit, push, open PRs, change permission settings, run destructive commands, or run anything that creates cloud resources or costs money (Terraform is written and validated, never applied).
+- Still never done without an explicit instruction: commit, push, open PRs, change permission settings, run destructive commands.
 - Stop conditions still apply: three failed fix attempts on the same problem.
 
 Autonomous mode ends when the user's request is fulfilled or the user says otherwise.

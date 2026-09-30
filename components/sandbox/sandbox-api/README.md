@@ -31,4 +31,4 @@ Served by `forgelab serve` (`core/internal/api/sandbox.go`):
 
 ## Configuration
 
-Games live in memory, at most 20 per server (creating one more drops the oldest), and end when the server stops. Every state carries a `revision` that increases with each change; stream events and command responses travel separately, so clients keep the state with the highest revision. The endpoints change only in-memory game state and the save directory; unlike experiment runs they need no `-enable-runs` flag.
+Games live in memory, at most 20 per server (creating one more drops the oldest), and end when the server stops. Every state carries a `revision` that increases with each change; stream events and command responses travel separately, so clients keep the state with the highest revision. The endpoints change only in-memory game state and the save directory.

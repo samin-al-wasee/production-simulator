@@ -9,8 +9,8 @@ export default async function LearningPage() {
     <>
       <h1>Learning path</h1>
       <p className="lead">
-        Ten stages from a local Docker stack to a full production simulation. Exercises tied to an experiment or a
-        benchmark complete automatically when it passes; the rest you mark yourself.
+        Six stages played in the Production Sandbox and the pipeline simulator, from a first working system to growth
+        at scale. Mark each exercise done when you have played it.
       </p>
       {status.ok ? <LearningPath initial={status.data} /> : <Notice title="Learning path unavailable" detail={status.error} />}
     </>

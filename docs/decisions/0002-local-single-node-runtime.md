@@ -1,6 +1,6 @@
 # ADR-0002: Local Single-Node Runtime and Go Core Layout (Phase 1)
 
-**Status:** proposed
+**Status:** superseded by [ADR-0014](0014-sandbox-only-platform.md) (was proposed; the code it describes is on the `archive/live-lab` branch)
 **Date:** 2026-09-18
 
 ## Context

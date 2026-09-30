@@ -3,59 +3,6 @@
 
 export const API_URL = process.env.FORGELAB_API_URL ?? "http://127.0.0.1:8090";
 
-export interface Resources {
-  cpuCores: number;
-  memoryBytes: number;
-  diskBytes: number;
-}
-
-export interface Budget {
-  host: Resources;
-  reserved: Resources;
-  allocatable: Resources;
-}
-
-export interface ScaleFactor {
-  cpu: number;
-  memory: number;
-  disk: number;
-  binding: string;
-  effective: number;
-}
-
-export interface DualMetrics {
-  scaleFactor: string;
-  physical: { kind: string; used: Resources; budget: Resources; rps: number };
-  virtual: { kind: string; used: Resources; capacity: Resources; rps: number; nodes: number };
-}
-
-export interface ClusterView {
-  cluster: string;
-  factor: ScaleFactor;
-  metrics: DualMetrics;
-}
-
-export interface Container {
-  name: string;
-  image: string;
-  state: string;
-  status: string;
-}
-
-export interface StackView {
-  containers: Container[];
-  error?: string;
-}
-
-export interface ExperimentInfo {
-  name: string;
-  path: string;
-  hypothesis: string;
-  target: string;
-  fault: string;
-  duration: string;
-}
-
 export interface PipelineInfo {
   name: string;
   path: string;
@@ -66,7 +13,7 @@ export interface LearningExercise {
   id: string;
   title: string;
   how: string;
-  evidence: { type: "manual" | "experiment" | "benchmark"; name?: string };
+  evidence: { type: "manual" };
   done: boolean;
   completedAt?: string;
   completedBy?: string;
@@ -87,11 +34,6 @@ export interface LearningStatus {
   done: number;
   total: number;
   next: string;
-}
-
-export interface AppConfig {
-  runsEnabled: boolean;
-  clusterFile: string;
 }
 
 export type Result<T> = { ok: true; data: T } | { ok: false; error: string };

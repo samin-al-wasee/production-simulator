@@ -1,6 +1,6 @@
 # ADR-0013: Production Sandbox — a model-driven production-system game (Phase 10)
 
-**Status:** proposed
+**Status:** accepted; Live mode (decision 1) and the alternative rejected there are superseded by [ADR-0014](0014-sandbox-only-platform.md)
 **Date:** 2026-09-29
 
 ## Context

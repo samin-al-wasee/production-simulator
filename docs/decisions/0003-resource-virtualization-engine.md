@@ -1,6 +1,6 @@
 # ADR-0003: Resource Virtualization Engine (Phase 0.5)
 
-**Status:** accepted
+**Status:** superseded by [ADR-0014](0014-sandbox-only-platform.md) (was accepted; the code it describes is on the `archive/live-lab` branch)
 **Date:** 2026-09-19
 
 ## Context

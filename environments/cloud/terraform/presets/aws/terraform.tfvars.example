@@ -1,7 +1,0 @@
-# Copy to terraform.tfvars (git-ignored). Never commit real values that identify
-# accounts or people you do not want in the repository.
-owner                = "your-name"
-region               = "us-east-1"
-experiment_ttl_hours = 8
-monthly_budget_usd   = 50
-# budget_alert_email = "you@example.com"

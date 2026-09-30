@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Live mode, per ADR-0014: the sample application, every environment (Docker Compose lab and overlays, Kubernetes, AWS and GCP Terraform presets, cost guard), the scenario drills, helper scripts, application and cluster manifests and templates, the real-infrastructure component READMEs, the core packages for host calibration, resource budgeting, virtual clusters, scale factors, capacity, dual metrics, chaos, load testing, benchmark reports, retry semantics, cost guard, compliance, and manifest validation (with their CLI commands, API endpoints, and the JSON Schema dependency), and the dashboard's Overview and Experiments pages. Everything removed is on the `archive/live-lab` branch.
+
+### Changed
+
+- ForgeLab is the Production Sandbox (ADR-0014): the dashboard opens on the Sandbox; the learning path is rewritten as six stages of Sandbox and pipeline missions with manual completion; `forgelab serve` drops `-cluster`, `-reserve`, and `-enable-runs`; the documentation is re-scoped around the game (vision, architecture, principles, catalog, scenarios, roadmap, README, AGENTS.md).
+
 ### Added
 
 - Dashboard browser tests: `@playwright/test` dev dependency, `dashboard/e2e/sandbox.spec.ts` (builds, wires, runs, scales, deletes, and resumes a Sandbox game, failing on any browser error), and `make test-e2e`.
