@@ -15,30 +15,31 @@ The Production Sandbox game (ADR-0013). See [`components/sandbox/`](../component
 | Component | Provides | Depends on | Status |
 |---|---|---|---|
 | Sandbox Engine | Deterministic world state, command log, tick loop, save/replay (`backend/internal/sandbox`) | — | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
-| Sandbox Ruleset | Versioned data: placeable component kinds, capacities, costs, complexity weights, tuning (`sandbox/v1`; `sandbox/v2` adds the Event Deck and rebalances the economy; `sandbox/v3` adds goals and unlocks) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
-| Flow Solver | Routes per-tick load through the player's topology; utilization, latency, saturation, errors | Sandbox Engine, Sandbox Ruleset | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
+| Sandbox Ruleset | Versioned data: placeable component kinds, capacities, costs, complexity weights, tuning (`sandbox/v1`; `sandbox/v2` adds the Event Deck and rebalances the economy; `sandbox/v3` adds goals and unlocks; `sandbox/v4` adds the Internet's traffic configuration) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
+| Traffic Model | The Internet's configuration (ADR-0016): market or load-test volume with a pattern, traffic groups, endpoint mix, regions, and client retries; a per-tick traffic breakdown | Sandbox Engine, Sandbox Ruleset | implemented · Phase 11 (`components/sandbox/sandbox-engine/`) |
+| Flow Solver | Routes per-tick load through the player's topology, per request class (cacheable read, read, write); utilization, latency, saturation, errors | Sandbox Engine, Sandbox Ruleset, Traffic Model | implemented · Phase 10, classes in Phase 11 (`components/sandbox/sandbox-engine/`) |
 | Economy & Meters | Revenue, cost, cash; health, satisfaction, popularity, engagement, complexity, scale, userbase | Flow Solver | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 | Sandbox API | `/api/v1/sandbox/` games, commands, speed, step, save/replay, SSE tick stream (`backend/internal/api`) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-api/`) |
 | Sandbox Canvas | Dashboard screen: build palette, React Flow topology canvas, meters, inspector, speed controls | Sandbox API | implemented · Phase 10 (`components/sandbox/sandbox-canvas/`) |
 | Event Deck | Seeded, state-dependent events and incidents (eleven cards: surges, crashes, zone outage, slowdowns, DDoS, cost spikes, and more) and responses (restart, failover, rate limit) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 | Goals & Unlocks | Fifteen goals checked each tick, kinds unlocked by reaching them, and automatic learning-path completion | Sandbox Engine, Learning Tracker | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 
-#### In-game component kinds (rulesets `sandbox/v1` to `sandbox/v3`)
+#### In-game component kinds (rulesets `sandbox/v1` to `sandbox/v4`)
 
-These are what a player places in a game. They are ruleset data, not repository components; capacities and costs are for the `small` size and one replica. In `sandbox/v3` some kinds are locked until a goal is reached (see [architecture](architecture.md#goals-and-unlocks)).
+These are what a player places in a game, plus the Internet, which every game has and which cannot be placed or removed. In `sandbox/v4` the Internet is configurable: traffic groups, endpoints, regions, retries, and load tests live inside it, not on the canvas. They are ruleset data, not repository components; capacities and costs are for the `small` size and one replica. In `sandbox/v3` some kinds are locked until a goal is reached (see [architecture](architecture.md#goals-and-unlocks)).
 
 | Kind | Role in the model | Capacity (ops/s) | Cost / h |
 |---|---|---|---|
-| CDN | Serves 30% of requests at the edge, forwards the rest | 2000 | $3.00 |
+| CDN | Serves 30% of requests at the edge (v1 to v3), or 45% of cacheable reads (v4); forwards the rest | 2000 | $3.00 |
 | Load balancer | Splits load across targets by capacity; skips failed targets | 5000 | $1.50 |
 | API gateway | Forwards load to balancers or application instances; can rate-limit attack traffic (v2) | 2000 | $2.00 |
-| Application instance | Serves requests; sends reads, writes, and storage calls downstream | 50 | $2.00 |
+| Application instance | Serves requests; sends reads, writes, and storage calls downstream, in the shares the request mix sets | 50 | $2.00 |
 | Background worker | Drains a queue and writes to the database | 40 | $1.50 |
 | Database primary | Serves reads and writes | 300 | $4.00 |
 | Database read replica | Serves reads | 300 | $3.50 |
 | Cache | Serves 80% of reads, sends misses to the database | 5000 | $2.00 |
 | Message queue | Accepts writes, holds a backlog, feeds workers | 1000 | $1.50 |
-| Object storage | Serves the 10% of requests that need stored objects | 1000 | $1.00 |
+| Object storage | Serves the requests that need stored objects (10% in v1 to v3; the storage endpoints in v4) | 1000 | $1.00 |
 
 ### CI/CD
 

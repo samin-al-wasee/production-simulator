@@ -8,6 +8,8 @@ These principles guide every decision in ForgeLab. If a proposal conflicts with 
 
 ForgeLab is a model of a production system, not a recording of one. Every value it shows (latency, errors, RPS, users, cost, satisfaction) is derived each tick from declared capacities, service times, and the player's topology, never from scripted curves or random metric values. Randomness is limited to seeded events such as a surge or an outage; how the system responds to them is computed. Every surface is labelled as simulated.
 
+The one declared input is a **load test** ([ADR-0016](decisions/0016-configurable-internet-traffic.md)): the player may set the Internet's request rate and its pattern (constant, ramp, spike, burst, periodic wave, daily schedule) instead of letting users drive it. The rate is an input the player chose, labelled as a load test. Everything the system does under it is still computed, and a load test earns nothing and moves no user or goal.
+
 ## 2. Bottlenecks come from the design
 
 A bottleneck exists because of what the player built: too few instances, a missing cache, a queue without workers. The same design under the same load always has the same bottleneck, and fixing it moves the limit somewhere else, as it would in production. No value is tuned to make a design look better or worse than the model says it is.

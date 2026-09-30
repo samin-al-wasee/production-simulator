@@ -122,6 +122,16 @@ type Ruleset struct {
 	// share of real users by mistake.
 	RateLimitBlock         float64 `json:"rateLimitBlock,omitempty"`
 	RateLimitFalsePositive float64 `json:"rateLimitFalsePositive,omitempty"`
+
+	// Traffic is the Internet's starting configuration; a ruleset without one
+	// uses ReadShare and StorageShare and cannot be configured.
+	Traffic *TrafficConfig `json:"traffic,omitempty"`
+	// Regions are the abstract places traffic can come from.
+	Regions []string `json:"regions,omitempty"`
+	// MaxRetries bounds a traffic group's retries.
+	MaxRetries int `json:"maxRetries,omitempty"`
+	// MaxTrafficRPS bounds a configured source's rate.
+	MaxTrafficRPS float64 `json:"maxTrafficRps,omitempty"`
 }
 
 // RulesetV1 is the first Sandbox ruleset.
@@ -192,13 +202,15 @@ func Rulesets(version string) (*Ruleset, error) {
 		return RulesetV2(), nil
 	case "sandbox/v3":
 		return RulesetV3(), nil
+	case "sandbox/v4":
+		return RulesetV4(), nil
 	}
 	return nil, fmt.Errorf("unknown ruleset %q", version)
 }
 
 // Latest returns the ruleset new games are played with.
 func Latest() *Ruleset {
-	return RulesetV3()
+	return RulesetV4()
 }
 
 // Kind returns a kind by name.

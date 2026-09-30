@@ -317,3 +317,43 @@ func TestSandboxGoalsUnlockAndCompleteExercises(t *testing.T) {
 		t.Fatalf("reaching the goal completes the exercise: %+v", ex)
 	}
 }
+
+func TestSandboxConfiguresTheInternet(t *testing.T) {
+	srv, _ := sandboxServer(t)
+	var rules sandbox.Ruleset
+	call(t, srv, "GET", "/api/v1/sandbox/ruleset", nil, 200, &rules)
+	if rules.Traffic == nil || len(rules.Regions) == 0 {
+		t.Fatal("the ruleset must carry the default traffic configuration and regions")
+	}
+	var st SandboxState
+	call(t, srv, "POST", "/api/v1/sandbox/games", map[string]int64{"seed": 7}, 201, &st)
+	build(t, srv, st.ID)
+	base := "/api/v1/sandbox/games/" + st.ID
+
+	tc := *rules.Traffic
+	tc.Groups = append([]sandbox.TrafficGroup(nil), tc.Groups...)
+	tc.Groups[0].Share = 0.5
+	var e map[string]string
+	b, _ := json.Marshal(sandbox.Command{Type: sandbox.CmdConfigure, Node: sandbox.InternetID, Traffic: &tc})
+	res, err := http.Post(srv.URL+base+"/commands", "application/json", bytes.NewReader(b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	json.NewDecoder(res.Body).Decode(&e)
+	res.Body.Close()
+	if res.StatusCode != 422 || !strings.Contains(e["error"], "must sum to 100%") {
+		t.Fatalf("an invalid configuration must be rejected with its problem: %d %v", res.StatusCode, e)
+	}
+
+	tc.Groups[0].Share = 0.7
+	tc.Source = sandbox.SourceConfigured
+	tc.Pattern = sandbox.Pattern{Shape: sandbox.ShapeConstant, RPS: 25}
+	var out commandResult
+	call(t, srv, "POST", base+"/commands", sandbox.Command{Type: sandbox.CmdConfigure, Node: sandbox.InternetID, Traffic: &tc}, 200, &out)
+	if out.State.Nodes[0].Traffic == nil || out.State.Flow.Traffic.RPS != 25 || !out.State.Meters.LoadTest {
+		t.Fatalf("the configuration should be on the Internet node and drive the flow: %+v", out.State.Flow.Traffic)
+	}
+	if len(out.State.Flow.Traffic.Groups) != 4 || len(out.State.Flow.Traffic.Regions) == 0 {
+		t.Fatalf("the flow should break traffic down: %+v", out.State.Flow.Traffic)
+	}
+}

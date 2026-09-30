@@ -18,6 +18,9 @@ export function SandboxGoals({ game, rules }: { game: GameState; rules: Ruleset 
       <h3>
         Goals <span className="sb-goal-count">{reached}/{goals.length}</span>
       </h3>
+      {game.meters.loadTest && (
+        <span className="sb-hint">Paused during the load test: goals count real users only.</span>
+      )}
       {open.length === 0 && <span className="sb-hint">Every goal reached.</span>}
       {open.slice(0, SHOWN).map((g) => (
         <div key={g.id} className="sb-goal" data-goal={g.id} title={g.description}>

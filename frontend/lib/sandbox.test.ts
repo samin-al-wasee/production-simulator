@@ -15,6 +15,14 @@ import {
   newest,
   scoreLevel,
   sparkline,
+  describePattern,
+  fromDraft,
+  hasBlankNumber,
+  percentTotal,
+  problems,
+  toDraft,
+  toPercent,
+  type TrafficConfig,
   type GoalStatus,
   type Kind,
   type SandboxEvent,
@@ -155,5 +163,77 @@ describe("goals", () => {
     expect(lockedBy(cache, [goal({})])?.title).toBe("Startup");
     expect(lockedBy(cache, [goal({ achievedAt: 3 })])).toBeUndefined();
     expect(lockedBy({ ...cache, unlockedBy: undefined }, [goal({})])).toBeUndefined();
+  });
+});
+
+describe("traffic drafts", () => {
+  const tc: TrafficConfig = {
+    source: "market",
+    pattern: { shape: "constant", rps: 100 },
+    endpoints: [
+      { method: "GET", path: "/a", cacheable: true },
+      { method: "POST", path: "/b" },
+    ],
+    groups: [
+      { name: "Web", share: 0.7, endpoints: [{ name: "GET /a", share: 0.35 }, { name: "POST /b", share: 0.65 }], regions: [{ name: "asia", share: 1 }] },
+      { name: "Bots", share: 0.3, retries: 2, endpoints: [{ name: "GET /a", share: 1 }], regions: [{ name: "europe", share: 1 }] },
+    ],
+  };
+
+  it("edits percentages without float noise and converts back to shares", () => {
+    expect(toPercent(0.07)).toBe(7);
+    expect(toPercent(0.35)).toBe(35);
+    const d = toDraft(tc);
+    expect(d.groups[0].key).not.toBe(d.groups[1].key);
+    expect(d.groups[0].endpoints).toEqual([35, 65]);
+    expect(d.groups[1].endpoints).toEqual([100, 0]);
+    expect(d.groups[1].retries).toBe(2);
+    expect(fromDraft(d)).toEqual({
+      ...tc,
+      groups: [
+        { ...tc.groups[0], retries: 0 },
+        { ...tc.groups[1] },
+      ],
+    });
+  });
+
+  it("follows an endpoint renamed in the draft and never corrects a total", () => {
+    const d = toDraft(tc);
+    d.endpoints[0].path = "/c";
+    d.groups[0].share = 60;
+    const out = fromDraft(d);
+    expect(out.groups[0].endpoints[0]).toEqual({ name: "GET /c", share: 0.35 });
+    expect(out.groups[0].share).toBe(0.6);
+    expect(percentTotal(d.groups.map((g) => g.share))).toBe(90);
+    expect(percentTotal([70, 20, 8, 2])).toBe(100);
+  });
+
+  it("does not change the configuration it was made from", () => {
+    const d = toDraft(tc);
+    d.pattern.rps = 5;
+    d.endpoints[0].method = "PUT";
+    expect(tc.pattern.rps).toBe(100);
+    expect(tc.endpoints[0].method).toBe("GET");
+  });
+
+  it("finds empty number fields but not the word null in a path", () => {
+    expect(hasBlankNumber({ ...tc, endpoints: [{ method: "GET", path: "/nullable" }] })).toBe(false);
+    expect(hasBlankNumber({ ...tc, pattern: { shape: "constant", rps: NaN } })).toBe(true);
+  });
+
+  it("splits a rejection into its problems", () => {
+    expect(problems("invalid command: a must sum to 100% (now 90%); group 1: name must be set")).toEqual([
+      "a must sum to 100% (now 90%)",
+      "group 1: name must be set",
+    ]);
+  });
+
+  it("describes patterns", () => {
+    expect(describePattern({ shape: "spike", rps: 100, peakRps: 500, startMinutes: 30, minutes: 60 })).toBe(
+      "100 RPS, 500 RPS for 60 min after 30 min",
+    );
+    expect(describePattern({ shape: "schedule", rps: 0, schedule: [{ hour: 9, rps: 1000 }, { hour: 18.5, rps: 20000 }] })).toBe(
+      "09:00 1000 RPS, 18:30 20.0k RPS",
+    );
   });
 });

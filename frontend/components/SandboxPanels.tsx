@@ -9,7 +9,9 @@ import {
   type GameState,
   type GoalStatus,
   type Ruleset,
+  type TrafficConfig,
 } from "@/lib/sandbox";
+import { InternetPanel } from "./SandboxInternet";
 
 export const KIND_DRAG_TYPE = "application/x-forgelab-kind";
 
@@ -63,11 +65,13 @@ export function SandboxInspector({
   rules,
   selected,
   onCommand,
+  onConfigure,
 }: {
   game: GameState;
   rules: Ruleset;
   selected: string | null;
   onCommand: (c: Command) => void;
+  onConfigure: (tc: TrafficConfig) => Promise<string | null>;
 }) {
   const node = game.nodes.find((n) => n.id === selected);
   if (!node) {
@@ -160,6 +164,8 @@ export function SandboxInspector({
           </tbody>
         </table>
       )}
+
+      {internet && <InternetPanel game={game} rules={rules} node={node} onConfigure={onConfigure} />}
 
       {!internet && (
         <div className="sb-actions">

@@ -11,6 +11,7 @@ export type SandboxNodeData = {
   downReplicas: number;
   down: boolean;
   rateLimited: boolean;
+  loadTest: boolean;
   source: boolean;
   target: boolean;
   stats?: NodeStats;
@@ -28,7 +29,7 @@ export function SandboxNode({ id, data, selected }: NodeProps<SandboxFlowNode>) 
       {data.target && <Handle type="target" position={Position.Left} />}
       <div className="sb-node-title">{data.label}</div>
       <div className="sb-node-meta">
-        {internet ? "traffic source" : `${id} · ${data.size}${data.replicas > 1 ? ` ×${data.replicas}` : ""}`}
+        {internet ? (data.loadTest ? "traffic source · load test" : "traffic source") : `${id} · ${data.size}${data.replicas > 1 ? ` ×${data.replicas}` : ""}`}
       </div>
       {s && (
         <>

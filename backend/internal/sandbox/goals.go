@@ -229,7 +229,7 @@ func (g *Game) value(c Condition) float64 {
 	case CondEvent:
 		n := 0
 		for _, e := range g.Events {
-			if e.Outcome == OutcomeRecovered && (c.Name == "" || e.Card == c.Name) && (c.Below == 0 || e.LowestHealth < c.Below) {
+			if e.Outcome == OutcomeRecovered && !e.LoadTest && (c.Name == "" || e.Card == c.Name) && (c.Below == 0 || e.LowestHealth < c.Below) {
 				n++
 			}
 		}

@@ -45,6 +45,11 @@ export function SandboxHud({
         <span className="badge" title="Every Sandbox value is modelled by the core engine, not measured">
           simulated
         </span>
+        {m.loadTest && (
+          <span className="badge load-test" title="Traffic set by you on the Internet: it earns nothing, and users and goals hold still">
+            load test
+          </span>
+        )}
         <strong>{formatClock(m.day, m.hour)}</strong>
         <span className="sb-tier">{m.tier}</span>
         <div className="sb-speed" role="group" aria-label="Speed">
