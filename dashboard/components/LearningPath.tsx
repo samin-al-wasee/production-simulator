@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { LearningStatus } from "@/lib/api";
 import { completeExercise } from "@/lib/client";
-import { evidenceLabel, percent } from "@/lib/progress";
+import { percent } from "@/lib/progress";
 
 export function LearningPath({ initial }: { initial: LearningStatus }) {
   const [status, setStatus] = useState(initial);
@@ -59,7 +59,7 @@ export function LearningPath({ initial }: { initial: LearningStatus }) {
                   <td>
                     <strong>{e.title}</strong>
                     <div className="legend">
-                      <code>{e.how}</code> · {evidenceLabel(e.evidence)}
+                      {e.how}
                       {e.done && e.completedAt && ` · done ${e.completedAt.slice(0, 10)} (${e.completedBy})`}
                     </div>
                   </td>

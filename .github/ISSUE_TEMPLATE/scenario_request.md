@@ -1,28 +1,28 @@
 ---
 name: Scenario request
-about: Propose a new reproducible lab scenario
+about: Propose a new in-game event or incident for the Production Sandbox
 title: "[scenario] "
 labels: scenario
 ---
 
 ## Scenario name
 
-`kebab-case`, describing the observed condition (e.g. `db-slowdown`).
-
-## Category
-
-`traffic` / `failures` / `security` / `scaling` / `performance`
+`kebab-case`, describing the condition (e.g. `db-slowdown`).
 
 ## Goal
 
-## Components involved
+What should the player learn?
+
+## Trigger
+
+What draws the event, and how does the world state change its odds?
+
+## Effect on the model
+
+Which inputs change (traffic, a component's capacity or service time, a hit ratio, a cost), by how much, and for how long?
 
 ## Expected symptoms
 
-## Investigation
+## Responses
 
 ## Success criteria
-
-## Safety
-
-Confirm: the drill is reproducible and non-destructive by default, and will not run on a shared environment without explicit approval.

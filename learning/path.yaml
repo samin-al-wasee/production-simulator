@@ -1,134 +1,101 @@
 apiVersion: forgelab/v1
 kind: LearningPath
 metadata:
-  name: forgelab-core-path
-# Machine-readable form of docs/learning-path.md. Evidence:
-#   manual      - you mark it done (forgelab learn complete <id>)
-#   experiment  - completes automatically when that chaos experiment passes
-#   benchmark   - completes automatically when a benchmark run meets its SLOs
+  name: forgelab-sandbox-path
+# Machine-readable form of docs/learning-path.md. Every exercise is played in
+# the Production Sandbox (or the pipeline simulator) and marked done with
+# `forgelab learn complete <id>` or the dashboard's Learning path page.
 spec:
   stages:
     - id: s1
-      title: Local Docker
-      goal: Run your first container and compose a small stack.
+      title: First production
+      goal: Turn an empty world into a system that serves users and pays for itself.
       exercises:
-        - id: s1-up
-          title: Start the local stack and reach /healthz
-          how: "make up && curl localhost:8080/healthz"
+        - id: s1-serve
+          title: Serve your first successful request
+          how: "New game → place an Application instance, a Database primary, and Object storage → wire Internet → app → database and storage → press 1×"
           evidence: {type: manual}
-        - id: s1-restart
-          title: Watch the stack survive a database restart
-          how: "make chaos FILE=scenarios/failures/db-outage/experiment.yaml"
-          evidence: {type: experiment, name: db-outage}
+        - id: s1-missing-piece
+          title: Explain the errors a missing component causes
+          how: "Disconnect object storage and read the error rate; it matches the share of requests that need storage"
+          evidence: {type: manual}
+        - id: s1-profit
+          title: End a simulated day with more cash than you started it
+          how: "Run a full day (+1 day) and compare the Cash meter"
+          evidence: {type: manual}
     - id: s2
-      title: Observability
-      goal: See everything running.
+      title: Capacity and bottlenecks
+      goal: Find the component that limits the system and move the limit.
       exercises:
-        - id: s2-dashboard
-          title: Open the ForgeLab Overview dashboard in Grafana
-          how: "make up-obs, then http://localhost:3000"
+        - id: s2-saturate
+          title: Saturate an application instance
+          how: "Let users grow until the app's utilization bar turns red and requests drop"
           evidence: {type: manual}
-        - id: s2-trace
-          title: Follow one request from a log line to its trace
-          how: "Grafana Explore: Loki, click the trace_id link"
+        - id: s2-scale-out
+          title: Scale out behind a load balancer
+          how: "Place a Load balancer between the Internet and several app instances; watch load split by capacity"
+          evidence: {type: manual}
+        - id: s2-bottleneck-moves
+          title: Watch the bottleneck move to the database
+          how: "Keep adding app replicas until the database becomes the saturated component"
+          evidence: {type: manual}
+        - id: s2-size-vs-replicas
+          title: Compare a larger size with more replicas
+          how: "Reach the same capacity with one large instance and with several small ones; compare cost per hour"
           evidence: {type: manual}
     - id: s3
-      title: Messaging
-      goal: Make work async.
+      title: The data tier
+      goal: Take read load off the database.
       exercises:
-        - id: s3-smoke
-          title: Verify Redis, RabbitMQ dead-lettering, and Kafka
-          how: "make up-all && make smoke-msg"
+        - id: s3-cache
+          title: Put a cache in front of the database
+          how: "Wire app → cache → database and note how much the database's offered load falls"
           evidence: {type: manual}
-        - id: s3-dlq
-          title: Dead-letter a message and requeue it
-          how: "scripts/dlq-requeue.sh after a rejected message"
+        - id: s3-replicas
+          title: Spread reads across read replicas
+          how: "Add Database read replicas and connect the app or cache to them"
           evidence: {type: manual}
-        - id: s3-redis-outage
-          title: Lose Redis and recover
-          how: "make chaos FILE=scenarios/failures/redis-outage/experiment.yaml"
-          evidence: {type: experiment, name: redis-outage}
     - id: s4
-      title: Kubernetes
-      goal: Orchestrate instead of babysit.
+      title: Asynchronous work
+      goal: Trade latency for backlog with queues and workers.
       exercises:
-        - id: s4-rolling
-          title: Stall a bad rolling deployment and roll back
-          how: "scenarios/failures/rolling-deployment"
+        - id: s4-backlog
+          title: Build a backlog
+          how: "Send writes to a Message queue with no workers and watch the backlog grow"
           evidence: {type: manual}
-        - id: s4-hpa
-          title: Watch the HPA scale out under CPU load
-          how: "scenarios/scaling/hpa-scale-out"
+        - id: s4-drain
+          title: Size workers to drain it
+          how: "Add Background workers wired to the database until the backlog reaches zero"
           evidence: {type: manual}
     - id: s5
-      title: Distributed Systems
-      goal: Reason about life beyond one process.
+      title: Growth and economics
+      goal: Grow the userbase without losing money or users.
       exercises:
-        - id: s5-latency
-          title: Add 300 ms of network latency and measure it
-          how: "make chaos FILE=scenarios/failures/network-latency/experiment.yaml"
-          evidence: {type: experiment, name: network-latency}
-        - id: s5-kafka
-          title: Lose the Kafka broker and see it detected
-          how: "make chaos FILE=scenarios/failures/kafka-outage/experiment.yaml"
-          evidence: {type: experiment, name: kafka-outage}
+        - id: s5-startup
+          title: Reach the startup tier (10k users)
+          how: "Keep satisfaction high so popularity and growth stay up"
+          evidence: {type: manual}
+        - id: s5-scale-up
+          title: Reach the scale-up tier (100k users) with health above 80
+          how: "Scale ahead of growth; read the Health and Satisfaction sparklines"
+          evidence: {type: manual}
+        - id: s5-margin
+          title: Keep cost below half of revenue at scale-up
+          how: "Remove over-provisioned components and compare Cost / h with Revenue / h"
+          evidence: {type: manual}
     - id: s6
-      title: Reliability
-      goal: Make failure routine and boring.
+      title: Shipping changes safely
+      goal: Compare deploy strategies and their rollbacks.
       exercises:
-        - id: s6-db-outage
-          title: Run and resolve the database outage drill
-          how: "make chaos FILE=scenarios/failures/db-outage/experiment.yaml"
-          evidence: {type: experiment, name: db-outage}
-        - id: s6-dr
-          title: Restore from backup after losing the database
-          how: "make backup; FORGELAB_CONFIRM_DESTRUCTIVE=1 sh scripts/dr-drill.sh"
+        - id: s6-strategies
+          title: Run rolling, canary, and blue-green pipelines
+          how: "Dashboard Pipelines page, or forgelab pipeline run manifests/pipelines/<name>.yaml"
           evidence: {type: manual}
-        - id: s6-benchmark
-          title: Produce a benchmark that meets its SLOs
-          how: "forgelab benchmark -url http://localhost:8080/api/work"
-          evidence: {type: benchmark}
-    - id: s7
-      title: Cloud
-      goal: Same lab, managed services.
-      exercises:
-        - id: s7-validate
-          title: Validate the AWS and GCP presets offline
-          how: "make cloud-validate"
+        - id: s6-rollback
+          title: Watch a bad release roll back
+          how: "Run a pipeline with the bad-release option and read how each strategy recovers"
           evidence: {type: manual}
-        - id: s7-costguard
-          title: Reject an oversized plan with the cost guard
-          how: "forgelab costguard check on a plan that exceeds the ceiling"
-          evidence: {type: manual}
-    - id: s8
-      title: CI/CD
-      goal: Ship like a platform team.
-      exercises:
-        - id: s8-pipeline
-          title: Simulate a canary pipeline with an automatic rollback
-          how: "forgelab pipeline run -bad-release manifests/pipelines/web-release-canary.yaml"
-          evidence: {type: manual}
-    - id: s9
-      title: Security
-      goal: Defend and detect.
-      exercises:
-        - id: s9-smoke
-          title: Verify TLS, headers, rate limiting, and secret handling
-          how: "make up-secure && make smoke-security"
-          evidence: {type: manual}
-        - id: s9-compliance
-          title: Pass the compliance checks, then break one on purpose
-          how: "make compliance"
-          evidence: {type: manual}
-    - id: s10
-      title: Production Simulator
-      goal: Synthesize everything into one exercise.
-      exercises:
-        - id: s10-multi-failure
-          title: Run the combined multi-failure incident
-          how: "scenarios/failures/multi-failure-incident"
-          evidence: {type: manual}
-        - id: s10-postmortem
-          title: Write a reviewable postmortem
-          how: "templates/postmortem/postmortem.md"
+        - id: s6-postmortem
+          title: Write a postmortem for the worst moment of your game
+          how: "Use templates/postmortem/postmortem.md"
           evidence: {type: manual}

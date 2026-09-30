@@ -1,6 +1,6 @@
 # ADR-0012: Benchmark reports, learning-path tracking, and the end-to-end run (Phase 9)
 
-**Status:** accepted
+**Status:** superseded by [ADR-0014](0014-sandbox-only-platform.md) (was accepted; the code it describes is on the `archive/live-lab` branch)
 **Date:** 2026-09-28
 
 ## Context

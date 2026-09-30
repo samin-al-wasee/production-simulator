@@ -18,12 +18,12 @@ spec:
       title: A
       exercises:
         - {id: a1, title: one, evidence: {type: manual}}
-        - {id: a2, title: two, evidence: {type: experiment, name: db-outage}}
+        - {id: a2, title: two, evidence: {type: manual}}
     - id: b
       title: B
       exercises:
-        - {id: b1, title: three, evidence: {type: experiment, name: db-outage}}
-        - {id: b2, title: four, evidence: {type: benchmark}}
+        - {id: b1, title: three, evidence: {type: manual}}
+        - {id: b2, title: four, evidence: {type: manual}}
 `
 
 func load(t *testing.T, doc string) *Path {
@@ -75,27 +75,6 @@ func TestCompleteIsIdempotentAndValidates(t *testing.T) {
 	}
 }
 
-func TestRecordCompletesMatchingEvidenceOnly(t *testing.T) {
-	p := load(t, testPath)
-	var pr Progress
-	fresh := pr.Record(p, EvidenceExperiment, "db-outage", now)
-	if strings.Join(fresh, ",") != "a2,b1" {
-		t.Fatalf("fresh = %v", fresh)
-	}
-	if got := pr.Record(p, EvidenceExperiment, "db-outage", now); len(got) != 0 {
-		t.Fatalf("already recorded, got %v", got)
-	}
-	if got := pr.Record(p, EvidenceExperiment, "redis-outage", now); len(got) != 0 {
-		t.Fatalf("other experiment must not complete anything: %v", got)
-	}
-	if got := pr.Record(p, EvidenceBenchmark, "", now); len(got) != 1 || got[0] != "b2" {
-		t.Fatalf("benchmark record = %v", got)
-	}
-	if pr.Completed["a2"].By != "experiment:db-outage" {
-		t.Fatalf("by = %q", pr.Completed["a2"].By)
-	}
-}
-
 func TestProgressRoundTrip(t *testing.T) {
 	p := load(t, testPath)
 	file := filepath.Join(t.TempDir(), "sub", "progress.json")
@@ -123,8 +102,7 @@ func TestValidate(t *testing.T) {
 		"no stages":   "apiVersion: forgelab/v1\nkind: LearningPath\nmetadata: {name: t}\nspec: {stages: []}\n",
 		"dup stage":   strings.Replace(testPath, "id: b\n", "id: a\n", 1),
 		"dup ex":      strings.Replace(testPath, "id: b1", "id: a1", 1),
-		"no name":     strings.Replace(testPath, "evidence: {type: experiment, name: db-outage}}\n    - id: b", "evidence: {type: experiment}}\n    - id: b", 1),
-		"bad type":    strings.Replace(testPath, "type: benchmark", "type: vibes", 1),
+		"bad type":    strings.Replace(testPath, "{id: b2, title: four, evidence: {type: manual}}", "{id: b2, title: four, evidence: {type: experiment}}", 1),
 		"unknown key": strings.Replace(testPath, "metadata: {name: t}", "metadata: {name: t}\nbogus: 1", 1),
 	}
 	for name, doc := range bad {
@@ -136,23 +114,13 @@ func TestValidate(t *testing.T) {
 	}
 }
 
-// The repository's own path must stay valid and reference real experiments.
+// The repository's own path must stay valid and match docs/learning-path.md.
 func TestRepositoryPath(t *testing.T) {
 	p, err := LoadPath("../../../learning/path.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, s := range p.Spec.Stages {
-		for _, e := range s.Exercises {
-			if e.Evidence.Type != EvidenceExperiment {
-				continue
-			}
-			if _, err := os.Stat("../../../scenarios/failures/" + e.Evidence.Name + "/experiment.yaml"); err != nil {
-				t.Errorf("exercise %s references missing experiment %q", e.ID, e.Evidence.Name)
-			}
-		}
-	}
-	if len(p.Spec.Stages) != 10 {
-		t.Errorf("stages = %d, want 10 (docs/learning-path.md)", len(p.Spec.Stages))
+	if len(p.Spec.Stages) != 6 {
+		t.Errorf("stages = %d, want 6 (docs/learning-path.md)", len(p.Spec.Stages))
 	}
 }

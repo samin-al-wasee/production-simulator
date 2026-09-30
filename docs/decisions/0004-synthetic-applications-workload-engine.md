@@ -1,6 +1,6 @@
 # ADR-0004: Synthetic Applications and Workload Engine
 
-**Status:** proposed
+**Status:** superseded by [ADR-0014](0014-sandbox-only-platform.md) (was proposed; the code it describes is on the `archive/live-lab` branch)
 **Date:** 2026-09-19
 
 ## Context

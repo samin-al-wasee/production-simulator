@@ -4,13 +4,13 @@ Rules for **any AI agent (or collaborator)** working in the ForgeLab repository.
 
 ## 1. Project mission
 
-ForgeLab is **not an application**. It is a reusable **Production Systems Laboratory**: a platform where any application can be plugged in and executed inside a production-like environment.
+ForgeLab is the **Production Sandbox**: a deterministic, model-driven game in which a player builds a production system from an empty world and runs it under growth, events, incidents, and a budget ([ADR-0014](docs/decisions/0014-sandbox-only-platform.md)).
 
-The repository exists for learning, experimentation, benchmarking, incident simulation, distributed-systems practice, SRE, platform engineering, DevOps, cloud infrastructure, and system design.
+The repository exists for learning production systems: scaling, bottlenecks, caching, queues, reliability, the economics of capacity, and system design.
 
-The prime directive is **modular composition, not a fixed architecture**. Every infrastructure layer is optional. Never assume a component is required.
+The prime directive is **modelled, never scripted**: every value the game shows is computed from declared capacities and the player's topology, and labelled as simulated. Nothing in ForgeLab starts a real container, process, or cloud resource.
 
-**Status:** roadmap phases 0 through 9 are implemented; Phase 10 (Production Sandbox, ADR-0013) is in progress (see `ROADMAP.md`). **Do not implement new infrastructure (Docker, Kubernetes, Terraform, application code) beyond what a roadmap phase authorizes.**
+**Status:** Phase 10 (Production Sandbox) is in progress; the Live-mode lab of phases 1 to 9 is retired and kept on the `archive/live-lab` branch (see `ROADMAP.md`). **Do not reintroduce real infrastructure (Docker, Kubernetes, Terraform, sample applications) without a new ADR, and build only what a roadmap phase authorizes.**
 
 ## 2. Decided stack
 
@@ -24,19 +24,22 @@ Do not propose changes to this stack without an ADR.
 
 ## 3. Architectural principles
 
-1. **Platform over application** — the platform is the product; applications are inputs.
-2. **Composition over configuration** — users enable only the components they need.
-3. **Production parity** — the lab must behave like real production.
-4. **Observable by default** — every component ships metrics, logs, and traces.
-5. **Failure is a feature** — incidents are study material, not defects to hide.
-6. **Infrastructure as Code** — everything declared, versioned, reproducible.
-7. **Cloud agnostic** — local-first; cloud presets only as opt-in layers.
-8. **Documentation first** — architecture and decisions precede implementation.
+The full text is in [`docs/principles.md`](docs/principles.md).
+
+1. **Modelled, never scripted, always labelled** — values come from the model, never from curves or random numbers.
+2. **Bottlenecks come from the design** — the same design under the same load has the same bottleneck.
+3. **Formulas are explainable** — simple, documented, checkable by hand, pinned by tests.
+4. **The player composes everything** — a new game is empty; nothing is implied.
+5. **Failure is a feature** — saturation, incidents, and bankruptcy are study material.
+6. **Reproducible by construction** — ruleset version + seed + command log replays a game exactly.
+7. **Behavior over business functionality** — a generic economy; no domain logic.
+8. **Headless core, thin dashboard** — all simulation logic in Go; the UI renders and sends commands.
+9. **Documentation first** — architecture and decisions precede implementation.
 
 ## 4. Coding philosophy
 
 - **Simulation correctness over presentation** — the core is deterministic and testable headlessly, independent of any UI.
-- **Kept modules** — simulation logic, runtime orchestration, and dashboard stay separable.
+- **Kept modules** — simulation engine, API, and dashboard stay separable.
 - **Match existing patterns** — check neighboring files before writing new ones.
 - **No comments unless they explain non-obvious intent.**
 - **No secrets** — never log, store, or commit passwords, tokens, or keys.
@@ -51,7 +54,8 @@ Documentation changes and code changes ship together. "Docs updated" is part of 
 |---|---|
 | Architecture / boundary decision | `docs/architecture.md` + an ADR in `docs/decisions/` |
 | New or changed component | `docs/component-catalog.md` (+ component README) |
-| New or changed scenario | `docs/scenarios.md` (+ scenario folder) |
+| New or changed in-game scenario (event) | `docs/scenarios.md` |
+| Change to the model's formulas or tuning | `docs/architecture.md` (+ a new ruleset version if saves would replay differently) |
 | Principle change | `docs/principles.md` |
 | Structure / ownership change | `docs/repository-structure.md` |
 | Phase movement | `ROADMAP.md` |
@@ -85,8 +89,7 @@ Conflicts between documents are never resolved silently — state both sides and
 - **Directories:** `kebab-case` (e.g. `component-catalog`, `application.schema.yaml` in `manifests/`).
 - **Files:** `kebab-case` for `.md` and `.yaml`; `snake_case` for Go; `camelCase` for TypeScript. Match the language's community convention.
 - **Components:** one directory per component under `components/<domain>/<component>/`, with a `README.md` describing purpose, provided services, dependencies, and status.
-- **Scenarios:** one directory per scenario under `scenarios/<category>/<name>/`, with a README using the standard scenario template from `docs/scenarios.md`.
-- **Applications:** one directory per plugged-in application under `applications/<name>/`, self-contained and clearly documented.
+- **Scenarios:** in-game events, documented in `docs/scenarios.md` with the standard template, named in `kebab-case` after the condition (`viral-surge`, `db-slowdown`).
 - Keep names consistent and professional — this repo will eventually be open source.
 
 ## 8. Folder ownership
@@ -94,20 +97,16 @@ Conflicts between documents are never resolved silently — state both sides and
 | Folder | Owner responsibility |
 |---|---|
 | `docs/` | All architecture, principles, catalog, scenarios, decisions |
-| `applications/` | Plugged-in sample/user applications (never core) |
-| `core/` | Go simulation core, CLI, and validation tooling (never UI/dashboard code) |
-| `manifests/` | Application manifest schema, validation, and examples |
-| `components/` | One subdirectory per domain; each component keeps its own README |
-| `environments/` | `local/`, `staging/`, `cloud/` presets |
-| `scenarios/` | Reproducible drills grouped by category |
-| `scripts/` | Development and validation helpers |
+| `core/` | Go: Sandbox engine, pipeline simulator, learning tracker, secret scan, API, CLI (never UI/dashboard code) |
 | `dashboard/` | Next.js dashboard; a thin consumer of the core API (never simulation logic) |
+| `components/` | One subdirectory per domain; each component keeps its own README |
+| `manifests/` | Declared pipelines for the pipeline simulator |
 | `learning/` | Machine-readable learning path |
-| `security/` | Security tooling configuration (secret-scan allowlist) |
-| `templates/` | Reusable starting points for apps, services, manifests, postmortems |
-| `.github/` | Issue/PR templates and CI workflows |
+| `security/` | Secret-scan allowlist |
+| `templates/` | Postmortem template |
+| `.github/` | Issue and PR templates |
 
-Cross-cutting changes (e.g. a new scenario that needs a new component) must touch the owning folders **and** their catalog/scenario docs together.
+Cross-cutting changes (e.g. a new in-game component kind that needs engine, API, and dashboard work) must touch the owning folders **and** the catalog together.
 
 ## 9. Adding new components
 
@@ -118,15 +117,14 @@ Before adding a component:
 3. Create `components/<domain>/<component>/README.md` covering: purpose, what it provides, what it depends on, planned config, and status (`planned` / `implemented`).
 4. Update `docs/component-catalog.md` (table row + status).
 5. Any architectural impact requires an ADR (`docs/decisions/`).
-6. No component is assumed; a user must be able to opt out of anything.
+6. No component is assumed; in the game, the player places every one.
 
 ## 10. Rules for scenarios
 
-1. A scenario belongs to one category folder under `scenarios/`.
-2. Every scenario README follows the standard template — **Goal, Components involved, Expected symptoms, Investigation, Success criteria** (see `docs/scenarios.md`).
-3. Scenarios are declared, reproducible, and safe: never run an irreversible/destructive drill on a shared environment without explicit approval.
-4. Updating a scenario requires updating `docs/scenarios.md` in the same change.
-5. Scenario names: `kebab-case`, describing the observed condition (`db-slowdown`, `kafka-consumer-lag`).
+1. A scenario is an in-game event drawn from the Event Deck and documented in `docs/scenarios.md` with the standard template — **Goal, Trigger, Effect on the model, Expected symptoms, Responses, Success criteria**.
+2. A scenario changes model inputs (traffic, capacity, service time, hit ratio, cost), never the output meters directly.
+3. Scenarios are seeded and recorded, so replaying a save replays them.
+4. Adding or changing a scenario updates `docs/scenarios.md` in the same change.
 
 ## 11. Workflow rules
 
@@ -162,9 +160,9 @@ Before adding a component:
 
 Stop and consult the user before:
 
-1. Implementing infrastructure, Docker, Kubernetes, Terraform, or application code before a roadmap phase authorizes it.
+1. Building a feature before a roadmap phase authorizes it, or reintroducing real infrastructure (Docker, Kubernetes, Terraform, sample applications) without an ADR.
 2. Introducing a dependency or external tool without asking.
 3. Changing the decided stack (Go / Next.js / optional Python).
 4. Resolving a documentation conflict unilaterally.
-5. Writing anything not reproducible via IaC into an environment (drift).
-6. Running anything destructive, cloud-costing, or irreversible.
+5. Changing a ruleset value in place instead of adding a ruleset version (saved games would replay differently).
+6. Running anything destructive or irreversible.

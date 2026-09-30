@@ -40,33 +40,10 @@ venv/
 *.swp
 *.swo
 
-# ---- Terraform ----
-.terraform/
-*.tfstate
-*.tfstate.*
-.terraform.lock.hcl
-
 # ---- Logs / runtime ----
 *.log
 logs/
 tmp/
-# ---- Local backups (scripts/db-backup.sh) ----
-/backups/
 
-# ---- Terraform ----
-.terraform/
-*.tfstate
-*.tfstate.*
-*.tfplan
-crash.log
-terraform.tfvars
-*.auto.tfvars
-tfplan.json
-
-# ---- Local security material (scripts/gen-dev-certs.sh, gen-secrets.sh) ----
-environments/local/security/certs/
-environments/local/security/secrets/
-
-# ---- Generated reports and learner progress ----
-/reports/
+# ---- Learner progress and saved Sandbox games ----
 /.forgelab/

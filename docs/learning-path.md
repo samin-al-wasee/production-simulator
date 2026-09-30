@@ -1,113 +1,53 @@
 # ForgeLab Learning Path
 
-**Document status:** Baseline · v1.0
+**Document status:** v2.0 (re-scoped by [ADR-0014](decisions/0014-sandbox-only-platform.md))
 
-A progressive roadmap for the learner, aligned with ForgeLab phases. Each stage is a milestone with a goal, the skills it builds, and the ForgeLab components involved. Stages build on each other; skip nothing.
+A progressive path through the Production Sandbox and the pipeline simulator. Each stage has a goal and a few exercises; play them in order, or dip in where you need to. The machine-readable form is [`learning/path.yaml`](../learning/path.yaml) (6 stages, 17 exercises).
 
-```mermaid
-flowchart LR
-    S1[1 Local Docker] --> S2[2 Observability]
-    S2 --> S3[3 Messaging]
-    S3 --> S4[4 Kubernetes]
-    S4 --> S5[5 Distributed Systems]
-    S5 --> S6[6 Reliability]
-    S6 --> S7[7 Cloud]
-    S7 --> S8[8 CI/CD]
-    S8 --> S9[9 Security]
-    S9 --> S10[10 Production Simulator]
-```
+## Stage 1 — First production
 
-## Stage 1 — Local Docker
+- **Goal:** Turn an empty world into a system that serves users and pays for itself.
+- **Skills:** Request paths, dependencies, reading the meters.
+- **Exercises:** serve your first successful request; explain the errors a missing component causes; end a simulated day with more cash than you started it.
 
-- **Goal:** Run your first container and compose a small stack.
-- **Skills:** Images, containers, networks, volumes, `docker compose`, health checks.
-- **Components:** Docker, Runtime Manager, `local` environment.
-- **Exit:** A two-service stack (app + database) starts with one command and survives restarts.
+## Stage 2 — Capacity and bottlenecks
 
-## Stage 2 — Observability
+- **Goal:** Find the component that limits the system and move the limit.
+- **Skills:** Utilization, saturation, horizontal vs vertical scaling, load balancing.
+- **Exercises:** saturate an application instance; scale out behind a load balancer; watch the bottleneck move to the database; compare a larger size with more replicas.
 
-- **Goal:** See everything running.
-- **Skills:** Metrics, structured logs, traces; dashboards; alerting basics.
-- **Components:** Prometheus, Grafana, Loki, Tempo, OpenTelemetry.
-- **Exit:** Every service in the stack emits metrics/logs/traces visible on one dashboard.
+## Stage 3 — The data tier
 
-## Stage 3 — Messaging
+- **Goal:** Take read load off the database.
+- **Skills:** Caching, hit ratios, read replicas.
+- **Exercises:** put a cache in front of the database; spread reads across read replicas.
 
-- **Goal:** Make work async.
-- **Skills:** Queues, brokers, consumer groups, DLQs, idempotency, backpressure.
-- **Components:** Redis, RabbitMQ, Kafka, DLQ Handler.
-- **Exit:** A producer/consumer pipeline with retries and dead-letter handling traced end to end.
+## Stage 4 — Asynchronous work
 
-## Stage 4 — Kubernetes
+- **Goal:** Trade latency for backlog with queues and workers.
+- **Skills:** Queues, backlog, worker sizing, drain time.
+- **Exercises:** build a backlog; size workers to drain it.
 
-- **Goal:** Orchestrate instead of babysit.
-- **Skills:** Pods, deployments, services, ingress, HPA, rollouts, namespaces.
-- **Components:** Kubernetes, Load Balancer, Deploy Controller, Autoscaler.
-- **Exit:** The Stage-1 app runs on Kubernetes with autoscaling and a rolling deploy.
+## Stage 5 — Growth and economics
 
-## Stage 5 — Distributed Systems
+- **Goal:** Grow the userbase without losing money or users.
+- **Skills:** Capacity planning, satisfaction and churn, cost vs revenue.
+- **Exercises:** reach the startup tier (10k users); reach the scale-up tier (100k users) with health above 80; keep cost below half of revenue at scale-up.
 
-- **Goal:** Reason about life beyond one process.
-- **Skills:** Consistency, partitioning, failure semantics, sagas, CQRS, idempotency.
-- **Components:** Full platform; scenarios: db-slowness, partition, latency.
-- **Exit:** You can explain what happens when any two components stop agreeing.
+## Stage 6 — Shipping changes safely
 
-## Stage 6 — Reliability
-
-- **Goal:** Make failure routine and boring.
-- **Skills:** Chaos injection, retries/circuit breakers, timeout budgets, runbooks, DR.
-- **Components:** Chaos Engine, Resiliency Toolkit, Backup/Restore.
-- **Exit:** You run and resolve the outage scenarios end to end (`docs/scenarios.md`).
-
-## Stage 7 — Cloud
-
-- **Goal:** Same lab, managed services.
-- **Skills:** IaC (Terraform), AWS/GCP primitives, cost awareness, managed vs self-hosted.
-- **Components:** Terraform, AWS Preset, GCP Preset, Config Sync.
-- **Exit:** The same manifest runs locally and on one cloud provider without logic changes.
-
-## Stage 8 — CI/CD
-
-- **Goal:** Ship like a platform team.
-- **Skills:** Pipelines, artifacts, environment promotion, deployment strategies, rollbacks.
-- **Components:** Pipeline Runner, Deploy Controller, Artifact Registry.
-- **Exit:** A change traverses build → test → canary → prod with an automatic rollback path.
-
-## Stage 9 — Security
-
-- **Goal:** Defend and detect.
-- **Skills:** TLS, secrets, RBAC, network policy, scanning, attack detection, containment.
-- **Components:** Secrets, TLS/PKI, Network Policy, Scanner, security scenarios.
-- **Exit:** You run an attack simulation, detect it via signals, and contain it.
-
-## Stage 10 — Production Simulator
-
-- **Goal:** Synthesize everything into one exercise.
-- **Skills:** Incident command, diagnosis under pressure, postmortems, continuous improvement.
-- **Components:** Full platform + dashboard + benchmark reporting.
-- **Exit:** Run a combined multi-failure scenario, produce a reviewable postmortem, and repeat from Stage 1 with confidence.
+- **Goal:** Compare deploy strategies and their rollbacks.
+- **Skills:** Rolling, canary, and blue-green deploys; rollback; postmortems.
+- **Exercises:** run the three pipeline strategies; watch a bad release roll back; write a postmortem for the worst moment of your game with [`templates/postmortem/postmortem.md`](../templates/postmortem/postmortem.md).
 
 ---
 
 ## Tracking your progress
 
-The path is also available as data in [`learning/path.yaml`](../learning/path.yaml): 21 exercises across the ten stages, each with the command or scenario that exercises it.
-
 ```sh
-make learn                            # or: forgelab learn status
-forgelab learn next                   # the next exercise, how to do it, and how it completes
-forgelab learn complete s2-dashboard  # mark a manual exercise done
+make learn                             # or: forgelab learn status
+forgelab learn next                    # the next exercise and how to play it
+forgelab learn complete s1-serve       # mark an exercise done
 ```
 
-Exercises tied to a chaos experiment (`s1-restart`, `s3-redis-outage`, `s5-latency`, `s5-kafka`, `s6-db-outage`) complete automatically when that experiment passes, from the CLI or the dashboard; `s6-benchmark` completes when a benchmark meets its SLOs. Progress lives in `.forgelab/progress.json` (git-ignored) and is shown on the dashboard's Learning path page. Order is guidance, not a gate.
-
-Stage 10 uses the [`multi-failure-incident`](../scenarios/failures/multi-failure-incident/README.md) scenario and the [postmortem template](../templates/postmortem/postmortem.md).
-
-## Sandbox mode (Phase 10, planned)
-
-The Production Sandbox ([ADR-0013](decisions/0013-production-sandbox-game.md)) gives every stage a second practice ground: build the architecture yourself, from an empty world, and watch it grow and fail. It needs no Docker, so it is also a gentle way in before Stage 1. Sandbox missions will be linked to the exercises above once the goals-and-unlocks milestone lands.
-
-## Using this path
-
-* Each stage references concrete components in `docs/component-catalog.md` and scenarios in `docs/scenarios.md`.
-* Stages map roughly to roadmap phases (`ROADMAP.md`) — the stage is a learning goal, the phase is the authorization to build it.
+Progress lives in `.forgelab/progress.json` (git-ignored) and is shown on the dashboard's Learning path page. Exercises are marked done by you; automatic completion from in-game goals arrives with the goals-and-unlocks milestone (ROADMAP Phase 10). Order is guidance, not a gate.

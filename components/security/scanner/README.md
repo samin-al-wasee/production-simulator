@@ -1,24 +1,22 @@
 # Scanner
 
-Compliance-oriented and secret scanning.
+Committed-secret detection for the repository.
 
-**Status:** implemented (Phase 8)
+**Status:** implemented (Phase 8, re-scoped by ADR-0014)
 
 ## Purpose
 
-Compliance-oriented and secret scanning.
+Keep passwords, tokens, and keys out of the repository.
 
 ## Provided
 
-- `forgelab security compliance <file|dir|->`: 18 controls over Kubernetes manifests and Compose files, severities, informational CIS/NIST references, and declared exemptions with reasons.
-- `forgelab security scan-secrets [dir]`: private keys, cloud/platform tokens, credential assignments; redacted output; allowlist in `security/secretscan.yaml`.
-- `make compliance` runs both against the repository and the rendered Kubernetes manifests.
-- Not included: image and CVE scanning.
+- `forgelab security scan-secrets [dir]` (`core/internal/secretscan`): private keys, cloud and platform tokens, and credential assignments, with redacted output.
+- `make scan-secrets`, part of `make check`.
 
 ## Dependencies
 
-- kubectl (only for rendering Kubernetes manifests)
+- None (pure Go).
 
 ## Configuration
 
-`-fail-on low|medium|high` selects the failing severity (default medium).
+Allowlist in `security/secretscan.yaml`; every entry must give a reason.

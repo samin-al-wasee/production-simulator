@@ -1,7 +1,6 @@
 // Package learning models the ForgeLab learning path and a learner's
 // progress through it. The path is declared in learning/path.yaml; progress
-// is a small JSON file. Exercises complete manually, or automatically when a
-// matching chaos experiment passes or a benchmark meets its SLOs.
+// is a small JSON file. Exercises are completed manually by the learner.
 package learning
 
 import (
@@ -14,12 +13,9 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// Evidence types.
-const (
-	EvidenceManual     = "manual"
-	EvidenceExperiment = "experiment"
-	EvidenceBenchmark  = "benchmark"
-)
+// EvidenceManual is the only evidence type: the learner marks the exercise
+// complete.
+const EvidenceManual = "manual"
 
 // Path is the declared learning path (kind: LearningPath).
 type Path struct {
@@ -93,13 +89,7 @@ func (p *Path) Validate() error {
 				return fmt.Errorf("exercise ids must be unique and exercises need a title (%q)", e.ID)
 			}
 			exercises[e.ID] = true
-			switch e.Evidence.Type {
-			case EvidenceManual, EvidenceBenchmark:
-			case EvidenceExperiment:
-				if e.Evidence.Name == "" {
-					return fmt.Errorf("exercise %q: experiment evidence needs a name", e.ID)
-				}
-			default:
+			if e.Evidence.Type != EvidenceManual {
 				return fmt.Errorf("exercise %q: unknown evidence type %q", e.ID, e.Evidence.Type)
 			}
 		}
@@ -178,35 +168,6 @@ func (pr *Progress) Complete(p *Path, id, by string, at time.Time) (bool, error)
 	}
 	pr.Completed[id] = Completion{At: at.UTC(), By: by}
 	return true, nil
-}
-
-// ExercisesFor lists the exercise ids completed by the given evidence.
-func (p *Path) ExercisesFor(evidenceType, name string) []string {
-	var ids []string
-	for _, s := range p.Spec.Stages {
-		for _, e := range s.Exercises {
-			if e.Evidence.Type == evidenceType && (evidenceType != EvidenceExperiment || e.Evidence.Name == name) {
-				ids = append(ids, e.ID)
-			}
-		}
-	}
-	return ids
-}
-
-// Record completes every exercise tied to the evidence and returns the ids
-// that were newly completed.
-func (pr *Progress) Record(p *Path, evidenceType, name string, at time.Time) []string {
-	var fresh []string
-	by := evidenceType
-	if name != "" {
-		by += ":" + name
-	}
-	for _, id := range p.ExercisesFor(evidenceType, name) {
-		if newly, err := pr.Complete(p, id, by, at); err == nil && newly {
-			fresh = append(fresh, id)
-		}
-	}
-	return fresh
 }
 
 // ExerciseStatus is an exercise with its completion state.

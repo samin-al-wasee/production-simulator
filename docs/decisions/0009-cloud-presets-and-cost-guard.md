@@ -1,6 +1,6 @@
 # ADR-0009: Terraform cloud presets with a plan-time cost guard (Phase 6)
 
-**Status:** accepted
+**Status:** superseded by [ADR-0014](0014-sandbox-only-platform.md) (was accepted; the code it describes is on the `archive/live-lab` branch)
 **Date:** 2026-09-28
 
 ## Context

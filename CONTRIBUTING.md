@@ -1,6 +1,6 @@
 # Contributing to ForgeLab
 
-Thanks for contributing. ForgeLab is a **Production Systems Laboratory** — a platform, not an app. Before you open a PR, please read:
+Thanks for contributing. ForgeLab is the **Production Sandbox**, a model-driven game for learning how production systems behave and grow. Before you open a PR, please read:
 
 * [`README.md`](README.md) — project overview
 * [`docs/vision.md`](docs/vision.md) — why ForgeLab exists
@@ -25,7 +25,7 @@ Be respectful, be constructive, and assume good intent. This is a learning and e
 | Bug report | GitHub issue (use the bug report template) |
 | Feature / component request | GitHub issue (feature request template) |
 | New component | Issue first, then an ADR if architectural, then a PR |
-| New scenario | Issue + scenario folder following the template in `docs/scenarios.md` |
+| New in-game scenario (event) | Issue + an entry following the template in `docs/scenarios.md` |
 | Documentation | Direct PR, keeping the documentation map consistent |
 | Code | PR against the phase that authorizes it on the roadmap |
 
@@ -40,8 +40,8 @@ Be respectful, be constructive, and assume good intent. This is a learning and e
 1. Branch off an up-to-date `main`: `<type>/<description>` (e.g. `docs/glossary`, `feat/component-catalog`).
 2. Make small, focused commits (`AGENTS.md` §12).
 3. Before opening the PR, run the relevant test and lint commands (see `.opencode/command/`):
-   - Go: `go test ./...`, `gofmt -l`, `go vet ./...`
-   - Next.js: `lint` and `typecheck` app scripts
+   - `make check` (Go and dashboard lint, unit tests, secret scan)
+   - `make test-e2e` for any dashboard change (plays the Sandbox in a browser)
 4. Update `ROADMAP.md` / `CHANGELOG.md` if the change moves a phase or deserves a changelog entry.
 
 ## Pull requests
@@ -51,10 +51,11 @@ Be respectful, be constructive, and assume good intent. This is a learning and e
 - Describe what changed, why, and how it was verified.
 - Keep the PR small enough to review in one sitting. If it grows, split it.
 
-## Scenarios and safety
+## Scenarios and the model
 
-- Scenarios must be **reproducible** and follow the standard template (Goal / Components involved / Expected symptoms / Investigation / Success criteria).
-- Never add a scenario that runs destructive or irreversible actions on a shared environment without explicit approval.
+- Scenarios are seeded, reproducible, and follow the standard template in `docs/scenarios.md` (Goal / Trigger / Effect on the model / Expected symptoms / Responses / Success criteria).
+- Changes to the model's formulas or tuning update `docs/architecture.md`; a tuning change ships as a new ruleset version so saved games still replay.
+- A scenario changes model inputs (traffic, capacity, cost), never the output meters directly (`docs/scenarios.md`).
 
 ## Licensing
 

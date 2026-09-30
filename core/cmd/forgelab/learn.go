@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/samin-al-wasee/production-simulator/core/internal/learning"
@@ -88,13 +87,7 @@ func runLearn(args []string) int {
 	}
 }
 
-func describeEvidence(e learning.Evidence) string {
-	switch e.Type {
-	case learning.EvidenceExperiment:
-		return "passing the " + e.Name + " experiment (automatic), or `forgelab learn complete`"
-	case learning.EvidenceBenchmark:
-		return "a benchmark meeting its SLOs (automatic), or `forgelab learn complete`"
-	}
+func describeEvidence(learning.Evidence) string {
 	return "`forgelab learn complete`"
 }
 
@@ -121,32 +114,4 @@ func printStatus(st learning.Status) {
 	} else {
 		fmt.Println("\nthe path is complete")
 	}
-}
-
-// recordEvidence completes exercises tied to evidence and prints what
-// changed. Failures to record are reported but never fail the caller.
-func recordEvidence(evidenceType, name string) {
-	root := findRepoRoot()
-	if root == "" {
-		return
-	}
-	path, err := learning.LoadPath(filepath.Join(root, "learning", "path.yaml"))
-	if err != nil {
-		return
-	}
-	file := progressFile(root)
-	progress, err := learning.LoadProgress(file)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "forgelab: learning progress not recorded: %v\n", err)
-		return
-	}
-	fresh := progress.Record(path, evidenceType, name, time.Now())
-	if len(fresh) == 0 {
-		return
-	}
-	if err := progress.Save(file); err != nil {
-		fmt.Fprintf(os.Stderr, "forgelab: learning progress not recorded: %v\n", err)
-		return
-	}
-	fmt.Printf("learning path: completed %s\n", strings.Join(fresh, ", "))
 }
