@@ -10,7 +10,7 @@ Everything is a deterministic model computed in a Go core. Nothing runs on your 
 
 ## Status
 
-**Phase 10 (Production Sandbox) is in progress.** The engine, API, and dashboard canvas are playable; the event deck (surges, outages, attacks) and goals and unlocks are next. See [`ROADMAP.md`](ROADMAP.md).
+**Phase 10 (Production Sandbox) is in progress.** The engine, API, dashboard canvas, and event deck (surges, outages, attacks, with restart, failover, and rate limiting) are playable; goals and unlocks are next. See [`ROADMAP.md`](ROADMAP.md).
 
 ForgeLab used to be a real-infrastructure lab (Docker Compose, Kubernetes, Terraform, chaos drills). That **Live mode** was retired in favour of the game ([ADR-0014](docs/decisions/0014-sandbox-only-platform.md)); it is kept on the `archive/live-lab` branch.
 
@@ -70,7 +70,7 @@ The model's formulas (routing, utilization, latency, saturation, the economy) ar
 | [docs/architecture.md](docs/architecture.md) | The engine, its model, the API, the dashboard |
 | [docs/principles.md](docs/principles.md) | Design principles |
 | [docs/component-catalog.md](docs/component-catalog.md) | Components and in-game component kinds |
-| [docs/scenarios.md](docs/scenarios.md) | Planned in-game events and incidents |
+| [docs/scenarios.md](docs/scenarios.md) | In-game events and incidents, and how to respond |
 | [docs/learning-path.md](docs/learning-path.md) | The six-stage learning path |
 | [docs/glossary.md](docs/glossary.md) | Terminology |
 | [docs/security.md](docs/security.md) | Repository security practice |

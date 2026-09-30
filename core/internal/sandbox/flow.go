@@ -6,9 +6,13 @@ import "math"
 type NodeStats struct {
 	ID string `json:"id"`
 	// Offered and Served are operations per second.
-	Offered     float64 `json:"offered"`
-	Served      float64 `json:"served"`
-	Dropped     float64 `json:"dropped"`
+	Offered float64 `json:"offered"`
+	Served  float64 `json:"served"`
+	Dropped float64 `json:"dropped"`
+	// Attack is the part of Offered that is attack traffic; Blocked is what
+	// a rate limit stopped here.
+	Attack      float64 `json:"attack,omitempty"`
+	Blocked     float64 `json:"blocked,omitempty"`
 	Capacity    float64 `json:"capacity"`
 	Utilization float64 `json:"utilization"`
 	LatencyMs   float64 `json:"latencyMs"`
@@ -18,7 +22,9 @@ type NodeStats struct {
 
 // Flow is the result of routing one tick's traffic through the topology.
 type Flow struct {
+	// RPS is real user traffic; AttackRPS arrives with it and earns nothing.
 	RPS            float64     `json:"rps"`
+	AttackRPS      float64     `json:"attackRps,omitempty"`
 	SuccessRPS     float64     `json:"successRps"`
 	ErrorRate      float64     `json:"errorRate"`
 	MeanLatencyMs  float64     `json:"meanLatencyMs"`
@@ -36,18 +42,16 @@ func (g *Game) capacity(n *Node) float64 {
 	if n.Kind == KindInternet {
 		return math.Inf(1)
 	}
-	if n.Down {
-		return 0
-	}
 	k, _ := g.Rules.Kind(n.Kind)
 	s, _ := g.Rules.Size(n.Size)
-	return k.Capacity * s.CapacityFactor * float64(n.Replicas)
+	return k.Capacity * s.CapacityFactor * float64(g.upReplicas(n)) * factor(g.fx.capacity, n.ID) / factor(g.fx.slow, n.ID)
 }
 
+// costPerHour charges every replica, including those an event took down.
 func (g *Game) costPerHour(n *Node) float64 {
 	k, _ := g.Rules.Kind(n.Kind)
 	s, _ := g.Rules.Size(n.Size)
-	return k.CostPerHour * s.CostFactor * float64(n.Replicas)
+	return k.CostPerHour * s.CostFactor * float64(n.Replicas) * factor(g.fx.cost, n.Kind)
 }
 
 // order returns node indexes in topological order; ties keep placement order.
@@ -170,26 +174,49 @@ func (g *Game) plan(i int) plan {
 			storage: &group{r.StorageShare, g.split(g.targets(i, KindStorage))},
 		}
 	case KindCache:
-		return plan{local: k.HitRatio, groups: []group{{1 - k.HitRatio, g.split(g.targets(i, KindDBPrimary, KindDBReplica))}}}
+		hit := k.HitRatio
+		if v, ok := g.fx.hitRatio[n.ID]; ok {
+			hit = v
+		}
+		return plan{local: hit, groups: []group{{1 - hit, g.split(g.targets(i, KindDBPrimary, KindDBReplica))}}}
 	case KindWorker:
 		return plan{groups: []group{{1, g.split(g.targets(i, KindDBPrimary))}}}
 	}
 	return plan{local: 1}
 }
 
-// solve routes the current tick's traffic without changing the world. It
-// returns the flow and each queue's backlog after the tick.
+// solve routes the current tick's traffic under the active events. It
+// changes nothing in the world except each node's derived DownReplicas and
+// Down, and returns the flow and each queue's backlog after the tick.
+// Attack traffic takes capacity like real traffic, but only real requests
+// count towards success, errors, and revenue.
 func (g *Game) solve() Snapshot {
 	r := g.Rules
+	g.fx = g.effects()
+	for _, n := range g.Nodes {
+		n.DownReplicas = min(n.Replicas, g.fx.down[n.ID])
+		n.Down = n.Kind != KindInternet && n.DownReplicas == n.Replicas
+	}
 	rps := g.rps()
+	attackRPS := rps * g.fx.attack
 	order := g.order()
 	dt := r.TickSeconds
 
 	offered := make([]float64, len(g.Nodes))
+	attack := make([]float64, len(g.Nodes))
 	served := make([]float64, len(g.Nodes))
+	blocked := make([]float64, len(g.Nodes))
 	backlog := make([]float64, len(g.Nodes))
 	plans := make([]plan, len(g.Nodes))
-	offered[0] = rps
+	offered[0] = rps + attackRPS
+	attack[0] = attackRPS
+	// share is the attack share of a node's offered load.
+	share := func(i int) float64 {
+		if offered[i] == 0 {
+			return 0
+		}
+		return attack[i] / offered[i]
+	}
 
 	// Pass 1: push load downstream in topological order.
 	for _, i := range order {
@@ -205,7 +232,9 @@ func (g *Game) solve() Snapshot {
 			}
 			room := math.Max(0, k.MaxBacklog*float64(n.Replicas)-n.Backlog)
 			if n.Down {
-				room = 0
+				// A failed queue keeps its messages but neither takes nor
+				// delivers any until it is back.
+				room, drain = 0, 0
 			}
 			accepted := math.Min(offered[i], math.Min(c, drain+room/dt))
 			drained := math.Min(drain, n.Backlog/dt+accepted)
@@ -213,15 +242,27 @@ func (g *Game) solve() Snapshot {
 			served[i] = accepted
 			for _, w := range workers {
 				offered[w.to] += drained * w.share
+				attack[w.to] += drained * w.share * share(i)
 			}
 			plans[i] = plan{local: 1}
 			continue
 		}
 		served[i] = math.Min(offered[i], c)
+		out, a := served[i], share(i)
+		if n.RateLimited {
+			// A rate limit blocks most attack traffic and a few real users.
+			stop := a*r.RateLimitBlock + (1-a)*r.RateLimitFalsePositive
+			blocked[i] = served[i] * stop
+			out = served[i] - blocked[i]
+			if out > 0 {
+				a = served[i] * a * (1 - r.RateLimitBlock) / out
+			}
+		}
 		p := plans[i]
 		for _, grp := range append(p.groups, derefGroup(p.storage)...) {
 			for _, rt := range grp.routes {
-				offered[rt.to] += served[i] * grp.fraction * rt.share
+				offered[rt.to] += out * grp.fraction * rt.share
+				attack[rt.to] += out * grp.fraction * rt.share * a
 			}
 		}
 	}
@@ -245,7 +286,7 @@ func (g *Game) solve() Snapshot {
 			} else if offered[i] > 0 {
 				u = math.Inf(1)
 			}
-			own = math.Min(k.ServiceMs/(1-math.Min(u, 0.99)), r.TimeoutMs)
+			own = math.Min(k.ServiceMs*factor(g.fx.slow, n.ID)/(1-math.Min(u, 0.99)), r.TimeoutMs)
 			if offered[i] > 0 {
 				frac = served[i] / offered[i]
 			} else if c == 0 {
@@ -279,10 +320,14 @@ func (g *Game) solve() Snapshot {
 			succ *= (1 - p.storage.fraction) + p.storage.fraction*ss
 			lat += p.storage.fraction * st
 		}
+		if n.RateLimited {
+			frac *= 1 - r.RateLimitFalsePositive
+		}
 		s[i] = frac * succ
 		t[i] = own + lat
 		stats[i] = NodeStats{
 			ID: n.ID, Offered: offered[i], Served: served[i], Dropped: offered[i] - served[i],
+			Attack: attack[i], Blocked: blocked[i],
 			Capacity: finite(c), Utilization: finite(u), LatencyMs: own, Backlog: backlog[i],
 		}
 		if n.Kind != KindInternet {
@@ -290,9 +335,11 @@ func (g *Game) solve() Snapshot {
 		}
 	}
 
-	f := Flow{RPS: rps, SuccessRPS: rps * s[0], MeanLatencyMs: t[0], MaxUtilization: finite(maxU), Nodes: stats}
+	// A third-party outage fails its share of requests whatever the design.
+	success := s[0] * (1 - g.fx.failShare)
+	f := Flow{RPS: rps, AttackRPS: attackRPS, SuccessRPS: rps * success, MeanLatencyMs: t[0], MaxUtilization: finite(maxU), Nodes: stats}
 	if rps > 0 {
-		f.ErrorRate = 1 - s[0]
+		f.ErrorRate = 1 - success
 	}
 	f.P95LatencyMs = math.Min(t[0]*p95Factor, r.TimeoutMs)
 	return Snapshot{Flow: f, backlog: backlog}

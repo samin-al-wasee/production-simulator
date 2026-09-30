@@ -29,6 +29,9 @@ export interface Ruleset {
   maxReplicas: number;
   sloP95Ms: number;
   startingCash: number;
+  tickSeconds: number;
+  eventGraceTicks?: number;
+  recoveryTicks?: number;
 }
 
 export interface SandboxNode {
@@ -38,7 +41,9 @@ export interface SandboxNode {
   replicas: number;
   x: number;
   y: number;
+  downReplicas?: number;
   down?: boolean;
+  rateLimited?: boolean;
   backlog?: number;
 }
 
@@ -52,6 +57,8 @@ export interface NodeStats {
   offered: number;
   served: number;
   dropped: number;
+  attack?: number;
+  blocked?: number;
   capacity: number;
   utilization: number;
   latencyMs: number;
@@ -64,6 +71,7 @@ export interface Meters {
   day: number;
   hour: number;
   rps: number;
+  attackRps?: number;
   successRps: number;
   users: number;
   activeUsers: number;
@@ -80,6 +88,23 @@ export interface Meters {
   cash: number;
 }
 
+export type EventPhase = "upcoming" | "active" | "recovering" | "over";
+
+export interface SandboxEvent {
+  id: number;
+  card: string;
+  label: string;
+  effect: string;
+  start: number;
+  end: number;
+  magnitude: number;
+  target?: string;
+  hits?: { node: string; replicas: number }[];
+  phase: EventPhase;
+  lowestHealth: number;
+  outcome?: "recovered" | "unrecovered";
+}
+
 export interface GameState {
   id: string;
   simulated: true;
@@ -92,8 +117,9 @@ export interface GameState {
   meters: Meters;
   nodes: SandboxNode[];
   edges: Edge[];
-  flow: { rps: number; successRps: number; errorRate: number; p95LatencyMs: number; nodes: NodeStats[] };
+  flow: { rps: number; attackRps?: number; successRps: number; errorRate: number; p95LatencyMs: number; nodes: NodeStats[] };
   history: Meters[] | null;
+  events: SandboxEvent[] | null;
 }
 
 export type Command =
@@ -102,7 +128,8 @@ export type Command =
   | { type: "connect" | "disconnect"; from: string; to: string }
   | { type: "resize"; node: string; size: string }
   | { type: "scale"; node: string; replicas: number }
-  | { type: "move"; node: string; x: number; y: number };
+  | { type: "move"; node: string; x: number; y: number }
+  | { type: "respond"; action: "restart" | "failover" | "rate-limit" | "lift-rate-limit"; node: string };
 
 export const SPEEDS = [0, 1, 2, 4, 8] as const;
 
@@ -209,4 +236,55 @@ export function freeSpot(near: { x: number; y: number }, nodes: { x: number; y: 
 export function newest(current: GameState, next: GameState): GameState {
   if (next.id !== current.id) return next;
   return next.revision >= current.revision ? next : current;
+}
+
+// formatDuration renders simulated seconds as "45m", "2h 05m", or "1d 4h".
+export function formatDuration(seconds: number): string {
+  const m = Math.max(0, Math.round(seconds / 60));
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ${String(m % 60).padStart(2, "0")}m`;
+  return `${Math.floor(h / 24)}d ${h % 24}h`;
+}
+
+const pct = (v: number) => `${Math.round(v * 100)}%`;
+
+// describeEvent states in words which model input an event changed.
+export function describeEvent(e: SandboxEvent, kinds: Kind[] = []): string {
+  const m = e.magnitude;
+  switch (e.effect) {
+    case "traffic":
+      return `real traffic ×${m.toFixed(1)}`;
+    case "attack":
+      return `attack traffic at ${m.toFixed(1)}× real traffic, earning nothing`;
+    case "crash":
+      return `${e.target}: 1 replica down`;
+    case "zone":
+      return `${e.hits?.length ?? 0} components lose ${pct(m)} of their replicas (rounded up)`;
+    case "slowdown":
+      return `${e.target}: ${m.toFixed(1)}× slower, capacity ÷${m.toFixed(1)}`;
+    case "hit-ratio":
+      return `${e.target}: hit ratio falls to ${pct(m)}`;
+    case "capacity":
+      return `${e.target}: capacity ×${m.toFixed(2)}`;
+    case "cost":
+      return `${kinds.find((k) => k.name === e.target)?.label ?? e.target} running cost ×${m.toFixed(1)}`;
+    case "third-party":
+      return `${pct(m)} of requests fail whatever the design`;
+  }
+  return e.effect;
+}
+
+// eventTiming says when an event starts, ends, or is judged, in simulated time.
+export function eventTiming(e: SandboxEvent, tick: number, tickSeconds: number, recoveryTicks: number): string {
+  const until = (t: number) => formatDuration((t - tick) * tickSeconds);
+  switch (e.phase) {
+    case "upcoming":
+      return `starts in ${until(e.start)}`;
+    case "active":
+      return `ends in ${until(e.end)}`;
+    case "recovering":
+      return `judged in ${until(e.end + recoveryTicks)}`;
+  }
+  return e.outcome === "recovered" ? "recovered" : `not recovered (health fell to ${e.lowestHealth.toFixed(0)})`;
 }

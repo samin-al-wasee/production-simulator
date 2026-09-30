@@ -27,6 +27,15 @@ The ordered list of player actions (place, connect, resize, scale, respond). Wit
 ### Flow Solver
 The Sandbox step that routes each tick's load through the topology and derives utilization, latency, saturation, and errors.
 
+### Event Deck
+The seeded set of cards (surges, crashes, zone outage, slowdowns, DDoS, cost spikes, and more) that the Sandbox draws from each tick. A card changes model inputs while it is active, and is judged *recovered* when health is back above 80 an hour after it ends. See `docs/scenarios.md`.
+
+### Incident Response
+A `respond` command answering an event: restart a crashed component, fail a database primary over to a read replica, or rate-limit an API gateway.
+
+### Attack Traffic
+Requests sent during a DDoS. They take capacity like real traffic but earn nothing; a rate-limited API gateway blocks most of them.
+
 ## Networking
 
 ### Load Balancer

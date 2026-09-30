@@ -8,7 +8,9 @@ export type SandboxNodeData = {
   kind: string;
   size: string;
   replicas: number;
+  downReplicas: number;
   down: boolean;
+  rateLimited: boolean;
   source: boolean;
   target: boolean;
   stats?: NodeStats;
@@ -20,7 +22,7 @@ export function SandboxNode({ id, data, selected }: NodeProps<SandboxFlowNode>) 
   const s = data.stats;
   const internet = data.kind === "internet";
   const util = s?.utilization ?? 0;
-  const cls = data.down ? "bad" : level(util);
+  const cls = data.down || data.downReplicas > 0 ? "bad" : level(util);
   return (
     <div className={`sb-node lvl-${cls}${selected ? " selected" : ""}${internet ? " internet" : ""}`}>
       {data.target && <Handle type="target" position={Position.Left} />}
@@ -39,11 +41,18 @@ export function SandboxNode({ id, data, selected }: NodeProps<SandboxFlowNode>) 
             {formatCompact(s.served)}/s
             {!internet && ` · ${s.latencyMs.toFixed(0)} ms`}
             {s.dropped > 0.01 && <span className="bad"> · {formatCompact(s.dropped)}/s dropped</span>}
+            {!!s.attack && s.attack > 0.01 && <span className="bad"> · {formatCompact(s.attack)}/s attack</span>}
             {!!s.backlog && ` · ${formatCompact(s.backlog)} queued`}
           </div>
         </>
       )}
       {data.down && <div className="sb-node-meta bad">DOWN</div>}
+      {!data.down && data.downReplicas > 0 && (
+        <div className="sb-node-meta bad">
+          {data.replicas - data.downReplicas}/{data.replicas} replicas up
+        </div>
+      )}
+      {data.rateLimited && <div className="sb-node-meta">rate-limited</div>}
       {data.source && <Handle type="source" position={Position.Right} />}
     </div>
   );

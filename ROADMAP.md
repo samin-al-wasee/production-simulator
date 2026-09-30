@@ -15,7 +15,7 @@ ForgeLab is the **Production Sandbox** ([ADR-0014](docs/decisions/0014-sandbox-o
 - [x] Sandbox API: games, commands, SSE tick stream, save/load (`/api/v1/sandbox/`)
 - [x] Dashboard Sandbox screen: build palette, React Flow canvas, HUD, inspector, speed controls, browser tests
 - [x] Retire Live mode; the Sandbox becomes the whole product (ADR-0014)
-- [ ] Event deck and incident response actions (surges, outages, DDoS, failover, rate limiting), with economy rebalancing
+- [x] Event deck and incident response actions (surges, outages, DDoS, failover, rate limiting), with economy rebalancing (ruleset `sandbox/v2`)
 - [ ] Goals and unlocks (missions tied to the learning path, with automatic completion)
 
 ## History: phases 0 to 9

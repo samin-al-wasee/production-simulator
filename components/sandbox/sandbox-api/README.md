@@ -14,12 +14,12 @@ Served by `forgelab serve` (`core/internal/api/sandbox.go`):
 
 | Endpoint | Does |
 |---|---|
-| `GET /api/v1/sandbox/ruleset` | Placeable kinds, sizes, and tuning for the build palette |
+| `GET /api/v1/sandbox/ruleset` | The latest ruleset (`sandbox/v2`): placeable kinds, sizes, tuning, and the event deck |
 | `GET /api/v1/sandbox/games` | Games held by this server |
 | `POST /api/v1/sandbox/games` | New empty game (`{"seed": n}` optional), or a replay (`{"save": {...}}`) |
-| `GET /api/v1/sandbox/games/{id}` | Full state: meters, nodes, edges, per-node flow, history |
+| `GET /api/v1/sandbox/games/{id}` | Full state: meters, nodes, edges, per-node flow, history, and events (upcoming, active, recently judged) |
 | `DELETE /api/v1/sandbox/games/{id}` | End a game and its streams |
-| `POST /api/v1/sandbox/games/{id}/commands` | Apply a command; `422` with the reason when invalid |
+| `POST /api/v1/sandbox/games/{id}/commands` | Apply a command, including `{"type": "respond", "action": ..., "node": ...}`; `422` with the reason when invalid |
 | `POST /api/v1/sandbox/games/{id}/speed` | `{"speed": 0\|1\|2\|4\|8}` ticks per real second; `0` pauses |
 | `POST /api/v1/sandbox/games/{id}/step` | Advance `{"ticks": n}` at once (1 to 2880) |
 | `POST /api/v1/sandbox/games/{id}/save` | Write the replayable save to `.forgelab/sandbox/<id>.json` (git-ignored) and return it |

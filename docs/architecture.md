@@ -62,12 +62,13 @@ A game is fully defined by **(ruleset version, seed, ordered command log)**. Rep
 Simulated time advances in fixed ticks (initially five simulated minutes; tuning lives in the ruleset). Each tick:
 
 1. **Apply commands** queued since the last tick, after validation (cash, allowed connections, limits).
-2. **Draw events** from the seeded deck; odds depend on complexity (failures) and popularity (surges, attacks).
-3. **Generate traffic:** `RPS = active users × engagement × diurnal(t) × event modifiers`.
+2. **Draw events** from the seeded deck; odds depend on complexity (failures) and popularity (surges, attacks). Each tick draws from its own random stream built from `(seed, tick)`, so a replay deals the same cards. The events active this tick become the tick's *effects* on model inputs (below).
+3. **Generate traffic:** `RPS = active users × engagement × diurnal(t) × traffic events`, plus attack traffic of `attack magnitude × RPS` during a DDoS.
 4. **Solve the flow** through the topology (below).
 5. **Update the economy:** revenue for successful requests, cost for every component, operations overhead from complexity.
 6. **Update the meters and the userbase:** satisfaction from latency, errors, and availability; growth from popularity; churn from low satisfaction.
-7. **Publish** the tick state to subscribers.
+7. **Track events:** record each event's lowest health, and judge it one hour after it ends (recovered when health is at least 80).
+8. **Publish** the tick state to subscribers.
 
 ## Flow solver (initial model)
 
@@ -79,7 +80,27 @@ The solver walks the topology from the Internet node. The formulas are deliberat
 * **Saturation** — when `ρ ≥ 1`, the excess `λ − c·μ` is dropped or queued (queues accumulate backlog up to their limit, then drop). Dropped and timed-out requests are errors.
 * **Success** — a request succeeds only if every node on its path serves it; availability and error rate follow from that.
 
+* **Events** change inputs, never outputs. They can:
+  * take replicas down: capacity becomes `up replicas × per-replica capacity`, and a component with no replica up is *down*
+  * multiply service time and divide capacity (database slowdown)
+  * override a cache's hit ratio
+  * multiply capacity (workers) or a kind's running cost
+  * fail a fixed share of requests whatever the design (third-party outage)
+
+  Replicas that are down still cost money. A down queue keeps its backlog but neither accepts nor delivers messages.
+* **Attack traffic** is tracked alongside real traffic through every node. It takes capacity like real traffic, so it crowds out users, but success, errors, and revenue count real requests only. A rate-limited API gateway blocks 90% of the attack traffic it serves and 1% of real requests (false positives).
+
 Bottlenecks are therefore a property of the player's design, not a script (Principle 2).
+
+## Events and responses
+
+The Event Deck is ruleset data: eleven cards, each with odds per day, a driver (popularity or complexity), a duration range, a magnitude range, target kinds, and an optional announcement lead time. The cards and their teaching goals are documented in [`scenarios.md`](scenarios.md). The player answers with `respond` commands:
+
+* `restart`: an instance crash ends in ten minutes
+* `failover`: promotes a read replica to primary
+* `rate-limit` / `lift-rate-limit`: toggles rate limiting on an API gateway
+
+Build changes are always available as well. Responses are validated and logged like every command.
 
 ## Meters
 
@@ -96,6 +117,23 @@ Bottlenecks are therefore a property of the player's design, not a script (Princ
 | Revenue, cost, cash | Successful requests × rate; component and operations cost |
 
 The economy is generic: revenue per successful request, cost per component-hour. No business domain enters the model (Principle 7). A game is lost when cash stays negative past a grace period.
+
+## Rulesets
+
+| Version | What it is |
+|---|---|
+| `sandbox/v1` | The first ruleset: component kinds, sizes, economy, and growth. It has no events, and stays unchanged so v1 saves replay exactly. |
+| `sandbox/v2` | v1 plus the Event Deck and incident responses, with a rebalanced economy. New games use it. |
+
+**v2 rebalancing.** Under v1, one application instance costing $2/h earned about $90/h at capacity. Over-provisioning therefore always paid, and incidents never threatened solvency.
+
+v2 cuts revenue per successful request from $0.0005 to $0.00015. At that rate, the balance test in `core/internal/sandbox/balance_test.go` shows the intended shape. It plays a simple design for a simulated week over ten seeds, re-provisioning every hour:
+* a design with about 1.5× headroom earns the most and stays solvent
+* no headroom loses money at peaks
+* 5× over-provisioning gives up at least 30% of the profit
+* unanswered events cost money
+
+Starting cash rises from $1,000 to $1,500 to cover the thinner early margin.
 
 ## Boundaries
 

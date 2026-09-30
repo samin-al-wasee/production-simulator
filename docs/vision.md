@@ -14,7 +14,7 @@ ForgeLab is the **Production Sandbox**, a game in the spirit of SimCity, but the
 * You **place every component yourself**: load balancers, application instances, databases, read replicas, caches, queues, workers, CDNs, object storage. Then you wire them together.
 * The world **runs**: users arrive, traffic follows the day, popularity rises and falls, and every component has capacity, latency, and a running cost.
 * Your choices trade off **cost, revenue, system health, complexity, popularity, user engagement, scale, userbase, and RPS**. Over-provision and you go bankrupt; under-provision and your users leave.
-* **Events and incidents** (sudden surges, outages, attacks, cost spikes) test the system you built. *(Event deck: Phase 10, in progress.)*
+* **Events and incidents** (sudden surges, outages, attacks, cost spikes) test the system you built, and you answer them by restarting, failing over, rate limiting, or rebuilding.
 
 Everything is a deterministic model computed in the Go core. Nothing is started on your machine, so a system with hundreds of instances and millions of users runs instantly on a laptop. Bottlenecks come from your design, not from a script.
 
@@ -39,7 +39,7 @@ Everything is a deterministic model computed in the Go core. Nothing is started 
 ## Long-term goals
 
 1. **A believable model.** Simple, documented formulas that produce the dynamics engineers recognise: saturation, queueing, cascading slowdowns, and the bottleneck that moves when you fix it.
-2. **Events and incidents.** Surges, outages, attacks, and cost shocks, with responses such as failover, rate limiting, and rollback.
+2. **Events and incidents.** Surges, outages, attacks, and cost shocks, with responses such as restart, failover, and rate limiting (rollback is taught by the pipeline simulator).
 3. **Goals and missions.** Scenarios with targets ("reach 100k users with health above 80") that tie into the learning path.
 4. **Always reproducible.** Any game can be saved, shared, and replayed exactly.
 5. **Behavior over business functionality.** Reproduce the engineering characteristics of production systems, not any company's product.

@@ -115,3 +115,79 @@ test("build, run, scale, delete, and resume a game", async ({ page }) => {
   expect(toastSeen, "unexpected error toast").toEqual([]);
   expect(errors, "browser errors").toEqual([]);
 });
+
+test("events arrive and the player responds to them", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+  page.on("console", (m) => {
+    if (m.type() === "error") errors.push(`console: ${m.text()}`);
+  });
+
+  // A seeded game built through the API, so the deck deals the same cards on
+  // every run: Internet → gateway → app → primary, replica, storage.
+  const api = page.request;
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 7 } })).json();
+  const game = `/api/forgelab/sandbox/games/${created.id}`;
+  const command = async (c: object) => {
+    const res = await api.post(`${game}/commands`, { data: c });
+    expect(res.ok(), await res.text()).toBe(true);
+    return (await res.json()) as { node?: string; state: { nodes: { id: string; downReplicas?: number }[] } };
+  };
+  const ids: Record<string, string> = {};
+  for (const kind of ["api-gateway", "app-instance", "db-primary", "db-replica", "object-storage"]) {
+    ids[kind] = (await command({ type: "place", kind, x: 0, y: 0 })).node!;
+  }
+  const at: Record<string, [number, number]> = {
+    "api-gateway": [250, 0], "app-instance": [500, 0], "db-primary": [800, -150], "db-replica": [800, 0], "object-storage": [800, 150],
+  };
+  for (const [kind, [x, y]] of Object.entries(at)) await command({ type: "move", node: ids[kind], x, y });
+  await command({ type: "connect", from: "internet", to: ids["api-gateway"] });
+  await command({ type: "connect", from: ids["api-gateway"], to: ids["app-instance"] });
+  for (const to of ["db-primary", "db-replica", "object-storage"]) await command({ type: "connect", from: ids["app-instance"], to: ids[to] });
+
+  await page.goto("/sandbox");
+  await page.evaluate((id) => localStorage.setItem("forgelab.sandbox.game", id), created.id);
+  await page.reload();
+  await expect(node(page, ids["app-instance"])).toBeVisible();
+  await expect(page.locator(".sb-events")).toContainText("Quiet for now");
+
+  // Skip days until the deck deals a card; it shows in the event strip.
+  const events = page.locator(".sb-event, .sb-event-past li");
+  for (let day = 0; day < 10 && (await events.count()) === 0; day++) {
+    await page.getByRole("button", { name: "+1 day" }).click();
+    await expect(page.locator(".sb-clock strong")).toContainText(`Day ${day + 2}`);
+  }
+  await expect(events.first()).toBeVisible();
+
+  // Rate-limit the gateway and lift it again.
+  await node(page, ids["api-gateway"]).click();
+  await page.getByRole("button", { name: "Rate limit", exact: true }).click();
+  await expect(node(page, ids["api-gateway"])).toContainText("rate-limited");
+  await page.getByRole("button", { name: "Lift rate limit" }).click();
+  await expect(node(page, ids["api-gateway"])).not.toContainText("rate-limited");
+
+  // Step an hour at a time until an instance crash takes a component down,
+  // then restart it from the inspector.
+  type Ev = { card: string; phase: string; target?: string };
+  let crashed: string | undefined;
+  for (let hour = 0; hour < 24 * 10 && !crashed; hour++) {
+    const state = await (await api.post(`${game}/step`, { data: { ticks: 12 } })).json();
+    crashed = (state.events as Ev[]).find((e) => e.card === "instance-crash" && e.phase === "active")?.target;
+  }
+  expect(crashed, "the seeded deck should crash a component within ten days").toBeTruthy();
+  await expect(node(page, crashed!)).toContainText("DOWN");
+  await expect(page.locator('.sb-event[data-card="instance-crash"]')).toContainText(crashed!);
+  await node(page, crashed!).click();
+  await page.getByRole("button", { name: /^Restart/ }).click();
+  await page.getByRole("button", { name: "+1h" }).click();
+  await expect(node(page, crashed!)).not.toContainText("DOWN");
+
+  // Fail the primary over: the replica becomes the primary.
+  await node(page, ids["db-primary"]).click();
+  await page.getByRole("button", { name: "Fail over to a replica" }).click();
+  await expect(node(page, ids["db-replica"]).locator(".sb-node-title")).toHaveText("Database primary");
+  await expect(node(page, ids["db-primary"]).locator(".sb-node-title")).toHaveText("Database read replica");
+
+  await expect(page.locator(".sb-toast")).toHaveCount(0);
+  expect(errors, "browser errors").toEqual([]);
+});

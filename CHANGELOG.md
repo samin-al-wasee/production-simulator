@@ -13,10 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Economy rebalanced in `sandbox/v2`. Revenue per successful request falls from $0.0005 to $0.00015, and starting cash rises from $1,000 to $1,500.
+  - Under v1 over-provisioning always paid; under v2 a design with about 1.5× headroom earns the most.
+  - `core/internal/sandbox/balance_test.go` pins the balance: sensible headroom stays solvent and earns the most, no headroom and 5× over-provisioning both cost money, and unanswered events cost money.
+- Rollback is not a Sandbox response, because the Sandbox has no releases. It stays in the pipeline simulator.
 - ForgeLab is the Production Sandbox (ADR-0014): the dashboard opens on the Sandbox; the learning path is rewritten as six stages of Sandbox and pipeline missions with manual completion; `forgelab serve` drops `-cluster`, `-reserve`, and `-enable-runs`; the documentation is re-scoped around the game (vision, architecture, principles, catalog, scenarios, roadmap, README, AGENTS.md).
 
 ### Added
 
+- Phase 10 Event Deck and incident responses, in ruleset `sandbox/v2`. New games use v2; `sandbox/v1` is unchanged, has no events, and its saves replay as before.
+  - **Cards:** eleven seeded cards (`viral-surge`, `marketing-spike` announced two hours ahead, `seasonal-dip`, `instance-crash`, `zone-outage`, `db-slowdown`, `cache-stampede`, `queue-backlog`, `ddos`, `cost-spike`, `third-party-outage`) drawn from day two. Popularity raises the odds of surges and attacks, and complexity raises the odds of failures.
+  - **Effects:** each card changes model inputs: traffic, attack traffic, replicas up, service time, hit ratio, capacity, cost, or a failure share.
+  - **Outcomes:** each event is judged recovered or not one hour after it ends.
+  - **Responses:** the `respond` command offers `restart`, `failover` (promote a read replica) and `rate-limit` / `lift-rate-limit` (an API gateway blocks 90% of attack traffic and 1% of users).
+  - **Flow solver:** it tracks attack traffic separately from real traffic, and a down queue holds its backlog.
+  - **API:** the state carries `events`, and nodes carry `downReplicas` and `rateLimited`.
+  - **Dashboard:** an event strip, partial-outage and rate-limit badges on nodes, Respond actions in the inspector, and an Attack RPS tile.
+  - **Tests:** a browser test that plays a seeded game through events and responses.
 - Dashboard browser tests: `@playwright/test` dev dependency, `dashboard/e2e/sandbox.spec.ts` (builds, wires, runs, scales, deletes, and resumes a Sandbox game, failing on any browser error), and `make test-e2e`.
 - Phase 10 Sandbox API and dashboard: `/api/v1/sandbox/` (ruleset, games, commands, speed 0/1/2/4/8 ticks per second, step, save to `.forgelab/sandbox/`, replay from a save, Server-Sent Events stream) and a dashboard Sandbox page (build palette with drag-and-drop, `@xyflow/react` topology canvas, meters with SVG sparklines, component inspector, speed controls, save, resume on reload).
 - Phase 10 Sandbox engine: `core/internal/sandbox` — ruleset `sandbox/v1` (ten placeable component kinds, three sizes, economy and growth tuning), validated commands (place, remove, connect, disconnect, resize, scale, move) with loop and budget checks, a two-pass flow solver (capacity-proportional routing, cache/CDN hit ratios, queue backlog and workers, utilization-driven latency, saturation drops), per-tick economy and meters (revenue, cost, cash, health, satisfaction, popularity, engagement, complexity, tier, userbase growth and churn), bankruptcy, and deterministic save/replay.

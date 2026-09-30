@@ -38,7 +38,7 @@ type Kind struct {
 	CostPerHour float64 `json:"costPerHour"`
 	// BuildCost is paid once per replica when placed or scaled up.
 	BuildCost float64 `json:"buildCost"`
-	// Complexity raises operations cost (and, later, incident odds).
+	// Complexity raises operations cost and the odds of failure events.
 	Complexity float64 `json:"complexity"`
 	// ConnectsTo lists the kinds this kind may send traffic to.
 	ConnectsTo []string `json:"connectsTo"`
@@ -99,6 +99,22 @@ type Ruleset struct {
 	// the instantaneous quality score.
 	SatisfactionPull float64 `json:"satisfactionPull"`
 	PopularityPull   float64 `json:"popularityPull"`
+
+	// Events is the event deck; a ruleset without cards draws no events.
+	Events []Card `json:"events,omitempty"`
+	// EventGraceTicks is how long a new game runs before the first draw.
+	EventGraceTicks int `json:"eventGraceTicks,omitempty"`
+	MaxActiveEvents int `json:"maxActiveEvents,omitempty"`
+	// RecoveryTicks is how long after an event ends its outcome is judged:
+	// recovered when health is at least RecoveredHealth by then.
+	RecoveryTicks   int     `json:"recoveryTicks,omitempty"`
+	RecoveredHealth float64 `json:"recoveredHealth,omitempty"`
+	// RestartTicks is how long a restarted component takes to come back.
+	RestartTicks int `json:"restartTicks,omitempty"`
+	// A rate-limited gateway blocks this share of attack traffic, and this
+	// share of real users by mistake.
+	RateLimitBlock         float64 `json:"rateLimitBlock,omitempty"`
+	RateLimitFalsePositive float64 `json:"rateLimitFalsePositive,omitempty"`
 }
 
 // RulesetV1 is the first Sandbox ruleset.
@@ -162,10 +178,18 @@ func RulesetV1() *Ruleset {
 
 // Rulesets returns the ruleset for a version.
 func Rulesets(version string) (*Ruleset, error) {
-	if version == "sandbox/v1" {
+	switch version {
+	case "sandbox/v1":
 		return RulesetV1(), nil
+	case "sandbox/v2":
+		return RulesetV2(), nil
 	}
 	return nil, fmt.Errorf("unknown ruleset %q", version)
+}
+
+// Latest returns the ruleset new games are played with.
+func Latest() *Ruleset {
+	return RulesetV2()
 }
 
 // Kind returns a kind by name.
