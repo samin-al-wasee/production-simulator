@@ -317,7 +317,7 @@ pre.log {
 /* Production Sandbox */
 
 main:has(.sandbox) {
-  max-width: 1600px;
+  max-width: none;
 }
 
 .sb-hud {
@@ -411,7 +411,7 @@ main:has(.sandbox) {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 10px 12px;
-  max-height: 640px;
+  max-height: max(640px, 100vh - 24px);
   overflow-y: auto;
 }
 
@@ -462,7 +462,7 @@ main:has(.sandbox) {
 
 .sb-canvas {
   position: relative;
-  height: 640px;
+  height: max(640px, 100vh - 24px);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
