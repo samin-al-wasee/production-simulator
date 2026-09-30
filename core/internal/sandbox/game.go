@@ -91,6 +91,9 @@ type Game struct {
 	// Events holds upcoming, active, and recently judged events.
 	Events   []*Event
 	eventSeq int
+	// Achieved is the tick each reached goal was reached at.
+	Achieved map[string]int
+	streak   map[string]int
 	// fx are the effects of the events active at the tick being solved.
 	fx effects
 
@@ -110,6 +113,8 @@ func New(rules *Ruleset, seed int64) *Game {
 		Satisfaction: 50,
 		Popularity:   rules.StartingPopularity,
 		nextID:       map[string]int{},
+		Achieved:     map[string]int{},
+		streak:       map[string]int{},
 	}
 	g.fx = g.effects()
 	g.Last = g.preview()
@@ -187,6 +192,10 @@ func (g *Game) place(c Command) (string, error) {
 	k, ok := g.Rules.Kind(c.Kind)
 	if !ok || k.Name == KindInternet {
 		return "", invalid("cannot place kind %q", c.Kind)
+	}
+	if k.UnlockedBy != "" && !g.Reached(k.UnlockedBy) {
+		gl, _ := g.Rules.Goal(k.UnlockedBy)
+		return "", invalid("%s is locked until the goal %q", k.Label, gl.Title)
 	}
 	size := c.Size
 	if size == "" {

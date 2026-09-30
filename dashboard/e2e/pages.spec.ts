@@ -19,7 +19,7 @@ test("home opens the Sandbox, and Pipelines and Learning path work", async ({ pa
   await expect(page.getByRole("region", { name: "Pipeline run" })).toContainText("virtual time");
 
   await page.getByRole("link", { name: "Learning path" }).click();
-  await expect(page.locator("section.card h3")).toHaveCount(6);
+  await expect(page.locator("section.card h3")).toHaveCount(7);
   await expect(page.locator("section.card h3").first()).toContainText("First production");
 
   expect(errors, "browser errors").toEqual([]);

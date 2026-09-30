@@ -17,6 +17,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { canConnect, formatMoney, freeSpot, newest, sandboxApi, type Command, type GameState, type Ruleset } from "@/lib/sandbox";
 import { SandboxEvents } from "./SandboxEvents";
+import { SandboxGoals } from "./SandboxGoals";
 import { SandboxHud } from "./SandboxHud";
 import { SandboxNode, type SandboxFlowNode } from "./SandboxNode";
 import { KIND_DRAG_TYPE, SandboxInspector, SandboxPalette } from "./SandboxPanels";
@@ -70,6 +71,9 @@ function useGameStream(id: string | undefined, onState: (g: GameState) => void) 
 function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameState; onNewGame: () => void }) {
   const [game, setGame] = useState<GameState>(initial);
   const [toast, setToast] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  // Goals already reached when the board opened, or announced since.
+  const announced = useRef<Set<string> | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<SandboxFlowNode>([]);
   const canvas = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition, getInternalNode } = useReactFlow();
@@ -87,6 +91,29 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
     const t = setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 6000);
+    return () => clearTimeout(t);
+  }, [notice]);
+
+  // Announce goals reached while the player watches.
+  useEffect(() => {
+    const reached = (game.goals ?? []).filter((g) => g.achievedAt !== undefined);
+    if (!announced.current) {
+      announced.current = new Set(reached.map((g) => g.id));
+      return;
+    }
+    const fresh = reached.filter((g) => !announced.current!.has(g.id));
+    if (fresh.length === 0) return;
+    fresh.forEach((g) => announced.current!.add(g.id));
+    const label = (kind: string) => rules.kinds.find((k) => k.name === kind)?.label ?? kind;
+    const unlocked = fresh.flatMap((g) => g.unlocks ?? []).map(label);
+    setNotice(
+      `Goal reached: ${fresh.map((g) => g.title).join(", ")}.${unlocked.length > 0 ? ` Unlocked ${unlocked.join(", ")}.` : ""}`,
+    );
+  }, [game.goals, rules.kinds]);
 
   // Mirror server nodes into React Flow, keeping the selection and the
   // position of a node the player is dragging.
@@ -205,14 +232,17 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
         onSpeed={(s) => control(() => sandboxApi.speed(game.id, s))}
         onSkip={(t) => control(() => sandboxApi.step(game.id, t))}
       />
-      <SandboxEvents game={game} rules={rules} />
+      <div className="sb-strips">
+        <SandboxEvents game={game} rules={rules} />
+        <SandboxGoals game={game} rules={rules} />
+      </div>
       {game.status === "bankrupt" && (
         <div className="notice sb-over">
           <strong>Bankrupt.</strong> Cash stayed negative for a full day. <button onClick={onNewGame}>New game</button>
         </div>
       )}
       <div className="sb-layout">
-        <SandboxPalette rules={rules} cash={game.meters.cash} onPlace={(k) => place(k)} />
+        <SandboxPalette rules={rules} cash={game.meters.cash} goals={game.goals ?? []} onPlace={(k) => place(k)} />
         <div
           className="sb-canvas"
           ref={canvas}
@@ -254,6 +284,11 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
           {toast && (
             <div className="sb-toast" role="alert">
               {toast}
+            </div>
+          )}
+          {notice && (
+            <div className="sb-notice" role="status">
+              {notice}
             </div>
           )}
         </div>

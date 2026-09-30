@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phase 10 completed: goals and unlocks, in ruleset `sandbox/v3`. New games use v3, and the API accepts `ruleset` to start an older version.
+  - **Goals:** fifteen goals checked after every tick. A goal's conditions can bound a meter, a meter's change over a window, a statistic over a component kind, or a count of recovered events. A goal can also hold for several ticks or require an earlier goal. Reached goals are permanent and replay deterministically.
+  - **Unlocks:** the load balancer unlocks after the first request; the cache, read replica, queue, worker, and API gateway at 10k users; the CDN at 100k users with health of 80 or more.
+  - **Learning path:** `goal` evidence type. Fifteen exercises complete automatically when a game reaches their goal, recorded as `sandbox <game id>`. New Stage 7, Incidents, has three exercises.
+  - **API:** the state carries `goals` with each condition's value.
+  - **Dashboard:** a goals strip with progress bars, a notice when a goal is reached, locked kinds in the palette, and a note on auto-completed exercises on the Learning path page.
+  - **CLI:** `forgelab serve -progress`, used by the browser tests so test games never touch your progress.
 - Phase 10 Event Deck and incident responses, in ruleset `sandbox/v2`. New games use v2; `sandbox/v1` is unchanged, has no events, and its saves replay as before.
   - **Cards:** eleven seeded cards (`viral-surge`, `marketing-spike` announced two hours ahead, `seasonal-dip`, `instance-crash`, `zone-outage`, `db-slowdown`, `cache-stampede`, `queue-backlog`, `ddos`, `cost-spike`, `third-party-outage`) drawn from day two. Popularity raises the odds of surges and attacks, and complexity raises the odds of failures.
   - **Effects:** each card changes model inputs: traffic, attack traffic, replicas up, service time, hit ratio, capacity, cost, or a failure share.

@@ -18,8 +18,9 @@ func runServe(args []string) int {
 	addr := fs.String("addr", "127.0.0.1:8090", "listen address")
 	repo := fs.String("repo", ".", "repository root (contains learning/ and manifests/)")
 	origin := fs.String("allow-origin", "", "value for Access-Control-Allow-Origin (unset: no CORS headers)")
+	progress := fs.String("progress", "", "learning progress file (default <repo>/.forgelab/progress.json)")
 	fs.Usage = func() {
-		fmt.Fprintln(fs.Output(), "usage: forgelab serve [-addr host:port] [-repo dir] [-allow-origin origin]")
+		fmt.Fprintln(fs.Output(), "usage: forgelab serve [-addr host:port] [-repo dir] [-progress file] [-allow-origin origin]")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -32,7 +33,7 @@ func runServe(args []string) int {
 
 	srv := &http.Server{
 		Addr:              *addr,
-		Handler:           api.NewServer(api.Config{RepoRoot: *repo, AllowedOrigin: *origin}),
+		Handler:           api.NewServer(api.Config{RepoRoot: *repo, ProgressFile: *progress, AllowedOrigin: *origin}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)

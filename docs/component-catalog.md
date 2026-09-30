@@ -15,17 +15,17 @@ The Production Sandbox game (ADR-0013). See [`components/sandbox/`](../component
 | Component | Provides | Depends on | Status |
 |---|---|---|---|
 | Sandbox Engine | Deterministic world state, command log, tick loop, save/replay (`core/internal/sandbox`) | — | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
-| Sandbox Ruleset | Versioned data: placeable component kinds, capacities, costs, complexity weights, tuning (`sandbox/v1`; `sandbox/v2` adds the Event Deck and rebalances the economy) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
+| Sandbox Ruleset | Versioned data: placeable component kinds, capacities, costs, complexity weights, tuning (`sandbox/v1`; `sandbox/v2` adds the Event Deck and rebalances the economy; `sandbox/v3` adds goals and unlocks) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 | Flow Solver | Routes per-tick load through the player's topology; utilization, latency, saturation, errors | Sandbox Engine, Sandbox Ruleset | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 | Economy & Meters | Revenue, cost, cash; health, satisfaction, popularity, engagement, complexity, scale, userbase | Flow Solver | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 | Sandbox API | `/api/v1/sandbox/` games, commands, speed, step, save/replay, SSE tick stream (`core/internal/api`) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-api/`) |
 | Sandbox Canvas | Dashboard screen: build palette, React Flow topology canvas, meters, inspector, speed controls | Sandbox API | implemented · Phase 10 (`components/sandbox/sandbox-canvas/`) |
 | Event Deck | Seeded, state-dependent events and incidents (eleven cards: surges, crashes, zone outage, slowdowns, DDoS, cost spikes, and more) and responses (restart, failover, rate limit) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
-| Goals & Unlocks | Missions with targets, unlocks, and automatic learning-path completion | Sandbox Engine, Learning Tracker | planned · Phase 10 |
+| Goals & Unlocks | Fifteen goals checked each tick, kinds unlocked by reaching them, and automatic learning-path completion | Sandbox Engine, Learning Tracker | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 
-#### In-game component kinds (rulesets `sandbox/v1` and `sandbox/v2`)
+#### In-game component kinds (rulesets `sandbox/v1` to `sandbox/v3`)
 
-These are what a player places in a game. They are ruleset data, not repository components; capacities and costs are for the `small` size and one replica.
+These are what a player places in a game. They are ruleset data, not repository components; capacities and costs are for the `small` size and one replica. In `sandbox/v3` some kinds are locked until a goal is reached (see [architecture](architecture.md#goals-and-unlocks)).
 
 | Kind | Role in the model | Capacity (ops/s) | Cost / h |
 |---|---|---|---|
@@ -50,7 +50,7 @@ These are what a player places in a game. They are ruleset data, not repository 
 
 | Component | Provides | Depends on | Status |
 |---|---|---|---|
-| Learning Tracker | Learning path of Sandbox and pipeline missions, with progress (`core/internal/learning`) | — | implemented · Phase 9, re-scoped (`components/experience/learning-tracker/`) |
+| Learning Tracker | Learning path of Sandbox and pipeline missions, with progress; completed by Sandbox goals or by hand (`core/internal/learning`) | — | implemented · Phase 9, re-scoped (`components/experience/learning-tracker/`) |
 
 ### Security
 

@@ -150,6 +150,7 @@ func (g *Game) Step() Snapshot {
 	if len(g.History) > historyLimit {
 		g.History = g.History[len(g.History)-historyLimit:]
 	}
+	g.checkGoals()
 	return snap
 }
 

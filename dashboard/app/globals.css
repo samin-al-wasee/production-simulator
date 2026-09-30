@@ -598,6 +598,69 @@ button.danger {
   font-family: var(--mono);
 }
 
+.sb-strips {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sb-goals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+.sb-goals h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.sb-goal-count {
+  font: 600 0.8rem var(--mono);
+  color: var(--muted);
+}
+
+.sb-goal {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  min-width: 0;
+  flex: 1 1 160px;
+  max-width: 260px;
+}
+
+.sb-goal .sb-util span {
+  color: var(--ok);
+}
+
+.sb-goal-unlocks {
+  margin-left: 6px;
+  font: 0.68rem var(--mono);
+  color: var(--accent);
+}
+
+.sb-notice {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--ok);
+  color: var(--ok);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  z-index: 10;
+  max-width: 90%;
+}
+
 .sb-events {
   display: flex;
   flex-wrap: wrap;
@@ -607,7 +670,6 @@ button.danger {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 8px 12px;
-  margin-bottom: 12px;
 }
 
 .sb-events h3 {
@@ -665,6 +727,10 @@ button.danger {
 }
 
 @media (max-width: 1000px) {
+  .sb-strips {
+    grid-template-columns: 1fr;
+  }
+
   .sb-layout {
     grid-template-columns: 1fr;
   }

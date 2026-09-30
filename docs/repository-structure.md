@@ -54,7 +54,7 @@ Generated, git-ignored local state lives in `.forgelab/`: learning progress (`pr
 | `docs/principles.md` | Design principles |
 | `docs/component-catalog.md` | Components by domain, and the in-game component kinds |
 | `docs/scenarios.md` | Planned in-game events and incidents |
-| `docs/learning-path.md` | The six-stage learning path |
+| `docs/learning-path.md` | The seven-stage learning path |
 | `docs/glossary.md` | Terminology reference |
 | `docs/security.md` | Repository security practice |
 | `docs/development-loop.md` | Requirement → plan → implement → review → test → document loop |

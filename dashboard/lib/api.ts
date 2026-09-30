@@ -13,7 +13,7 @@ export interface LearningExercise {
   id: string;
   title: string;
   how: string;
-  evidence: { type: "manual" };
+  evidence: { type: "manual" } | { type: "goal"; name: string };
   done: boolean;
   completedAt?: string;
   completedBy?: string;

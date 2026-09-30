@@ -47,6 +47,9 @@ type Kind struct {
 	HitRatio float64 `json:"hitRatio,omitempty"`
 	// MaxBacklog is the number of messages one queue replica can hold.
 	MaxBacklog float64 `json:"maxBacklog,omitempty"`
+	// UnlockedBy is the goal that makes the kind placeable; empty means
+	// placeable from the start.
+	UnlockedBy string `json:"unlockedBy,omitempty"`
 }
 
 // Size scales a kind's capacity and costs.
@@ -99,6 +102,10 @@ type Ruleset struct {
 	// the instantaneous quality score.
 	SatisfactionPull float64 `json:"satisfactionPull"`
 	PopularityPull   float64 `json:"popularityPull"`
+
+	// Goals are the missions a game can reach; a ruleset without goals
+	// tracks none and locks no kind.
+	Goals []Goal `json:"goals,omitempty"`
 
 	// Events is the event deck; a ruleset without cards draws no events.
 	Events []Card `json:"events,omitempty"`
@@ -183,13 +190,15 @@ func Rulesets(version string) (*Ruleset, error) {
 		return RulesetV1(), nil
 	case "sandbox/v2":
 		return RulesetV2(), nil
+	case "sandbox/v3":
+		return RulesetV3(), nil
 	}
 	return nil, fmt.Errorf("unknown ruleset %q", version)
 }
 
 // Latest returns the ruleset new games are played with.
 func Latest() *Ruleset {
-	return RulesetV2()
+	return RulesetV3()
 }
 
 // Kind returns a kind by name.

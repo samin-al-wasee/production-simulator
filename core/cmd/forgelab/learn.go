@@ -87,7 +87,10 @@ func runLearn(args []string) int {
 	}
 }
 
-func describeEvidence(learning.Evidence) string {
+func describeEvidence(e learning.Evidence) string {
+	if e.Type == learning.EvidenceGoal {
+		return fmt.Sprintf("reaching the Sandbox goal %q (or `forgelab learn complete`)", e.Name)
+	}
 	return "`forgelab learn complete`"
 }
 
