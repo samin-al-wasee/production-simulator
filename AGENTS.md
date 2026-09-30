@@ -97,8 +97,8 @@ Conflicts between documents are never resolved silently — state both sides and
 | Folder | Owner responsibility |
 |---|---|
 | `docs/` | All architecture, principles, catalog, scenarios, decisions |
-| `core/` | Go: Sandbox engine, pipeline simulator, learning tracker, secret scan, API, CLI (never UI/dashboard code) |
-| `dashboard/` | Next.js dashboard; a thin consumer of the core API (never simulation logic) |
+| `backend/` | Go: Sandbox engine, pipeline simulator, learning tracker, secret scan, API, CLI (never UI/dashboard code) |
+| `frontend/` | Next.js dashboard; a thin consumer of the backend API (never simulation logic) |
 | `components/` | One subdirectory per domain; each component keeps its own README |
 | `manifests/` | Declared pipelines for the pipeline simulator |
 | `learning/` | Machine-readable learning path |
@@ -132,7 +132,7 @@ Before adding a component:
 - **Always read the docs before acting** — at minimum `README.md`, `ROADMAP.md`, and the folder READMEs that the change touches.
 - **Plan before code** — for any non-trivial task, state the files to change, the docs to update, and the verification plan.
 - **Verify after meaningful changes** — run the appropriate test and lint commands. See `.opencode/command/` (`test.md`, `lint.md`). Current expectations:
-  - Go: `go test ./...`, `gofmt -l`, `go vet ./...` (from `core/`)
+  - Go: `go test ./...`, `gofmt -l`, `go vet ./...` (from `backend/`)
   - Next.js: the app's `lint`, `typecheck`, and `test` scripts; for UI changes also `make test-e2e` (Playwright), since unit tests and API checks do not exercise the browser
   - Report results honestly; a failing suite is never "probably fine."
 - **Never run destructive commands without asking.**

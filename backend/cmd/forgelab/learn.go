@@ -8,13 +8,13 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/samin-al-wasee/production-simulator/core/internal/learning"
+	"github.com/samin-al-wasee/production-simulator/backend/internal/learning"
 )
 
 func runLearn(args []string) int {
 	root := findRepoRoot()
 	if root == "" {
-		fmt.Fprintln(os.Stderr, "forgelab: run inside the ForgeLab repository (ROADMAP.md and core/go.mod not found)")
+		fmt.Fprintln(os.Stderr, "forgelab: run inside the ForgeLab repository (ROADMAP.md and backend/go.mod not found)")
 		return exitFailed
 	}
 	path, err := learning.LoadPath(filepath.Join(root, "learning", "path.yaml"))

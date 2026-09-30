@@ -10,7 +10,7 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/samin-al-wasee/production-simulator/core/internal/api"
+	"github.com/samin-al-wasee/production-simulator/backend/internal/api"
 )
 
 func runServe(args []string) int {

@@ -22,7 +22,7 @@ You need Go and Node.js (the dev container in `.devcontainer/` has both).
 
 ```sh
 make serve           # terminal 1: core API on 127.0.0.1:8090
-make dashboard-dev   # terminal 2: dashboard on http://localhost:3001
+make frontend-dev   # terminal 2: dashboard on http://localhost:3001
 ```
 
 Open <http://localhost:3001> and click **New game**.
@@ -48,11 +48,11 @@ Games survive a page reload; **Save** writes a replayable save to `.forgelab/san
 
 | Part | Where |
 |---|---|
-| Sandbox engine: world, ruleset, flow solver, economy, save/replay | `core/internal/sandbox` |
-| API: games, commands, SSE stream | `core/internal/api` (`forgelab serve`) |
-| Dashboard: palette, React Flow canvas, meters, inspector | `dashboard/` |
-| Pipeline simulator | `core/internal/pipeline`, `manifests/pipelines/` |
-| Learning path | `learning/path.yaml`, `core/internal/learning` |
+| Sandbox engine: world, ruleset, flow solver, economy, save/replay | `backend/internal/sandbox` |
+| API: games, commands, SSE stream | `backend/internal/api` (`forgelab serve`) |
+| Dashboard: palette, React Flow canvas, meters, inspector | `frontend/` |
+| Pipeline simulator | `backend/internal/pipeline`, `manifests/pipelines/` |
+| Learning path | `learning/path.yaml`, `backend/internal/learning` |
 
 The model's formulas (routing, utilization, latency, saturation, the economy) are documented in [`docs/architecture.md`](docs/architecture.md).
 
@@ -76,7 +76,7 @@ The model's formulas (routing, utilization, latency, saturation, the economy) ar
 | [docs/security.md](docs/security.md) | Repository security practice |
 | [docs/development-loop.md](docs/development-loop.md) | Requirement → plan → implement → review → test → document |
 | [docs/repository-structure.md](docs/repository-structure.md) | Directory map and ownership |
-| [dashboard/README.md](dashboard/README.md) | Dashboard: run, pages, tests |
+| [frontend/README.md](frontend/README.md) | Dashboard: run, pages, tests |
 | [docs/decisions/](docs/decisions/) | Architecture Decision Records |
 
 When documents conflict, stop and identify the conflict instead of silently choosing one.

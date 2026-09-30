@@ -14,11 +14,11 @@ The Production Sandbox game (ADR-0013). See [`components/sandbox/`](../component
 
 | Component | Provides | Depends on | Status |
 |---|---|---|---|
-| Sandbox Engine | Deterministic world state, command log, tick loop, save/replay (`core/internal/sandbox`) | — | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
+| Sandbox Engine | Deterministic world state, command log, tick loop, save/replay (`backend/internal/sandbox`) | — | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 | Sandbox Ruleset | Versioned data: placeable component kinds, capacities, costs, complexity weights, tuning (`sandbox/v1`; `sandbox/v2` adds the Event Deck and rebalances the economy; `sandbox/v3` adds goals and unlocks) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 | Flow Solver | Routes per-tick load through the player's topology; utilization, latency, saturation, errors | Sandbox Engine, Sandbox Ruleset | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 | Economy & Meters | Revenue, cost, cash; health, satisfaction, popularity, engagement, complexity, scale, userbase | Flow Solver | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
-| Sandbox API | `/api/v1/sandbox/` games, commands, speed, step, save/replay, SSE tick stream (`core/internal/api`) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-api/`) |
+| Sandbox API | `/api/v1/sandbox/` games, commands, speed, step, save/replay, SSE tick stream (`backend/internal/api`) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-api/`) |
 | Sandbox Canvas | Dashboard screen: build palette, React Flow topology canvas, meters, inspector, speed controls | Sandbox API | implemented · Phase 10 (`components/sandbox/sandbox-canvas/`) |
 | Event Deck | Seeded, state-dependent events and incidents (eleven cards: surges, crashes, zone outage, slowdowns, DDoS, cost spikes, and more) and responses (restart, failover, rate limit) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 | Goals & Unlocks | Fifteen goals checked each tick, kinds unlocked by reaching them, and automatic learning-path completion | Sandbox Engine, Learning Tracker | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
@@ -44,19 +44,19 @@ These are what a player places in a game. They are ruleset data, not repository 
 
 | Component | Provides | Depends on | Status |
 |---|---|---|---|
-| Pipeline Runner | Build → test → deploy on a virtual clock; rolling, canary, blue-green, rollback (`core/internal/pipeline`) | — | implemented · Phase 7 (`components/cicd/pipeline-runner/`) |
+| Pipeline Runner | Build → test → deploy on a virtual clock; rolling, canary, blue-green, rollback (`backend/internal/pipeline`) | — | implemented · Phase 7 (`components/cicd/pipeline-runner/`) |
 
 ### Experience
 
 | Component | Provides | Depends on | Status |
 |---|---|---|---|
-| Learning Tracker | Learning path of Sandbox and pipeline missions, with progress; completed by Sandbox goals or by hand (`core/internal/learning`) | — | implemented · Phase 9, re-scoped (`components/experience/learning-tracker/`) |
+| Learning Tracker | Learning path of Sandbox and pipeline missions, with progress; completed by Sandbox goals or by hand (`backend/internal/learning`) | — | implemented · Phase 9, re-scoped (`components/experience/learning-tracker/`) |
 
 ### Security
 
 | Component | Provides | Depends on | Status |
 |---|---|---|---|
-| Scanner | Committed-secret detection (`core/internal/secretscan`) | — | implemented · Phase 8, re-scoped (`components/security/scanner/`) |
+| Scanner | Committed-secret detection (`backend/internal/secretscan`) | — | implemented · Phase 8, re-scoped (`components/security/scanner/`) |
 
 ---
 

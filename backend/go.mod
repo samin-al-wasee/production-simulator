@@ -1,4 +1,4 @@
-module github.com/samin-al-wasee/production-simulator/core
+module github.com/samin-al-wasee/production-simulator/backend
 
 go 1.24
 

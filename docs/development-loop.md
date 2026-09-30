@@ -45,7 +45,7 @@ For non-trivial work, get the user's approval on the plan.
 ### 5. Test
 
 - Run `make check` (or the individual targets):
-  - Go, from `core/`: `go test ./...`, `gofmt -l .`, `go vet ./...`
+  - Go, from `backend/`: `go test ./...`, `gofmt -l .`, `go vet ./...`
   - Next.js, once it exists: `lint` and `typecheck` scripts
 - Add or update tests for new behavior; the simulation core must stay testable headlessly.
 - Report results honestly. A failing suite is never "probably fine". On failure, diagnose the root cause, fix it, and re-run.

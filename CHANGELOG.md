@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Code folders renamed (ADR-0015): `core/` → `backend/` (Go module `github.com/samin-al-wasee/production-simulator/backend`) and `dashboard/` → `frontend/`; Make targets `dashboard-dev` → `frontend-dev` and `build-core` → `build-backend`. No behavior change; current docs, tooling, and the secret-scan allowlist follow the new paths.
 - Economy rebalanced in `sandbox/v2`. Revenue per successful request falls from $0.0005 to $0.00015, and starting cash rises from $1,000 to $1,500.
   - Under v1 over-provisioning always paid; under v2 a design with about 1.5× headroom earns the most.
   - `core/internal/sandbox/balance_test.go` pins the balance: sensible headroom stays solvent and earns the most, no headroom and 5× over-provisioning both cost money, and unanswered events cost money.

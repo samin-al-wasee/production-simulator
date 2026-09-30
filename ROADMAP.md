@@ -11,7 +11,7 @@ ForgeLab is the **Production Sandbox** ([ADR-0014](docs/decisions/0014-sandbox-o
 > A city-builder for software production: the player starts from an empty world, places and wires every component in the dashboard, and runs the system as a business under growth, events, and incidents. Fully model-driven; deterministic Go core; the dashboard renders and sends commands. ADR-0013, ADR-0014.
 
 - [x] Documentation and ADR-0013 (architecture, principles, catalog, vision)
-- [x] Sandbox engine: world, component catalog, traffic model, flow solver, economy, meters, deterministic ticks (`core/internal/sandbox`)
+- [x] Sandbox engine: world, component catalog, traffic model, flow solver, economy, meters, deterministic ticks (`backend/internal/sandbox`)
 - [x] Sandbox API: games, commands, SSE tick stream, save/load (`/api/v1/sandbox/`)
 - [x] Dashboard Sandbox screen: build palette, React Flow canvas, HUD, inspector, speed controls, browser tests
 - [x] Retire Live mode; the Sandbox becomes the whole product (ADR-0014)

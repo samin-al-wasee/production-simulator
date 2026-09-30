@@ -10,7 +10,7 @@ Simulated build → test → deploy pipelines on a virtual clock.
 
 ## Provided
 
-- `forgelab pipeline run [-seed N] [-warm-cache] [-fail-step NAME] [-bad-release] [-json] <pipeline>` (`core/internal/pipeline`).
+- `forgelab pipeline run [-seed N] [-warm-cache] [-fail-step NAME] [-bad-release] [-json] <pipeline>` (`backend/internal/pipeline`).
 - Stages with sequential or parallel steps, cache-aware durations, seeded flaky steps with retries, forced failures, and deploy stages for rolling, canary, and blue/green with rollback on a bad release.
 - Example pipelines in `manifests/pipelines/`; browsable and runnable in the dashboard.
 

@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/samin-al-wasee/production-simulator/core/internal/learning"
-	"github.com/samin-al-wasee/production-simulator/core/internal/sandbox"
+	"github.com/samin-al-wasee/production-simulator/backend/internal/learning"
+	"github.com/samin-al-wasee/production-simulator/backend/internal/sandbox"
 )
 
 func sandboxServer(t *testing.T) (*httptest.Server, string) {
