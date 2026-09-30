@@ -25,6 +25,7 @@ ForgeLab/
 ├── security/                Secret-scan allowlist
 ├── templates/               Postmortem template
 ├── .devcontainer/           Development container
+├── .claude/                 Claude Code commands (dev-loop) and skills (caveman)
 └── .github/                 Issue and PR templates
 ```
 
@@ -41,6 +42,7 @@ ForgeLab/
 | `security/` | `secretscan.yaml` | Secret-scan allowlist |
 | `templates/` | `postmortem/` | Templates |
 | `.devcontainer/` | `devcontainer.json`, `Dockerfile`, setup scripts | Development container definition |
+| `.claude/` | `commands/dev-loop.md`; `skills/caveman/SKILL.md` (terse chat replies on request) | Claude Code project commands and skills |
 | `.github/` | Issue templates, PR template | GitHub automation |
 
 Generated, git-ignored local state lives in `.forgelab/`: learning progress (`progress.json`) and saved Sandbox games (`sandbox/`).
