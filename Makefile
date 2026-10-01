@@ -12,6 +12,10 @@ serve: ## Serve the backend API for the dashboard on 127.0.0.1:8090
 frontend-dev: ## Run the dashboard (frontend) on http://localhost:3001 (needs `make serve`; runs npm install first)
 	cd frontend && npm install && npm run dev
 
+.PHONY: dev
+dev: ## Run the backend API and the dashboard together (Ctrl-C stops both)
+	$(MAKE) -j2 serve frontend-dev
+
 .PHONY: lint-go
 lint-go: ## Go: gofmt -l and go vet ./... (from backend/)
 	cd backend && test -z "$$(gofmt -l .)" && go vet ./...

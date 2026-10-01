@@ -23,6 +23,7 @@ You need Go and Node.js (the dev container in `.devcontainer/` has both).
 ```sh
 make serve           # terminal 1: core API on 127.0.0.1:8090
 make frontend-dev   # terminal 2: dashboard on http://localhost:3001
+# or both in one terminal: make dev
 ```
 
 Open <http://localhost:3001> and click **New game**.
