@@ -28,6 +28,7 @@ import {
   type Ruleset,
 } from "@/lib/sandbox";
 import { SandboxEvents } from "./SandboxEvents";
+import { AppView } from "./SandboxApp";
 import { InternetView } from "./SandboxInternet";
 import { SandboxGoals } from "./SandboxGoals";
 import { SandboxHud } from "./SandboxHud";
@@ -84,9 +85,10 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
   const [game, setGame] = useState<GameState>(initial);
   const [toast, setToast] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  // Whether the canvas shows the inside of the Internet instead of the system.
-  const [inside, setInside] = useState(false);
-  const back = useCallback(() => setInside(false), []);
+  // The component whose inside the canvas shows instead of the system.
+  const [inside, setInside] = useState<string | null>(null);
+  const back = useCallback(() => setInside(null), []);
+  const opened = game.nodes.find((n) => n.id === inside);
   // Goals already reached when the board opened, or announced since.
   const announced = useRef<Set<string> | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<SandboxFlowNode>([]);
@@ -304,7 +306,7 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
                 .filter((e) => !gone.has(e.source) && !gone.has(e.target))
                 .forEach((e) => send({ type: "disconnect", from: e.source, to: e.target }));
             }}
-            onNodeClick={(_, n) => n.id === "internet" && setInside(true)}
+            onNodeClick={(_, n) => (n.id === "internet" || n.data.kind === "app-instance") && setInside(n.id)}
             deleteKeyCode={["Backspace", "Delete"]}
             colorMode="system"
             fitView
@@ -314,7 +316,8 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
             <Controls showInteractive={false} fitViewOptions={{ maxZoom: 1, padding: 0.4 }} />
             <MiniMap pannable zoomable />
           </ReactFlow>
-          {inside && traffic && <InternetView config={traffic} game={game} routed={routedStorage(game, rules)} onBack={back} />}
+          {opened?.kind === "app-instance" && <AppView game={game} rules={rules} node={opened} onBack={back} />}
+          {inside === "internet" && traffic && <InternetView config={traffic} game={game} routed={routedStorage(game, rules)} onBack={back} />}
           {toast && (
             <div className="sb-toast" role="alert">
               {toast}

@@ -105,6 +105,8 @@ test("build, run, scale, delete, and resume a game", async ({ page }) => {
   await node(page, "app-instance-1").click();
   await page.locator(".sb-replicas button", { hasText: "+" }).click();
   await expect(node(page, "app-instance-1")).toContainText("×2");
+  // Clicking the app also opens it; go back to the system.
+  await page.keyboard.press("Escape");
 
   // Delete storage with the keyboard: its connection goes too, without errors.
   await node(page, "object-storage-1").click();
@@ -196,6 +198,8 @@ test("events arrive and the player responds to them", async ({ page }) => {
   await page.getByRole("button", { name: /^Restart/ }).click();
   await page.getByRole("button", { name: "+1h" }).click();
   await expect(node(page, crashed!)).not.toContainText("DOWN");
+  // A crashed app is open on the canvas; go back to the system.
+  if (await page.locator(".sb-inner").isVisible()) await page.keyboard.press("Escape");
 
   // Fail the primary over: the replica becomes the primary.
   await node(page, ids["db-primary"]).click();
@@ -335,6 +339,25 @@ test("an application instance shows why it is slow and can be reconfigured", asy
   await expect(inspector.locator("tr", { hasText: "Bottleneck" })).toContainText("workers / concurrency slots");
   await page.getByText("Routes", { exact: true }).click();
   await expect(inspector.locator(".sb-breakdown tr", { hasText: "GET /products" }).first()).toBeVisible();
+
+  // The app is open on the canvas: a request's path through it, with the
+  // engine's values. The cache call falls back to the database; storage is
+  // reached directly. Esc and the back button return to the system.
+  const inside = page.getByLabel(`Inside ${app}`);
+  await expect(inside).toBeVisible();
+  await expect(inside.locator(".react-flow__node", { hasText: "1 sync workers" })).toContainText("in flight");
+  await expect(inside.locator(".react-flow__node", { hasText: "Backlog" })).toContainText("/ 100 queued");
+  await expect(inside.locator(".react-flow__node", { hasText: "GET /products" }).first()).toContainText("/s");
+  await expect(inside.locator(".react-flow__node", { hasText: /^cache/ })).toContainText(`→ ${db}`);
+  await expect(inside.locator(".react-flow__node", { hasText: /^storage/ })).toContainText(`→ ${st}`);
+  await expect(inside.locator(".react-flow__node", { hasText: "Middleware" })).toContainText("CPU-ms per request");
+  await expect(inside.locator(".react-flow__edge.animated")).not.toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(inside).toHaveCount(0);
+  await expect(inspector.locator("tr", { hasText: "Health" })).toBeVisible();
+  await node(page, app).click();
+  await inside.getByRole("button", { name: "← System" }).click();
+  await expect(inside).toHaveCount(0);
 
   await expect(page.locator(".sb-toast")).toHaveCount(0);
   expect(errors, "browser errors").toEqual([]);

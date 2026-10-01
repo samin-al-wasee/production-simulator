@@ -32,6 +32,7 @@ Let a player build and run a production system visually. The canvas renders the 
 
   The engine validates the configuration and the form lists every problem. Nodes are coloured by health.
 - **Inside the Internet:** clicking the Internet node opens it on the canvas with a short zoom animation. It shows regions → traffic groups → endpoints → the components the Internet sends to, with the engine's RPS on each node. Edges are animated while traffic flows, and their width and label show the configured share. **← System** or Esc goes back, and the selection is kept.
+- **Inside an application instance:** clicking an app instance opens it the same way. A request's path runs connections → backlog → workers → middleware → routes → dependencies → response, with the engine's values over all replicas: connections and rejections, queued and wait, in flight with CPU and memory, per-route RPS, latency, and errors, and success, error, and timeout rates. The bottleneck and failing parts are marked. Each dependency names the components it reaches (a cache call falls back to the database, a write goes to a connected queue) or says it is not connected. Edge width and label show each route's share of the traffic.
 - **Controls:** pause, 1×, 2×, 4×, 8×, skip an hour or a day, save, new game. The game id is kept in browser storage so a reload resumes it.
 
 ## Dependencies
