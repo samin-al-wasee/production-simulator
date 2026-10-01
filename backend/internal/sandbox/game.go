@@ -55,6 +55,9 @@ type Node struct {
 	App          *AppConfig `json:"app,omitempty"`
 	StartedAt    int        `json:"startedAt,omitempty"`
 	CrashedUntil int        `json:"crashedUntil,omitempty"`
+	// Client is a traffic component's configuration once set (v6); its
+	// pattern also runs from TrafficSince.
+	Client *ClientConfig `json:"client,omitempty"`
 }
 
 // Edge sends traffic from one node to another.
@@ -78,6 +81,7 @@ type Command struct {
 	// Traffic or App is the new configuration for a configure command.
 	Traffic *TrafficConfig `json:"traffic,omitempty"`
 	App     *AppConfig     `json:"app,omitempty"`
+	Client  *ClientConfig  `json:"client,omitempty"`
 }
 
 // LoggedCommand is a command applied before a given tick was simulated.
@@ -119,18 +123,24 @@ type Game struct {
 	lastPath map[string]vec
 	// appCaps is each application's capacity during the current solve.
 	appCaps map[*Node]float64
+	// clients are the traffic components' loads during the current solve,
+	// and clientFail each one's attempt failure rate last tick (v6).
+	clients    []clientLoad
+	clientFail map[string]float64
 
 	Last    Snapshot
 	History []Meters
 }
 
-// New starts an empty world: the Internet node and starting cash.
+// New starts an empty world and starting cash: with the Internet node before
+// v6, and with no node at all from v6.
 func New(rules *Ruleset, seed int64) *Game {
 	g := &Game{
 		Rules:        rules,
 		Seed:         seed,
 		Status:       StatusRunning,
 		Nodes:        []*Node{{ID: InternetID, Kind: KindInternet, Size: "small", Replicas: 1}},
+		clientFail:   map[string]float64{},
 		Cash:         rules.StartingCash,
 		Users:        rules.StartingUsers,
 		Satisfaction: 50,
@@ -138,6 +148,9 @@ func New(rules *Ruleset, seed int64) *Game {
 		nextID:       map[string]int{},
 		Achieved:     map[string]int{},
 		streak:       map[string]int{},
+	}
+	if rules.Client != nil {
+		g.Nodes = nil
 	}
 	g.fx = g.effects()
 	g.Last = g.preview()
@@ -260,6 +273,8 @@ func (g *Game) remove(id string) error {
 	for _, e := range g.Edges {
 		if e.From != id && e.To != id {
 			kept = append(kept, e)
+		} else if f := g.Node(e.From); f != nil && f.Kind == KindTraffic {
+			g.release(f)
 		}
 	}
 	g.Edges = kept
@@ -287,10 +302,20 @@ func (g *Game) connect(from, to string) error {
 	if g.hasEdge(from, to) {
 		return invalid("%s is already connected to %s", from, to)
 	}
+	if f.Kind == KindTraffic {
+		for _, e := range g.Edges {
+			if e.From == from {
+				return invalid("a traffic component connects to exactly one component; disconnect %s from %s first", from, e.To)
+			}
+		}
+	}
 	if g.reaches(to, from) {
 		return invalid("connecting %s to %s would create a loop", from, to)
 	}
 	g.Edges = append(g.Edges, Edge{From: from, To: to})
+	if f.Kind == KindTraffic && t.Kind == KindApp && g.clientModel() {
+		g.adopt(f, t)
+	}
 	return nil
 }
 
@@ -320,6 +345,9 @@ func (g *Game) disconnect(from, to string) error {
 	for i, e := range g.Edges {
 		if e.From == from && e.To == to {
 			g.Edges = append(g.Edges[:i], g.Edges[i+1:]...)
+			if f := g.Node(from); f.Kind == KindTraffic {
+				g.release(f)
+			}
 			return nil
 		}
 	}
@@ -330,6 +358,9 @@ func (g *Game) placeable(id string) (*Node, Kind, error) {
 	n := g.Node(id)
 	if n == nil || n.ID == InternetID {
 		return nil, Kind{}, invalid("no placeable node %q", id)
+	}
+	if n.Kind == KindTraffic {
+		return nil, Kind{}, invalid("a traffic component has no size or replicas")
 	}
 	k, _ := g.Rules.Kind(n.Kind)
 	return n, k, nil

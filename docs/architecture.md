@@ -1,9 +1,9 @@
 # ForgeLab Architecture
 
 **Document status:** v2.0 (re-scoped by [ADR-0014](decisions/0014-sandbox-only-platform.md))
-**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic), [ADR-0017](decisions/0017-application-instance-model.md) (application instance)
+**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic), [ADR-0017](decisions/0017-application-instance-model.md) (application instance), [ADR-0018](decisions/0018-traffic-components.md) (traffic components)
 
-ForgeLab is the **Production Sandbox**: a city-builder for software production. A new game is an **empty world**, an Internet traffic source and starting cash. The player places components, wires them together, and keeps the system healthy and profitable as users arrive, traffic swings, and incidents happen. Everything is a deterministic model computed in the Go core; nothing runs on the host.
+ForgeLab is the **Production Sandbox**: a city-builder for software production. A new game is an **empty world** and starting cash (from `sandbox/v6`; earlier rulesets also start with an Internet traffic source). The player places components, wires them together, and keeps the system healthy and profitable as users arrive, traffic swings, and incidents happen. Everything is a deterministic model computed in the Go core; nothing runs on the host.
 
 ```mermaid
 flowchart LR
@@ -63,17 +63,41 @@ Simulated time advances in fixed ticks (initially five simulated minutes; tuning
 
 1. **Apply commands** queued since the last tick, after validation (cash, allowed connections, limits).
 2. **Draw events** from the seeded deck; odds depend on complexity (failures) and popularity (surges, attacks). Each tick draws from its own random stream built from `(seed, tick)`, so a replay deals the same cards. The events active this tick become the tick's *effects* on model inputs (below).
-3. **Generate traffic** from the Internet's configuration (see [Traffic model](#traffic-model)): the volume, split into groups and request classes, amplified by retries, plus attack traffic of `attack magnitude × RPS` during a DDoS.
+3. **Generate traffic** from each traffic component (from v6, see [Traffic components](#traffic-components)) or the Internet's configuration (v1 to v5, see [Traffic model](#traffic-model)): the volume, split into request classes, amplified by retries, plus attack traffic of `attack magnitude × RPS` during a DDoS.
 4. **Solve the flow** through the topology (below).
 5. **Update the economy:** revenue for successful requests, cost for every component, operations overhead from complexity.
-6. **Update the meters and the userbase:** satisfaction from latency, errors, and availability; growth from popularity; churn from low satisfaction. During a load test the userbase, satisfaction, and popularity hold still, and revenue is zero.
+6. **Update the meters and the userbase:** satisfaction from latency, errors, and availability; growth from popularity; churn from low satisfaction. During a load test the userbase, satisfaction, and popularity hold still, and revenue is zero. From v6, satisfaction and popularity also hold still while no traffic component sends real requests.
 7. **Track events:** record each event's lowest health, and judge it one hour after it ends (recovered when health is at least 80). An event still being tracked during a load test is marked and does not count towards goals.
 8. **Check goals:** a goal whose conditions held for its required ticks is reached, permanently, and may unlock component kinds. Goals are not checked during a load test, and their hold streaks start over.
 9. **Publish** the tick state to subscribers.
 
+## Traffic components
+
+From `sandbox/v6` traffic comes from **traffic components** ([ADR-0018](decisions/0018-traffic-components.md)). A new game has none; the player places them like any component. Each is **one population of clients**, configured with `configure` (`ClientConfig`), and costs nothing.
+
+* **Single choices:** client type (web, mobile, API client, bot), region, protocol (HTTP/1.1, HTTP/2, gRPC), scheme (http, https), port, keep-alive, client timeout, retries, and the source (market, or a load test with a pattern as below). The one list is the weighted **endpoint mix**.
+* **Market volume.** `market = active users × engagement × diurnal(t)`. A component takes `market × client-type share × region share ÷ components of the same segment × traffic events on it`. The shares are ruleset data: web 70%, mobile 20%, API 8%, bot 2%; asia 35%, europe 25%, north America 20%, south America 10%, Africa 5%, Oceania 5%. A segment with no component is not captured and earns nothing.
+* **Connections.** A traffic component connects to exactly one component, in v6 an application instance. An application may take many. Nothing connects to a traffic component.
+* **Adopting on connect.** A new traffic component has no endpoints. Connecting it to an application sets its protocol, port, scheme (https when the app has TLS), and keep-alive to the app's, and its endpoints to one per route except `*`, in equal shares to hundredths of a percent (the first takes the remainder). Reconfiguring the app adopts again for every traffic component connected to it. Disconnecting, or removing the app, returns a component to the default connection settings and no endpoints; its name, client type, region, timeout, retries, and source stay. The player may change any of it while connected.
+* **The contract**, checked every tick:
+
+  | Traffic | Application | Mismatch |
+  |---|---|---|
+  | protocol | `protocol` | every request fails: protocol error |
+  | port | `port` | every request fails: connection refused |
+  | scheme | `tls` | every request fails: TLS handshake error |
+  | endpoint | its route or `*` | that endpoint fails with 404 |
+  | keep-alive | `keepAlive` | a connection is kept alive only when both sides do |
+  | timeout | `timeoutMs` | the shorter decides success |
+
+  Refused requests never reach the application. A 404 costs the middleware. A request whose client gave up still loads the server and its dependencies.
+* **Retries** per component: `load × (1 + f + … + f^N)` attempts, where `f` is that component's attempt failure rate on the previous tick.
+* **Each application mixes its inputs.** Its endpoint mix is its inputs' endpoints weighted by their attempts; with no input it is measured at its own routes in equal shares.
+* **Aggregated.** Every meter is a total or a request-weighted mean over every traffic component. The flow's `traffic` adds RPS by client type and by component; each traffic node reports its own `traffic`: RPS, retries, successes, failures by reason (refused, not found, rejected, timed out, errors), latency, concurrency, and the contract problem.
+
 ## Traffic model
 
-The Internet is one node on the canvas. Its configuration (`TrafficConfig`, set with the `configure` command, [ADR-0016](decisions/0016-configurable-internet-traffic.md)) describes who sends traffic, what they request, and from where. Rulesets v1 to v3 have no configuration and use their fixed shares (80% reads, 10% storage).
+Up to `sandbox/v5` the Internet is one node on the canvas. Its configuration (`TrafficConfig`, set with the `configure` command, [ADR-0016](decisions/0016-configurable-internet-traffic.md)) describes who sends traffic, what they request, and from where. Rulesets v1 to v3 have no configuration and use their fixed shares (80% reads, 10% storage).
 
 * **Volume.** The source decides it:
   * `market`: `RPS = active users × engagement × diurnal(t) × traffic events`.
@@ -140,7 +164,7 @@ From `sandbox/v5` an application instance is a modelled backend web/API service 
 
 ## Flow solver (initial model)
 
-The solver walks the topology from the Internet node. The formulas are deliberately simple and documented, so a learner can check them:
+The solver walks the topology from the traffic sources: the Internet node up to v5, every traffic component from v6. The formulas are deliberately simple and documented, so a learner can check them:
 
 * **Routing** — load is carried per request class (cacheable read, read, write), with the part of each class that needs object storage. A node splits outgoing load across its downstream edges in proportion to downstream capacity, so a failed node (capacity 0) receives nothing while a healthy peer exists.
   * **Application instance:** sends reads to a cache if connected, otherwise to database primaries and replicas. It sends writes to a queue if connected, otherwise to primaries. Storage requests also go to object storage. Missing a required target fails that share of requests. The read, write, and storage shares come from the endpoint mix: in v4's default mix about 80% of requests are reads and 12.5% need storage, while v1 to v3 use fixed shares of 80% and 10%.
@@ -160,6 +184,7 @@ The solver walks the topology from the Internet node. The formulas are deliberat
   * fail a fixed share of requests whatever the design (third-party outage)
 
   Replicas that are down still cost money. A down queue keeps its backlog but neither accepts nor delivers messages.
+* **Traffic events** multiply the whole volume up to v5. From v6 traffic cards and the DDoS pick one or more traffic components and act only on them, and component cards never hit a traffic component.
 * **Attack traffic** is tracked alongside real traffic through every node. It takes capacity like real traffic, so it crowds out users, but success, errors, and revenue count real requests only. A rate-limited API gateway blocks 90% of the attack traffic it serves and 1% of real requests (false positives).
 
 Bottlenecks are therefore a property of the player's design, not a script (Principle 2).
@@ -198,7 +223,8 @@ The economy is generic: revenue per successful request, cost per component-hour.
 | `sandbox/v2` | v1 plus the Event Deck and incident responses, with a rebalanced economy. |
 | `sandbox/v3` | v2 plus goals and unlocks. |
 | `sandbox/v4` | v3 plus a configurable Internet: traffic groups, endpoints, regions, retries, and load tests. The CDN's hit ratio becomes 45% of cacheable reads. |
-| `sandbox/v5` | v4 plus the application instance model: capacity from CPU, slots, connections, and network under the routes' costs; middleware; queueing, timeouts, rejection, out-of-memory crashes, and health. New games use it; an older version can be chosen when a game is created. |
+| `sandbox/v5` | v4 plus the application instance model: capacity from CPU, slots, connections, and network under the routes' costs; middleware; queueing, timeouts, rejection, out-of-memory crashes, and health. |
+| `sandbox/v6` | v5 with traffic components instead of the Internet: an empty start, one population per component, the traffic-to-application contract, per-application endpoint mixes, and targeted traffic events. The CDN, load balancer, and API gateway wait for their own contracts; *Scale out* becomes two or more app replicas serving. New games use it; an older version can be chosen when a game is created, and the dashboard opens it with its own ruleset. |
 
 **v2 rebalancing.** Under v1, one application instance costing $2/h earned about $90/h at capacity. Over-provisioning therefore always paid, and incidents never threatened solvency.
 

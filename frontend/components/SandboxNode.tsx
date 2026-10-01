@@ -21,16 +21,22 @@ export type SandboxFlowNode = Node<SandboxNodeData, "component">;
 
 export function SandboxNode({ id, data, selected }: NodeProps<SandboxFlowNode>) {
   const s = data.stats;
-  const internet = data.kind === "internet";
+  // The Internet and traffic components are sources: no size, no capacity.
+  const internet = data.kind === "internet" || data.kind === "traffic";
+  const problem = s?.traffic?.problem;
   const util = s?.utilization ?? 0;
   const health = s?.app?.health;
-  const cls = data.down || data.downReplicas > 0 ? "bad" : health ? healthLevel(health) : level(util);
+  // A traffic component is coloured by how its requests fare.
+  const failing = !!s?.traffic && s.traffic.success < s.traffic.rps * 0.99;
+  const cls = data.down || data.downReplicas > 0 || problem ? "bad" : health ? healthLevel(health) : s?.traffic ? (failing ? "warn" : "ok") : level(util);
   return (
     <div className={`sb-node lvl-${cls}${selected ? " selected" : ""}${internet ? " internet" : ""}`}>
       {data.target && <Handle type="target" position={Position.Left} />}
       <div className="sb-node-title">{data.label}</div>
       <div className="sb-node-meta">
-        {internet ? (data.loadTest ? "traffic source · load test" : "traffic source") : `${id} · ${data.size}${data.replicas > 1 ? ` ×${data.replicas}` : ""}`}
+        {internet
+          ? `${data.kind === "traffic" ? `${id} · ` : ""}${data.loadTest ? "traffic source · load test" : "traffic source"}`
+          : `${id} · ${data.size}${data.replicas > 1 ? ` ×${data.replicas}` : ""}`}
       </div>
       {s && (
         <>
@@ -48,6 +54,7 @@ export function SandboxNode({ id, data, selected }: NodeProps<SandboxFlowNode>) 
           </div>
         </>
       )}
+      {problem && <div className="sb-node-meta bad">{problem}</div>}
       {data.down && <div className="sb-node-meta bad">DOWN</div>}
       {!data.down && data.downReplicas > 0 && (
         <div className="sb-node-meta bad">

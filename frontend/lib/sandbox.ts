@@ -88,6 +88,7 @@ export interface RouteStats {
   timeouts: number;
   rejected: number;
   latencyMs: number;
+  notFound?: boolean;
 }
 
 export interface AppStats {
@@ -155,7 +156,8 @@ export interface Rate {
   rps: number;
 }
 
-// Traffic is what the Internet sent in a tick.
+// Traffic is what the Internet, or every traffic component together, sent
+// in a tick.
 export interface Traffic {
   source: TrafficSource;
   rps: number;
@@ -164,6 +166,44 @@ export interface Traffic {
   groups?: Rate[];
   regions?: Rate[];
   endpoints?: Rate[];
+  clientTypes?: Rate[];
+  components?: Rate[];
+}
+
+export type Scheme = "http" | "https";
+
+// ClientConfig is one traffic component: a single population of clients
+// (v6 and later).
+export interface ClientConfig {
+  name: string;
+  clientType: string;
+  region: string;
+  protocol: string;
+  scheme: Scheme;
+  port: number;
+  keepAlive: boolean;
+  timeoutMs: number;
+  retries?: number;
+  source: TrafficSource;
+  pattern: Pattern;
+  endpoints: Weight[];
+}
+
+// ClientStats is how a traffic component fared: successes are requests
+// after retries, failures are attempts by reason.
+export interface ClientStats {
+  rps: number;
+  retryRps?: number;
+  attackRps?: number;
+  success: number;
+  refused?: number;
+  notFound?: number;
+  rejected?: number;
+  timeouts?: number;
+  errors?: number;
+  latencyMs: number;
+  concurrency: number;
+  problem?: string;
 }
 
 export interface Ruleset {
@@ -184,6 +224,10 @@ export interface Ruleset {
   middleware?: Middleware[];
   frameworks?: Framework[];
   appRuntime?: { workerMemoryMb: number };
+  client?: ClientConfig;
+  clientTypes?: Weight[];
+  regionShares?: Weight[];
+  protocols?: string[];
 }
 
 export interface SandboxNode {
@@ -200,6 +244,7 @@ export interface SandboxNode {
   traffic?: TrafficConfig;
   trafficSince?: number;
   app?: AppConfig;
+  client?: ClientConfig;
 }
 
 export interface Edge {
@@ -220,6 +265,7 @@ export interface NodeStats {
   backlog?: number;
   costPerHour: number;
   app?: AppStats;
+  traffic?: ClientStats;
 }
 
 export interface Meters {
@@ -275,6 +321,7 @@ export interface SandboxEvent {
   end: number;
   magnitude: number;
   target?: string;
+  targets?: string[];
   hits?: { node: string; replicas: number }[];
   phase: EventPhase;
   lowestHealth: number;
@@ -315,7 +362,7 @@ export type Command =
   | { type: "scale"; node: string; replicas: number }
   | { type: "move"; node: string; x: number; y: number }
   | { type: "respond"; action: "restart" | "failover" | "rate-limit" | "lift-rate-limit"; node: string }
-  | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig };
+  | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig; client?: ClientConfig };
 
 export const SPEEDS = [0, 1, 2, 4, 8] as const;
 
@@ -328,7 +375,7 @@ const json = (body: unknown): RequestInit => ({
 const game = (id: string) => `/sandbox/games/${encodeURIComponent(id)}`;
 
 export const sandboxApi = {
-  ruleset: () => request<Ruleset>("/sandbox/ruleset"),
+  ruleset: (version?: string) => request<Ruleset>(`/sandbox/ruleset${version ? `?version=${encodeURIComponent(version)}` : ""}`),
   list: () => request<{ id: string; status: string; tick: number }[]>("/sandbox/games"),
   create: () => request<GameState>("/sandbox/games", json({})),
   get: (id: string) => request<GameState>(game(id)),
@@ -438,11 +485,12 @@ const pct = (v: number) => `${Math.round(v * 100)}%`;
 // describeEvent states in words which model input an event changed.
 export function describeEvent(e: SandboxEvent, kinds: Kind[] = []): string {
   const m = e.magnitude;
+  const on = e.targets?.length ? `${e.targets.join(", ")}: ` : "";
   switch (e.effect) {
     case "traffic":
-      return `real traffic ×${m.toFixed(1)}`;
+      return `${on}real traffic ×${m.toFixed(1)}`;
     case "attack":
-      return `attack traffic at ${m.toFixed(1)}× real traffic, earning nothing`;
+      return `${on}attack traffic at ${m.toFixed(1)}× real traffic, earning nothing`;
     case "crash":
       return `${e.target}: 1 replica down`;
     case "zone":
@@ -523,6 +571,12 @@ export function internetConfig(game: GameState, rules: Ruleset): TrafficConfig |
 // else the ruleset's, under the same version rule as internetConfig.
 export function appConfig(game: GameState, rules: Ruleset, node: SandboxNode): AppConfig | undefined {
   return node.app ?? (game.ruleset === rules.version ? rules.app : undefined);
+}
+
+// clientConfig is a traffic component's configuration: its own once set,
+// else the ruleset's, under the same version rule as internetConfig.
+export function clientConfig(game: GameState, rules: Ruleset, node: SandboxNode): ClientConfig | undefined {
+  return node.client ?? (game.ruleset === rules.version ? rules.client : undefined);
 }
 
 // routedStorage reports whether a game's applications, not its endpoints,

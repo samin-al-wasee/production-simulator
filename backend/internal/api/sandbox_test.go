@@ -56,13 +56,22 @@ type commandResult struct {
 	State SandboxState `json:"state"`
 }
 
+// build places traffic → app → database in a game of the latest ruleset.
 func build(t *testing.T, srv *httptest.Server, id string) {
+	t.Helper()
+	var traffic commandResult
+	call(t, srv, "POST", "/api/v1/sandbox/games/"+id+"/commands", sandbox.Command{Type: sandbox.CmdPlace, Kind: sandbox.KindTraffic}, 200, &traffic)
+	buildFrom(t, srv, id, traffic.Node)
+}
+
+// buildFrom places app → database and connects the traffic source to it.
+func buildFrom(t *testing.T, srv *httptest.Server, id, source string) {
 	t.Helper()
 	base := "/api/v1/sandbox/games/" + id + "/commands"
 	var app, db commandResult
 	call(t, srv, "POST", base, sandbox.Command{Type: sandbox.CmdPlace, Kind: sandbox.KindApp}, 200, &app)
 	call(t, srv, "POST", base, sandbox.Command{Type: sandbox.CmdPlace, Kind: sandbox.KindDBPrimary}, 200, &db)
-	call(t, srv, "POST", base, sandbox.Command{Type: sandbox.CmdConnect, From: sandbox.InternetID, To: app.Node}, 200, nil)
+	call(t, srv, "POST", base, sandbox.Command{Type: sandbox.CmdConnect, From: source, To: app.Node}, 200, nil)
 	call(t, srv, "POST", base, sandbox.Command{Type: sandbox.CmdConnect, From: app.Node, To: db.Node}, 200, nil)
 }
 
@@ -73,16 +82,22 @@ func TestSandboxGameLifecycle(t *testing.T) {
 	if len(rules.Kinds) == 0 {
 		t.Fatal("ruleset must list kinds for the build palette")
 	}
+	var v5 sandbox.Ruleset
+	call(t, srv, "GET", "/api/v1/sandbox/ruleset?version=sandbox/v5", nil, 200, &v5)
+	if v5.Version != "sandbox/v5" || v5.Traffic == nil {
+		t.Fatalf("an older ruleset is served by version: %s", v5.Version)
+	}
+	call(t, srv, "GET", "/api/v1/sandbox/ruleset?version=sandbox/v0", nil, 400, nil)
 
 	var st SandboxState
 	call(t, srv, "POST", "/api/v1/sandbox/games", map[string]int64{"seed": 7}, 201, &st)
-	if !st.Simulated || st.Seed != 7 || len(st.Nodes) != 1 || st.Speed != 0 {
+	if !st.Simulated || st.Seed != 7 || len(st.Nodes) != 0 || st.Speed != 0 {
 		t.Fatalf("new game: %+v", st)
 	}
 	build(t, srv, st.ID)
 
 	call(t, srv, "POST", "/api/v1/sandbox/games/"+st.ID+"/commands",
-		sandbox.Command{Type: sandbox.CmdConnect, From: "app-instance-1", To: sandbox.InternetID}, 422, nil)
+		sandbox.Command{Type: sandbox.CmdConnect, From: "app-instance-1", To: "traffic-1"}, 422, nil)
 	before := st.Revision
 	call(t, srv, "POST", "/api/v1/sandbox/games/"+st.ID+"/step", map[string]int{"ticks": 12}, 200, &st)
 	if st.Revision <= before {
@@ -296,12 +311,13 @@ func TestSandboxGoalsUnlockAndCompleteExercises(t *testing.T) {
 		t.Fatalf("an older ruleset can be chosen: %s, %d goals", old.Ruleset, len(old.Goals))
 	}
 
+	// v5 still unlocks the load balancer with the first request.
 	var st SandboxState
-	call(t, srv, "POST", "/api/v1/sandbox/games", map[string]int64{"seed": 3}, 201, &st)
+	call(t, srv, "POST", "/api/v1/sandbox/games", map[string]any{"seed": 3, "ruleset": "sandbox/v5"}, 201, &st)
 	base := "/api/v1/sandbox/games/" + st.ID
 	lb := sandbox.Command{Type: sandbox.CmdPlace, Kind: sandbox.KindLB}
 	call(t, srv, "POST", base+"/commands", lb, 422, nil)
-	build(t, srv, st.ID)
+	buildFrom(t, srv, st.ID, sandbox.InternetID)
 	call(t, srv, "POST", base+"/commands", sandbox.Command{Type: sandbox.CmdPlace, Kind: sandbox.KindStorage}, 200, nil)
 	call(t, srv, "POST", base+"/commands", sandbox.Command{Type: sandbox.CmdConnect, From: "app-instance-1", To: "object-storage-1"}, 200, nil)
 	call(t, srv, "POST", base+"/step", map[string]int{"ticks": 1}, 200, &st)
@@ -320,17 +336,12 @@ func TestSandboxGoalsUnlockAndCompleteExercises(t *testing.T) {
 
 func TestSandboxConfiguresTheInternet(t *testing.T) {
 	srv, _ := sandboxServer(t)
-	var rules sandbox.Ruleset
-	call(t, srv, "GET", "/api/v1/sandbox/ruleset", nil, 200, &rules)
-	if rules.Traffic == nil || len(rules.Regions) == 0 {
-		t.Fatal("the ruleset must carry the default traffic configuration and regions")
-	}
 	var st SandboxState
-	call(t, srv, "POST", "/api/v1/sandbox/games", map[string]int64{"seed": 7}, 201, &st)
-	build(t, srv, st.ID)
+	call(t, srv, "POST", "/api/v1/sandbox/games", map[string]any{"seed": 7, "ruleset": "sandbox/v5"}, 201, &st)
+	buildFrom(t, srv, st.ID, sandbox.InternetID)
 	base := "/api/v1/sandbox/games/" + st.ID
 
-	tc := *rules.Traffic
+	tc := *sandbox.RulesetV5().Traffic
 	tc.Groups = append([]sandbox.TrafficGroup(nil), tc.Groups...)
 	tc.Groups[0].Share = 0.5
 	var e map[string]string
@@ -383,5 +394,39 @@ func TestSandboxConfiguresAnApp(t *testing.T) {
 		if n.ID == "app-instance-1" && (n.App == nil || n.App.Health == "" || len(n.App.Routes) == 0) {
 			t.Fatalf("the flow should carry the app's runtime state: %+v", n)
 		}
+	}
+}
+
+func TestSandboxConfiguresTrafficComponents(t *testing.T) {
+	srv, _ := sandboxServer(t)
+	var rules sandbox.Ruleset
+	call(t, srv, "GET", "/api/v1/sandbox/ruleset", nil, 200, &rules)
+	if rules.Client == nil || len(rules.ClientTypes) == 0 || len(rules.RegionShares) == 0 {
+		t.Fatal("the ruleset must carry the default client, client types, and region shares")
+	}
+	if len(rules.Client.Endpoints) != 0 {
+		t.Fatalf("a new traffic component asks for nothing until it is connected: %+v", rules.Client.Endpoints)
+	}
+	var st SandboxState
+	call(t, srv, "POST", "/api/v1/sandbox/games", map[string]int64{"seed": 7}, 201, &st)
+	build(t, srv, st.ID)
+	base := "/api/v1/sandbox/games/" + st.ID
+	call(t, srv, "GET", base, nil, 200, &st)
+	if c := st.Nodes[0].Client; c == nil || len(c.Endpoints) == 0 || c.Port != rules.App.Port {
+		t.Fatalf("connecting adopts the app's routes and port: %+v", c)
+	}
+
+	c := *st.Nodes[0].Client
+	c.Port = 0
+	call(t, srv, "POST", base+"/commands", sandbox.Command{Type: sandbox.CmdConfigure, Node: "traffic-1", Client: &c}, 422, nil)
+	c.Port = 9000
+	var out commandResult
+	call(t, srv, "POST", base+"/commands", sandbox.Command{Type: sandbox.CmdConfigure, Node: "traffic-1", Client: &c}, 200, &out)
+	ts := out.State.Flow.Nodes[0].Traffic
+	if out.State.Nodes[0].Client == nil || ts == nil || !strings.Contains(ts.Problem, "connection refused") || out.State.Flow.SuccessRPS != 0 {
+		t.Fatalf("a port mismatch should refuse every request, with the reason: %+v", ts)
+	}
+	if len(out.State.Flow.Traffic.ClientTypes) != 1 || len(out.State.Flow.Traffic.Components) != 1 {
+		t.Fatalf("the flow should break traffic down by client type and component: %+v", out.State.Flow.Traffic)
 	}
 }

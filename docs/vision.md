@@ -10,8 +10,8 @@ Most engineers learn production systems the hard way: **in production**, with re
 
 ForgeLab is the **Production Sandbox**, a game in the spirit of SimCity, but the city is a production system.
 
-* You open the game to an **empty production**: the Internet, full of users, and a little money in the bank.
-* You **place every component yourself**: load balancers, application instances, databases, read replicas, caches, queues, workers, CDNs, object storage. Then you wire them together.
+* You open the game to an **empty production**: a market of users you have not reached yet, and a little money in the bank.
+* You **place every component yourself**, even the traffic: one component per population of users you want to reach, then load balancers, application instances, databases, read replicas, caches, queues, workers, CDNs, object storage. Then you wire them together.
 * The world **runs**: users arrive, traffic follows the day, popularity rises and falls, and every component has capacity, latency, and a running cost.
 * Your choices trade off **cost, revenue, system health, complexity, popularity, user engagement, scale, userbase, and RPS**. Over-provision and you go bankrupt; under-provision and your users leave.
 * **Events and incidents** (sudden surges, outages, attacks, cost spikes) test the system you built, and you answer them by restarting, failing over, rate limiting, or rebuilding.

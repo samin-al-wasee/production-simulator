@@ -20,6 +20,8 @@ type NodeStats struct {
 	CostPerHour float64 `json:"costPerHour"`
 	// App is an application instance's runtime state (v5 and later).
 	App *AppStats `json:"app,omitempty"`
+	// Traffic is what a traffic component sent and how it fared (v6).
+	Traffic *ClientStats `json:"traffic,omitempty"`
 }
 
 // Flow is the result of routing one tick's traffic through the topology.
@@ -44,7 +46,7 @@ var p95Factor = -math.Log(0.05)
 
 // capacity is the ops/s a node can serve this tick.
 func (g *Game) capacity(n *Node) float64 {
-	if n.Kind == KindInternet {
+	if n.Kind == KindInternet || n.Kind == KindTraffic {
 		return math.Inf(1)
 	}
 	if c, ok := g.appCaps[n]; ok {
@@ -212,6 +214,14 @@ func (g *Game) plan(i, c int, storage float64) plan {
 		return plan{local: hit, groups: []group{{1 - hit, g.split(g.targets(i, KindDBPrimary, KindDBReplica))}}}
 	case KindWorker:
 		return plan{groups: []group{{1, g.split(g.targets(i, KindDBPrimary))}}}
+	case KindTraffic:
+		// Requests that break the contract are turned away at the door.
+		for _, cl := range g.clients {
+			if cl.node == i && cl.problem == "" {
+				return plan{groups: []group{{1, []route{{cl.to, 1}}}}}
+			}
+		}
+		return plan{}
 	}
 	return plan{local: 1}
 }
@@ -229,6 +239,10 @@ func (g *Game) solve() Snapshot {
 		n.DownReplicas = n.Replicas - g.upReplicas(n)
 		n.Down = n.Kind != KindInternet && n.DownReplicas == n.Replicas
 	}
+	g.clients = nil
+	if g.clientModel() {
+		g.clients = g.clientLoads()
+	}
 	// An application's capacity depends on its configuration, replicas, and
 	// last tick's dependency latency, none of which change during a solve.
 	g.appCaps = map[*Node]float64{}
@@ -239,6 +253,13 @@ func (g *Game) solve() Snapshot {
 	}
 	rps := g.rps()
 	attackRPS := rps * g.fx.attack
+	if g.clientModel() {
+		rps, attackRPS = 0, 0
+		for _, cl := range g.clients {
+			rps += cl.unique
+			attackRPS += cl.attack
+		}
+	}
 	order := g.order()
 	dt := r.TickSeconds
 
@@ -270,13 +291,22 @@ func (g *Game) solve() Snapshot {
 	plans := make([][nClass]plan, n)
 	apps := make([]*appRun, n)
 	// Attack traffic asks for what real users ask for, and never retries.
-	for c := range nClass {
-		load[0][c] = attempts[c] + unique[c]*g.fx.attack
-		if unique[c] > 0 {
-			store[0][c] = load[0][c] * attemptStore[c] / attempts[c]
+	if g.clientModel() {
+		for _, cl := range g.clients {
+			for _, e := range cl.cfg.Endpoints {
+				load[cl.node][endpointClass(e.Name)] += (cl.attempts + cl.attack) * e.Share
+			}
+			attack[cl.node] = cl.attack
 		}
+	} else {
+		for c := range nClass {
+			load[0][c] = attempts[c] + unique[c]*g.fx.attack
+			if unique[c] > 0 {
+				store[0][c] = load[0][c] * attemptStore[c] / attempts[c]
+			}
+		}
+		attack[0] = attackRPS
 	}
-	attack[0] = attackRPS
 	// share is the attack share of a node's offered load.
 	share := func(i int) float64 {
 		if offered[i] == 0 {
@@ -396,9 +426,21 @@ func (g *Game) solve() Snapshot {
 	t := make([]vec, n)
 	stats := make([]NodeStats, n)
 	maxU := 0.0
+	clientAt := map[int]int{}
+	for k, cl := range g.clients {
+		clientAt[cl.node] = k
+	}
+	clientOK := make([]float64, len(g.clients))
+	clientLat := make([]float64, len(g.clients))
 	for o := len(order) - 1; o >= 0; o-- {
 		i := order[o]
 		nd := g.Nodes[i]
+		if k, ok := clientAt[i]; ok {
+			cs := ClientStats{}
+			clientOK[k], clientLat[k], cs = g.finishClient(g.clients[k], apps)
+			stats[i] = NodeStats{ID: nd.ID, Offered: offered[i], Served: served[i], Attack: attack[i], LatencyMs: clientLat[k], Traffic: &cs}
+			continue
+		}
 		if run := apps[i]; run != nil {
 			s[i], t[i] = g.finishApp(nd, run, s, t)
 			own := 0.0
@@ -482,6 +524,9 @@ func (g *Game) solve() Snapshot {
 	var ok, fail vec
 	okAll, latAll := 0.0, 0.0
 	for cl := range nClass {
+		if g.clientModel() {
+			break
+		}
 		ok[cl] = s[0][cl] * (1 - g.fx.failShare)
 		if attempts[cl] > 0 {
 			fail[cl] = 1 - ok[cl]
@@ -500,6 +545,31 @@ func (g *Game) solve() Snapshot {
 			success += gl.load[cl] * (1 - math.Pow(1-ok[cl], float64(gl.retries+1)))
 		}
 	}
+	clientFail := map[string]float64{}
+	if g.clientModel() {
+		// Every traffic component adds to the totals (ADR-0018).
+		success, okAll, latAll = 0, 0, 0
+		for k, cl := range g.clients {
+			ok := clientOK[k] * (1 - g.fx.failShare)
+			if cl.attempts > 0 {
+				clientFail[g.Nodes[cl.node].ID] = 1 - ok
+			}
+			okAll += cl.attempts * clientOK[k]
+			latAll += cl.attempts * clientOK[k] * clientLat[k]
+			ts := stats[cl.node].Traffic
+			ts.Success = cl.unique * (1 - math.Pow(1-ok, float64(cl.cfg.Retries+1)))
+			ts.Concurrency = cl.attempts * clientLat[k] / 1000
+			success += ts.Success
+		}
+		mean = 0
+		if okAll > 0 {
+			mean = latAll / okAll
+		}
+		for _, cl := range g.clients {
+			unique[clsRead] += cl.unique
+			attempts[clsRead] += cl.attempts
+		}
+	}
 	f := Flow{RPS: rps, AttackRPS: attackRPS, SuccessRPS: success, MeanLatencyMs: mean, MaxUtilization: finite(maxU), Nodes: stats}
 	if rps > 0 {
 		f.ErrorRate = 1 - success/rps
@@ -510,7 +580,7 @@ func (g *Game) solve() Snapshot {
 		f.Traffic.Source = SourceConfigured
 	}
 	g.breakdown(&f.Traffic)
-	snap := Snapshot{Flow: f, backlog: backlog, attemptFail: fail, path: map[string]vec{}}
+	snap := Snapshot{Flow: f, backlog: backlog, attemptFail: fail, clientFail: clientFail, path: map[string]vec{}}
 	for i, nd := range g.Nodes {
 		snap.path[nd.ID] = t[i]
 		if apps[i] != nil && apps[i].stats.OutOfMemory {

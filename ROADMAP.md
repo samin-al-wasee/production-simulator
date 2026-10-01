@@ -12,7 +12,8 @@ ForgeLab is the **Production Sandbox** ([ADR-0014](docs/decisions/0014-sandbox-o
 
 - [x] Internet: traffic groups, endpoint mix and request classes, regions, client retries, and load tests with patterns (constant, ramp, spike, burst, periodic, schedule); the flow solver routes per request class; traffic breakdown; Internet configuration form (ruleset `sandbox/v4`, ADR-0016)
 - [x] Application instance: a backend service whose capacity emerges from CPU, workers or concurrency slots, connections, and network under its routes' costs; middleware; backlog, timeouts, rejection, out-of-memory crashes, derived health; per-route metrics; configuration form (ruleset `sandbox/v5`, ADR-0017)
-- [ ] Next components (CDN, load balancer, cache, database, and others), each in its own slice
+- [x] Traffic components: the Internet becomes placeable Traffic, one client population each; an empty start; the traffic-to-application contract (protocol, port, TLS, routes, keep-alive, timeout); per-application endpoint mixes; targeted traffic events; aggregated meters (ruleset `sandbox/v6`, ADR-0018)
+- [ ] Next components (CDN, load balancer, cache, database, and others), each in its own slice with its traffic contract
 
 ## Phase 10 — Production Sandbox *✅ done*
 

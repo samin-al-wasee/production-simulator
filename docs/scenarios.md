@@ -20,6 +20,7 @@ The Live-mode drills that ran against real containers were retired by ADR-0014; 
 * **Lifecycle.** Each event goes through four phases: *upcoming* (only if announced ahead), *active*, *recovering*, then *over*.
 * **Outcome.** An event is judged one hour (`recoveryTicks`, 12) after it ends. It is **recovered** if system health is at least 80 at that point, and **not recovered** otherwise. The lowest health seen while the event ran is recorded as well.
 * **Load tests.** Events keep coming during a load test ([ADR-0016](decisions/0016-configurable-internet-traffic.md)), and traffic cards multiply the configured rate as they multiply market traffic. An event still being judged when a load test runs is marked, and its outcome does not count towards goals.
+* **Targets from v6.** Traffic cards (`viral-surge`, `marketing-spike`, `seasonal-dip`) and the `ddos` pick one or more traffic components, drawn by the seed, and act only on them; with no traffic component placed they are skipped. Component cards never hit a traffic component ([ADR-0018](decisions/0018-traffic-components.md)).
 * **Rule 1 holds throughout.** Every card changes a model input: traffic, capacity, service time, hit ratio, cost, or a failure share. The meters then follow from the flow solver.
 
 ## Incident responses
@@ -120,7 +121,7 @@ Magnitudes and durations are drawn from the ranges below. A tick is five simulat
 * **Trigger:** about 0.1 per day, multiplied by the popularity factor.
 * **Effect on the model:** attack traffic of 3–10 × real traffic arrives with it for 1–4 hours. Attack traffic takes capacity like real traffic but earns nothing, and it never counts towards errors or revenue.
 * **Expected symptoms:** the *Attack RPS* tile appears and nodes show attack load. The entry path saturates, so real users are crowded out: errors rise and revenue falls.
-* **Responses:** put an API gateway on the entry path and `rate-limit` it, which blocks 90% of the attack at the cost of 1% of users. Absorbing the attack with extra capacity also works, but you pay for it.
+* **Responses:** put an API gateway on the entry path and `rate-limit` it, which blocks 90% of the attack at the cost of 1% of users. Absorbing the attack with extra capacity also works, but you pay for it. In v6, which has no gateway yet, the application's rate-limit middleware caps what reaches it; the attack arrives through the traffic components it targets, so the inspector shows where it comes in.
 * **Success criteria:** health is at least 80 an hour after it ends.
 
 ### `cost-spike`

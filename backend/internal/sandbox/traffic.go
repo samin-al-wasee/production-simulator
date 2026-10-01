@@ -127,6 +127,10 @@ type Traffic struct {
 	Groups      []Rate  `json:"groups,omitempty"`
 	Regions     []Rate  `json:"regions,omitempty"`
 	Endpoints   []Rate  `json:"endpoints,omitempty"`
+	// ClientTypes and Components break v6 traffic down by client type and
+	// by traffic component.
+	ClientTypes []Rate `json:"clientTypes,omitempty"`
+	Components  []Rate `json:"components,omitempty"`
 }
 
 // traffic is the Internet's configuration, or nil for a ruleset without one.
@@ -139,16 +143,21 @@ func (g *Game) traffic() *TrafficConfig {
 
 // loadTest reports whether the player is driving traffic themselves.
 func (g *Game) loadTest() bool {
+	if g.clientModel() {
+		for _, n := range g.Nodes {
+			if n.Kind == KindTraffic && g.clientConfig(n).Source == SourceConfigured {
+				return true
+			}
+		}
+		return false
+	}
 	tc := g.traffic()
 	return tc != nil && tc.Source == SourceConfigured
 }
 
-// patternRPS is a configured source's volume at the current tick.
-func (g *Game) patternRPS(p Pattern) float64 {
-	since := 0
-	if n := g.Node(InternetID); n != nil {
-		since = n.TrafficSince
-	}
+// patternRPS is a configured source's volume at the current tick, for a
+// pattern applied at tick since.
+func (g *Game) patternRPS(p Pattern, since int) float64 {
 	m := float64(g.Tick-since) * g.Rules.TickSeconds / 60
 	switch p.Shape {
 	case ShapeRamp:
@@ -189,6 +198,9 @@ type groupLoad struct {
 // traffic configuration sends one group with its fixed read and storage
 // shares, which is the request mix of rulesets v1 to v3.
 func (g *Game) groups(rps float64) []groupLoad {
+	if g.clientModel() {
+		return nil
+	}
 	tc := g.traffic()
 	if tc == nil {
 		r := g.Rules
@@ -222,6 +234,10 @@ func (g *Game) groups(rps float64) []groupLoad {
 
 // breakdown reports a tick's real volume by group, region, and endpoint.
 func (g *Game) breakdown(t *Traffic) {
+	if g.clientModel() {
+		g.clientBreakdown(t)
+		return
+	}
 	tc := g.traffic()
 	if tc == nil {
 		return
@@ -253,6 +269,9 @@ func (g *Game) breakdown(t *Traffic) {
 func (g *Game) configure(c Command) error {
 	if n := g.Node(c.Node); n != nil && n.Kind == KindApp {
 		return g.configureApp(n, c.App)
+	}
+	if n := g.Node(c.Node); n != nil && n.Kind == KindTraffic {
+		return g.configureClient(n, c.Client)
 	}
 	if c.Node != InternetID {
 		return invalid("only the Internet and application instances can be configured")

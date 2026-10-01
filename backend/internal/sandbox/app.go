@@ -156,6 +156,8 @@ type RouteStats struct {
 	Timeouts  float64 `json:"timeouts"`
 	Rejected  float64 `json:"rejected"`
 	LatencyMs float64 `json:"latencyMs"`
+	// NotFound marks an endpoint the instance has no route for (v6).
+	NotFound bool `json:"notFound,omitempty"`
 }
 
 // appConfig is a node's configuration, or the ruleset's until one is set.
@@ -178,12 +180,17 @@ type mixEntry struct {
 	share float64
 }
 
-// endpointMix splits each request class into its endpoints, in the shares
-// the Internet sends them.
-// ponytail: nothing between the Internet and an application treats endpoints
-// of one class differently yet; carry a per-endpoint vector through the
-// solver once a component routes or blocks by path.
-func (g *Game) endpointMix() ([]mixEntry, vec) {
+// endpointMix splits each request class at application i into its
+// endpoints: in the shares the Internet sends them before v6, and in its own
+// inputs' shares from v6 (ADR-0018).
+// ponytail: before v6 nothing between the Internet and an application treats
+// endpoints of one class differently; v6 connects traffic straight to an
+// application, so carry a per-endpoint vector through the solver once a
+// component between them routes or blocks by path.
+func (g *Game) endpointMix(i int) ([]mixEntry, vec) {
+	if g.clientModel() {
+		return g.clientMix(i)
+	}
 	tc := g.traffic()
 	if tc == nil {
 		return nil, vec{}
@@ -207,10 +214,10 @@ func (g *Game) endpointMix() ([]mixEntry, vec) {
 	return out, total
 }
 
-// appCapacity is node i's throughput at the Internet's request mix, which
-// the balancers in front of it split by.
+// appCapacity is node i's throughput at its request mix, which the
+// balancers in front of it split by.
 func (g *Game) appCapacity(i int) float64 {
-	_, mix := g.endpointMix()
+	_, mix := g.endpointMix(i)
 	if c := g.runApp(i, mix).capacity; !math.IsInf(c, 1) {
 		return c
 	}
@@ -227,6 +234,11 @@ type routeRun struct {
 	own, wall, cpu, conn, in, out float64
 	deps                          [][]route
 	depCls                        []int
+	// notFound marks an endpoint with no route and no catch-all (v6).
+	notFound bool
+	// ok is the chance every dependency call succeeds, and depMs their mean
+	// latency, once the dependencies are solved.
+	ok, depMs float64
 }
 
 // appRun is what an application instance did with a tick's load.
@@ -240,19 +252,35 @@ type appRun struct {
 	waitMs   float64
 	queued   float64
 	stats    AppStats
+	// byRoute indexes routes by their endpoint.
+	byRoute map[string]int
 }
 
-func (g *Game) route(cfg *AppConfig, endpoint string) AppRoute {
-	var all AppRoute
-	for _, r := range cfg.Routes {
+// servedShare is the share of arriving requests the instance served.
+func (run *appRun) servedShare() float64 {
+	if lambda := run.served + run.rejected; lambda > 0 {
+		return run.served / lambda
+	}
+	return 0
+}
+
+// route is the route that handles an endpoint: its own, else the catch-all.
+// Without either the endpoint is not found, which only v6 allows: it costs
+// the middleware and fails.
+func (g *Game) route(cfg *AppConfig, endpoint string) (AppRoute, bool) {
+	all := -1
+	for i, r := range cfg.Routes {
 		if r.Endpoint == endpoint {
-			return r
+			return r, true
 		}
 		if r.Endpoint == CatchAll {
-			all = r
+			all = i
 		}
 	}
-	return all
+	if all >= 0 {
+		return cfg.Routes[all], true
+	}
+	return AppRoute{Endpoint: endpoint, ErrorRate: 1}, false
 }
 
 // depTargets is where a dependency call goes, and the request class it
@@ -307,31 +335,34 @@ func (g *Game) runApp(i int, load vec) appRun {
 			}
 		}
 	}
-	// New connections per request: one each without keep-alive.
+	// New connections per request: one each without keep-alive. From v6
+	// a connection is kept alive only when its client keeps it alive too.
 	perConn, idle := 1.0, 0.0
-	if cfg.KeepAlive {
+	if ka := g.keepAlive(i, cfg); ka == 1 {
 		perConn, idle = 1/rt.RequestsPerConnection, rt.KeepAliveSeconds/rt.RequestsPerConnection
+	} else if ka > 0 {
+		perConn, idle = 1-ka+ka/rt.RequestsPerConnection, ka*rt.KeepAliveSeconds/rt.RequestsPerConnection
 	}
 	tls := 0.0
 	if cfg.TLS {
 		tls = rt.TLSHandshakeCPUMs * perConn
 	}
 
-	run := appRun{}
-	byRoute := map[string]int{}
-	mix, _ := g.endpointMix()
+	run := appRun{byRoute: map[string]int{}}
+	byRoute := run.byRoute
+	mix, _ := g.endpointMix(i)
 	for _, m := range mix {
 		v := load[m.cls] * m.share
 		if v == 0 {
 			continue
 		}
-		rte := g.route(cfg, m.name)
+		rte, found := g.route(cfg, m.name)
 		k, ok := byRoute[rte.Endpoint]
 		if !ok {
 			k = len(run.routes)
 			byRoute[rte.Endpoint] = k
 			rr := routeRun{route: rte, own: rte.BaseMs + mwMs, cpu: rte.CPUMs + mwCPU + tls,
-				in: rte.RequestKB * 8 / 1000, out: rte.ResponseKB * 8 / 1000}
+				in: rte.RequestKB * 8 / 1000, out: rte.ResponseKB * 8 / 1000, notFound: !found}
 			rr.wall = rr.own
 			for _, d := range rte.Deps {
 				to, cls := g.depTargets(i, d)
@@ -458,11 +489,9 @@ func (g *Game) finishApp(n *Node, run *appRun, s, t []vec) (vec, vec) {
 	cfg := g.appConfig(n)
 	var succ, lat, total vec
 	st := &run.stats
-	served := 0.0
-	if lambda := run.served + run.rejected; lambda > 0 {
-		served = run.served / lambda
-	}
-	for _, rr := range run.routes {
+	served := run.servedShare()
+	for k := range run.routes {
+		rr := &run.routes[k]
 		ok, depMs := 1.0, 0.0
 		for d, to := range rr.deps {
 			ds, dt := 0.0, 0.0
@@ -476,21 +505,10 @@ func (g *Game) finishApp(n *Node, run *appRun, s, t []vec) (vec, vec) {
 			ok *= ds
 			depMs += dt
 		}
-		left := cfg.TimeoutMs - rr.own - depMs
-		late := 1.0
-		wait := run.waitMs
-		switch {
-		case left <= 0:
-		case wait <= 0:
-			late = 0
-		default:
-			late = math.Exp(-left / wait)
-			wait = math.Min(wait, left)
-		}
-		p := served * (1 - late) * (1 - rr.route.ErrorRate) * ok
-		ms := rr.own + wait + depMs
+		rr.ok, rr.depMs = ok, depMs
+		p, late, ms := rr.outcome(served, run.waitMs, cfg.TimeoutMs)
 		rs := RouteStats{Endpoint: rr.route.Endpoint, RPS: rr.rate, Success: rr.rate * p,
-			Timeouts: rr.rate * served * late, Rejected: rr.rate * (1 - served), LatencyMs: ms}
+			Timeouts: rr.rate * served * late, Rejected: rr.rate * (1 - served), LatencyMs: ms, NotFound: rr.notFound}
 		rs.Errors = math.Max(0, rr.rate-rs.Success-rs.Timeouts-rs.Rejected)
 		st.Routes = append(st.Routes, rs)
 		st.Success += rs.Success
@@ -532,6 +550,26 @@ func (g *Game) finishApp(n *Node, run *appRun, s, t []vec) (vec, vec) {
 	return succ, lat
 }
 
+// outcome is a route's chance to succeed under a timeout, the chance it
+// times out, and the latency of a success, once its dependencies are solved.
+// Waits are taken as exponential.
+func (rr *routeRun) outcome(served, waitMs, timeout float64) (p, late, ms float64) {
+	left := timeout - rr.own - rr.depMs
+	late = 1.0
+	wait := waitMs
+	switch {
+	case left <= 0:
+	case wait <= 0:
+		late = 0
+	default:
+		late = math.Exp(-left / wait)
+		wait = math.Min(wait, left)
+	}
+	p = served * (1 - late) * (1 - rr.route.ErrorRate) * rr.ok
+	ms = rr.own + wait + rr.depMs
+	return p, late, ms
+}
+
 // configureApp replaces an application instance's configuration.
 func (g *Game) configureApp(n *Node, cfg *AppConfig) error {
 	if g.Rules.App == nil {
@@ -544,6 +582,12 @@ func (g *Game) configureApp(n *Node, cfg *AppConfig) error {
 		return invalid("%s", strings.Join(problems, "; "))
 	}
 	n.App = cfg
+	// Its traffic components follow it (v6).
+	for _, e := range g.Edges {
+		if f := g.Node(e.From); e.To == n.ID && f.Kind == KindTraffic {
+			g.adopt(f, n)
+		}
+	}
 	return nil
 }
 
@@ -640,7 +684,11 @@ func (r *Ruleset) ValidateApp(c AppConfig) []string {
 			used[d] = true
 		}
 	}
-	if len(c.Routes) > 0 && !routes[CatchAll] {
+	if r.Client != nil && !slices.Contains(r.Protocols, c.Protocol) {
+		bad("protocol must be one of %s", strings.Join(r.Protocols, ", "))
+	}
+	// From v6 an endpoint without a route fails with 404 instead.
+	if len(c.Routes) > 0 && !routes[CatchAll] && r.Client == nil {
 		bad("declare a %q route for endpoints without their own", CatchAll)
 	}
 	return p

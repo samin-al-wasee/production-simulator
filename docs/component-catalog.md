@@ -15,8 +15,9 @@ The Production Sandbox game (ADR-0013). See [`components/sandbox/`](../component
 | Component | Provides | Depends on | Status |
 |---|---|---|---|
 | Sandbox Engine | Deterministic world state, command log, tick loop, save/replay (`backend/internal/sandbox`) | — | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
-| Sandbox Ruleset | Versioned data: placeable component kinds, capacities, costs, complexity weights, tuning (`sandbox/v1`; `sandbox/v2` adds the Event Deck and rebalances the economy; `sandbox/v3` adds goals and unlocks; `sandbox/v4` adds the Internet's traffic configuration; `sandbox/v5` adds the application instance model) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
+| Sandbox Ruleset | Versioned data: placeable component kinds, capacities, costs, complexity weights, tuning (`sandbox/v1`; `sandbox/v2` adds the Event Deck and rebalances the economy; `sandbox/v3` adds goals and unlocks; `sandbox/v4` adds the Internet's traffic configuration; `sandbox/v5` adds the application instance model; `sandbox/v6` replaces the Internet with traffic components) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 | Traffic Model | The Internet's configuration (ADR-0016): market or load-test volume with a pattern, traffic groups, endpoint mix, regions, and client retries; a per-tick traffic breakdown | Sandbox Engine, Sandbox Ruleset | implemented · Phase 11 (`components/sandbox/sandbox-engine/`) |
+| Traffic Components | Traffic as placeable components (ADR-0018): one client population each (client type, region, protocol, scheme, port, keep-alive, timeout, retries, endpoint mix, market or load test); the traffic-to-application contract; aggregated meters | Sandbox Engine, Sandbox Ruleset | implemented · Phase 11 (`components/sandbox/sandbox-engine/`) |
 | Application Model | An application instance as a backend service (ADR-0017): routes, middleware, sync/async workers, CPU, memory, connections, network, backlog, timeouts, out-of-memory crashes, derived health | Flow Solver, Traffic Model | implemented · Phase 11 (`components/sandbox/sandbox-engine/`) |
 | Flow Solver | Routes per-tick load through the player's topology, per request class (cacheable read, read, write); utilization, latency, saturation, errors | Sandbox Engine, Sandbox Ruleset, Traffic Model | implemented · Phase 10, classes in Phase 11 (`components/sandbox/sandbox-engine/`) |
 | Economy & Meters | Revenue, cost, cash; health, satisfaction, popularity, engagement, complexity, scale, userbase | Flow Solver | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
@@ -41,6 +42,14 @@ These are what a player places in a game, plus the Internet, which every game ha
 | Cache | Serves 80% of reads, sends misses to the database | 5000 | $2.00 |
 | Message queue | Accepts writes, holds a backlog, feeds workers | 1000 | $1.50 |
 | Object storage | Serves the requests that need stored objects (10% in v1 to v3; the storage endpoints in v4) | 1000 | $1.00 |
+
+#### In-game component kinds (ruleset `sandbox/v6`)
+
+A v6 game starts with no node at all. Its catalog is v5's without the Internet, the CDN, the load balancer, and the API gateway, which return once they have a traffic contract, plus:
+
+| Kind | Role in the model | Capacity (ops/s) | Cost / h |
+|---|---|---|---|
+| Traffic | One population of clients: its client type and region decide its share of the market (or a load test sets its rate). Asks for nothing until it connects to exactly one application instance, whose protocol, port, scheme, keep-alive, and routes it then adopts, and follows when that app is reconfigured; disconnected, it asks for nothing again; the contract is in [architecture](architecture.md#traffic-components). Free to place and run, with no size or replicas | — | $0.00 |
 
 ### CI/CD
 

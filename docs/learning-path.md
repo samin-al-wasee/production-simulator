@@ -8,7 +8,7 @@ Most exercises are tied to a **Sandbox goal**: when a game reaches the goal, the
 
 | Exercise | Goal that completes it | Unlocks |
 |---|---|---|
-| s1-serve | `first-request` | Load balancer |
+| s1-serve | `first-request` | Load balancer (v3 to v5; v6 has none yet) |
 | s1-profit | `profitable-day` | — |
 | s2-saturate | `saturate-app` | — |
 | s2-scale-out | `scale-out` | — |
@@ -17,7 +17,7 @@ Most exercises are tied to a **Sandbox goal**: when a game reaches the goal, the
 | s3-replicas | `read-replicas` | — |
 | s4-backlog | `backlog` | — |
 | s4-drain | `drain-backlog` | — |
-| s5-startup | `startup-tier` | Cache, read replica, message queue, background worker, API gateway |
+| s5-startup | `startup-tier` | Cache, read replica, message queue, background worker, API gateway (not in v6) |
 | s5-scale-up | `scale-up-tier` | CDN |
 | s5-margin | `healthy-margin` | — |
 | s7-recover | `recover-incident` | — |
@@ -36,7 +36,7 @@ Stages 3 and 4 use kinds unlocked at the startup tier, so in practice they come 
 
 - **Goal:** Find the component that limits the system and move the limit.
 - **Skills:** Utilization, saturation, horizontal vs vertical scaling, load balancing.
-- **Exercises:** saturate an application instance; scale out behind a load balancer; watch the bottleneck move to the database; compare a larger size with more replicas.
+- **Exercises:** saturate an application instance; scale out to several app replicas (behind a load balancer up to v5); watch the bottleneck move to the database; compare a larger size with more replicas.
 
 ## Stage 3 — The data tier
 

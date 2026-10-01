@@ -3,6 +3,7 @@ package sandbox
 import (
 	"math"
 	"math/rand/v2"
+	"slices"
 )
 
 // Card effects: which model input an event changes while it is active.
@@ -78,12 +79,14 @@ type Event struct {
 	Start     int     `json:"start"`
 	End       int     `json:"end"`
 	Magnitude float64 `json:"magnitude"`
-	// Target is a node ID, or a kind for a cost event.
-	Target       string  `json:"target,omitempty"`
-	Hits         []Hit   `json:"hits,omitempty"`
-	Phase        string  `json:"phase"`
-	LowestHealth float64 `json:"lowestHealth"`
-	Outcome      string  `json:"outcome,omitempty"`
+	// Target is a node ID, or a kind for a cost event. Targets are the
+	// traffic components a traffic or attack event acts on (v6).
+	Target       string   `json:"target,omitempty"`
+	Targets      []string `json:"targets,omitempty"`
+	Hits         []Hit    `json:"hits,omitempty"`
+	Phase        string   `json:"phase"`
+	LowestHealth float64  `json:"lowestHealth"`
+	Outcome      string   `json:"outcome,omitempty"`
 	// LoadTest marks an event that ran into a load test before it was
 	// judged; its outcome does not count towards goals.
 	LoadTest bool `json:"loadTest,omitempty"`
@@ -138,8 +141,11 @@ func RulesetV2() *Ruleset {
 
 // effects are the model inputs changed by the events active this tick.
 type effects struct {
-	traffic   float64
-	attack    float64
+	traffic float64
+	attack  float64
+	// trafficOn and attackOn act on single traffic components (v6).
+	trafficOn map[string]float64
+	attackOn  map[string]float64
 	failShare float64
 	down      map[string]int
 	slow      map[string]float64
@@ -156,6 +162,7 @@ func (g *Game) effects() effects {
 	fx := effects{
 		traffic: 1, down: map[string]int{}, slow: map[string]float64{},
 		hitRatio: map[string]float64{}, capacity: map[string]float64{}, cost: map[string]float64{},
+		trafficOn: map[string]float64{}, attackOn: map[string]float64{},
 	}
 	for _, e := range g.Events {
 		if !g.active(e) {
@@ -163,9 +170,19 @@ func (g *Game) effects() effects {
 		}
 		switch e.Effect {
 		case EffectTraffic:
-			fx.traffic *= e.Magnitude
+			if len(e.Targets) == 0 {
+				fx.traffic *= e.Magnitude
+			}
+			for _, id := range e.Targets {
+				fx.trafficOn[id] = factor(fx.trafficOn, id) * e.Magnitude
+			}
 		case EffectAttack:
-			fx.attack += e.Magnitude
+			if len(e.Targets) == 0 {
+				fx.attack += e.Magnitude
+			}
+			for _, id := range e.Targets {
+				fx.attackOn[id] += e.Magnitude
+			}
 		case EffectCrash, EffectZone:
 			for _, h := range e.Hits {
 				fx.down[h.Node] += h.Replicas
@@ -248,7 +265,7 @@ func (g *Game) draw() {
 func (g *Game) candidates(c Card) []*Node {
 	var out []*Node
 	for _, n := range g.Nodes {
-		if n.Kind == KindInternet || g.upReplicas(n) == 0 {
+		if n.Kind == KindInternet || n.Kind == KindTraffic || g.upReplicas(n) == 0 {
 			continue
 		}
 		ok := len(c.Targets) == 0
@@ -288,6 +305,25 @@ func (g *Game) deal(c Card, rng *rand.Rand) *Event {
 		}
 		if len(e.Hits) == 0 {
 			return nil
+		}
+	case EffectTraffic, EffectAttack:
+		if !g.clientModel() {
+			break
+		}
+		// From v6 the card hits one or more traffic components.
+		var traffic []string
+		for _, n := range g.Nodes {
+			if n.Kind == KindTraffic {
+				traffic = append(traffic, n.ID)
+			}
+		}
+		if len(traffic) == 0 {
+			return nil
+		}
+		picked := rng.Perm(len(traffic))[:1+rng.IntN(len(traffic))]
+		slices.Sort(picked)
+		for _, k := range picked {
+			e.Targets = append(e.Targets, traffic[k])
 		}
 	case EffectCost:
 		var kinds []string

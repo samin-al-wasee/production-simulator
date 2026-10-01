@@ -23,6 +23,7 @@ This directory records ForgeLab's architecture decisions. Rules live in `AGENTS.
 | [0015](0015-backend-and-frontend-folders.md) | Accepted | Name the top-level code folders `backend/` and `frontend/` |
 | [0016](0016-configurable-internet-traffic.md) | Accepted | A configurable Internet: traffic groups, request mix, and load tests (Phase 11) |
 | [0017](0017-application-instance-model.md) | Accepted | The application instance as a modelled backend service (Phase 11) |
+| [0018](0018-traffic-components.md) | Accepted | Traffic components and the traffic-to-application contract (Phase 11) |
 
 ## Conventions
 

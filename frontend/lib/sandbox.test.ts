@@ -122,6 +122,7 @@ describe("events", () => {
 
   it("describes the model input an event changes", () => {
     expect(describeEvent(event({}))).toBe("real traffic ×4.3");
+    expect(describeEvent(event({ targets: ["traffic-1", "traffic-3"] }))).toBe("traffic-1, traffic-3: real traffic ×4.3");
     expect(describeEvent(event({ effect: "crash", target: "app-instance-1" }))).toBe("app-instance-1: 1 replica down");
     expect(describeEvent(event({ effect: "third-party", magnitude: 0.25 }))).toBe("25% of requests fail whatever the design");
     expect(describeEvent(event({ effect: "cost", target: "cache", magnitude: 2 }), [

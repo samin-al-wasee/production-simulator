@@ -15,7 +15,7 @@ spec:
       exercises:
         - id: s1-serve
           title: Serve your first successful request
-          how: "New game → place an Application instance, a Database primary, and Object storage → wire Internet → app → database and storage → press 1×"
+          how: "New game → place Traffic, an Application instance, a Database primary, and Object storage → wire traffic → app → database and storage → press 1×"
           evidence: {type: goal, name: first-request}
         - id: s1-missing-piece
           title: Explain the errors a missing component causes
@@ -34,8 +34,8 @@ spec:
           how: "Let users grow until the app's utilization bar turns red and requests drop"
           evidence: {type: goal, name: saturate-app}
         - id: s2-scale-out
-          title: Scale out behind a load balancer
-          how: "Place a Load balancer between the Internet and several app instances; watch load split by capacity"
+          title: Scale out to several app replicas
+          how: "Add replicas to the application instance and watch load split across them (rulesets up to v5: place a Load balancer in front of several app instances)"
           evidence: {type: goal, name: scale-out}
         - id: s2-bottleneck-moves
           title: Watch the bottleneck move to the database

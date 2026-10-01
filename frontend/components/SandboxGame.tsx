@@ -17,6 +17,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   canConnect,
+  clientConfig,
   formatMoney,
   freeSpot,
   internetConfig,
@@ -30,6 +31,7 @@ import {
 import { SandboxEvents } from "./SandboxEvents";
 import { AppView } from "./SandboxApp";
 import { InternetView } from "./SandboxInternet";
+import { TrafficView } from "./SandboxTraffic";
 import { SandboxGoals } from "./SandboxGoals";
 import { SandboxHud } from "./SandboxHud";
 import { SandboxNode, type SandboxFlowNode } from "./SandboxNode";
@@ -152,16 +154,18 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
           selected: pending ? n.id === pending : (old?.selected ?? false),
           deletable: n.kind !== "internet",
           data: {
-            label: kind?.label ?? n.kind,
+            // A traffic component is titled by the population it is.
+            label: (n.kind === "traffic" && clientConfig(game, rules, n)?.name) || (kind?.label ?? n.kind),
             kind: n.kind,
             size: n.size,
             replicas: n.replicas,
             downReplicas: n.downReplicas ?? 0,
             down: !!n.down,
             rateLimited: !!n.rateLimited,
-            loadTest: n.traffic?.source === "configured",
+            loadTest: (n.traffic ?? clientConfig(game, rules, n))?.source === "configured",
             source: (kind?.connectsTo?.length ?? 0) > 0,
-            target: n.kind !== "internet",
+            // Only kinds something can send to take connections.
+            target: rules.kinds.some((k) => k.connectsTo?.includes(n.kind)),
             stats: game.flow.nodes.find((s) => s.id === n.id),
           },
         };
@@ -187,12 +191,15 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
         const from = game.flow.nodes.find((s) => s.id === e.from);
         const to = game.flow.nodes.find((s) => s.id === e.to);
         const saturated = (to?.utilization ?? 0) >= 1 || (to?.capacity === 0 && (to?.offered ?? 0) > 0);
+        // A traffic component that breaks its contract says why on the edge.
+        const problem = from?.traffic?.problem;
         return {
           id: `${e.from}->${e.to}`,
           source: e.from,
           target: e.to,
-          animated: (from?.served ?? 0) > 0 && (to?.offered ?? 0) > 0,
-          className: saturated ? "sb-edge-bad" : undefined,
+          animated: !problem && (from?.served ?? 0) > 0 && (to?.offered ?? 0) > 0,
+          className: saturated || problem ? "sb-edge-bad" : undefined,
+          label: problem,
         };
       }),
     [game],
@@ -306,7 +313,7 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
                 .filter((e) => !gone.has(e.source) && !gone.has(e.target))
                 .forEach((e) => send({ type: "disconnect", from: e.source, to: e.target }));
             }}
-            onNodeClick={(_, n) => (n.id === "internet" || n.data.kind === "app-instance") && setInside(n.id)}
+            onNodeClick={(_, n) => ["internet", "traffic", "app-instance"].includes(n.data.kind) && setInside(n.id)}
             deleteKeyCode={["Backspace", "Delete"]}
             colorMode="system"
             fitView
@@ -317,6 +324,7 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
             <MiniMap pannable zoomable />
           </ReactFlow>
           {opened?.kind === "app-instance" && <AppView game={game} rules={rules} node={opened} onBack={back} />}
+          {opened?.kind === "traffic" && <TrafficView game={game} rules={rules} node={opened} onBack={back} />}
           {inside === "internet" && traffic && <InternetView config={traffic} game={game} routed={routedStorage(game, rules)} onBack={back} />}
           {toast && (
             <div className="sb-toast" role="alert">
@@ -364,9 +372,11 @@ export function SandboxGame() {
     let cancelled = false;
     (async () => {
       try {
-        const r = await sandboxApi.ruleset();
+        const latest = await sandboxApi.ruleset();
         const id = recall();
         const g = id ? await sandboxApi.get(id).catch(() => null) : null;
+        // An older game is shown with its own ruleset's catalog and defaults.
+        const r = g && g.ruleset !== latest.version ? await sandboxApi.ruleset(g.ruleset) : latest;
         if (cancelled) return;
         setRules(r);
         setGame(g);
@@ -385,6 +395,7 @@ export function SandboxGame() {
     try {
       const previous = game?.id;
       const g = await sandboxApi.create();
+      if (g.ruleset !== rules?.version) setRules(await sandboxApi.ruleset(g.ruleset));
       remember(g.id);
       setGame(g);
       if (previous) sandboxApi.remove(previous).catch(() => undefined);
@@ -406,8 +417,9 @@ export function SandboxGame() {
       <div className="card sb-start">
         <h3>Start from nothing</h3>
         <p>
-          Your production is empty: only the Internet, full of users, and {formatMoney(rules.startingCash)} in the bank. Place components,
-          wire them up, and keep the system healthy and profitable as traffic grows, surges, and breaks things.
+          Your production is empty: no traffic, no servers, and {formatMoney(rules.startingCash)} in the bank. Place traffic for the users
+          you want to reach and the components that serve them, wire them up, and keep the system healthy and profitable as traffic
+          grows, surges, and breaks things.
         </p>
         <button onClick={newGame}>New game</button>
       </div>

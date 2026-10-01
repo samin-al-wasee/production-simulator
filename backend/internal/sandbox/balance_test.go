@@ -9,7 +9,7 @@ import (
 // capacity after multiplying by headroom. Databases and storage never shrink.
 func provision(g *Game, headroom float64) {
 	for _, n := range g.Nodes {
-		if n.Kind == KindInternet {
+		if n.Kind == KindInternet || n.Kind == KindTraffic {
 			continue
 		}
 		var offered float64

@@ -196,8 +196,20 @@ func (s *Server) sandboxGame(w http.ResponseWriter, r *http.Request) *sandboxGam
 	return sg
 }
 
-func (s *Server) handleSandboxRuleset(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, sandbox.Latest())
+// handleSandboxRuleset serves the latest ruleset, or the one a version names
+// so an older game is shown with its own catalog and defaults.
+func (s *Server) handleSandboxRuleset(w http.ResponseWriter, r *http.Request) {
+	v := r.URL.Query().Get("version")
+	if v == "" {
+		writeJSON(w, http.StatusOK, sandbox.Latest())
+		return
+	}
+	rules, err := sandbox.Rulesets(v)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "%v", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, rules)
 }
 
 func (s *Server) handleSandboxList(w http.ResponseWriter, _ *http.Request) {

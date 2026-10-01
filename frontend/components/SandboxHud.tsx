@@ -46,7 +46,7 @@ export function SandboxHud({
           simulated
         </span>
         {m.loadTest && (
-          <span className="badge load-test" title="Traffic set by you on the Internet: it earns nothing, and users and goals hold still">
+          <span className="badge load-test" title="Traffic set by you (a load test): it earns nothing, and users and goals hold still">
             load test
           </span>
         )}
