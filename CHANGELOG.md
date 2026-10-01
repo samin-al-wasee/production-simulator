@@ -35,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Reported:** the node's flow carries `app`, with runtime state and per-route RPS, outcomes, and latency.
   - **Routing:** `db-write` goes through a connected queue, and `cache` falls back to the database, so v4 designs keep working. From v5, routes, not endpoint flags, decide storage fetches.
   - **Balance:** the default instance serves about 56 RPS on small, against v4's 50. Overload now collapses as it does in production, so events cost designs with little headroom more. The v5 balance test pins this.
-  - **Dashboard:** an app runtime panel, a **Configure app** form with a worker-memory note, and nodes coloured by health.
+  - **Dashboard:** an app runtime panel, a **Configure app** form with a worker-memory note, and nodes coloured by health. Clicking an app instance opens an animated view inside it (connections → backlog → workers → middleware → routes → dependencies → response) with the engine's values and the bottleneck marked; **← System** or Esc returns.
   - **Tests:** Go tests for each part of the model, its validation, replay, v4 designs, and balance; an API test; and a browser test.
 - Phase 11 started: a configurable Internet (ADR-0016), in ruleset `sandbox/v4`. New games use v4, and v1 to v3 replay as before.
   - **Traffic configuration:** the new `configure` command sets the Internet's configuration:

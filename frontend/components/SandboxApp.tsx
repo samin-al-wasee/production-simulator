@@ -18,7 +18,7 @@ import {
   type Ruleset,
   type SandboxNode,
 } from "@/lib/sandbox";
-import { Num } from "./SandboxInternet";
+import { InnerView, Num, graph } from "./SandboxInternet";
 
 const BOTTLENECK: Record<string, string> = {
   cpu: "CPU",
@@ -27,6 +27,122 @@ const BOTTLENECK: Record<string, string> = {
   "network-in": "inbound network",
   "network-out": "outbound network",
 };
+
+// The canvas kinds a route's dependency reaches, in order of preference: a
+// cache call falls back to the database, a write goes to a queue when one is
+// connected.
+// ponytail: mirrors depTargets in backend/internal/sandbox/app.go; move to the API if they drift
+const DEP_KINDS: Record<string, string[][]> = {
+  cache: [["cache"], ["db-primary", "db-replica"]],
+  "db-read": [["db-primary", "db-replica"]],
+  "db-write": [["queue"], ["db-primary"]],
+  queue: [["queue"]],
+  storage: [["object-storage"]],
+};
+
+// AppView opens an application instance: a request's path through its
+// connections, backlog, workers, middleware, routes, and dependencies. Every
+// value is the engine's, over all replicas; edges show each route's share.
+export function AppView({
+  game,
+  rules,
+  node,
+  onBack,
+}: {
+  game: GameState;
+  rules: Ruleset;
+  node: SandboxNode;
+  onBack: () => void;
+}) {
+  const config = appConfig(game, rules, node);
+  if (!config) return null;
+  const a = game.flow.nodes.find((s) => s.id === node.id)?.app;
+  const at = (b: string) => (a?.bottleneck === b ? "bad" : undefined);
+  const g = graph((a?.success ?? 0) + (a?.errors ?? 0) + (a?.timeouts ?? 0) > 0);
+  const total = (a?.routes ?? []).reduce((sum, r) => sum + r.rps, 0);
+  const n = (v = 0) => formatCompact(v);
+
+  g.column([{
+    id: "in",
+    title: "Connections",
+    sub: `${n(total)}/s · ${n(a?.connections)} open${a?.rejected ? ` · ${n(a.rejected)}/s rejected` : ""}${config.tls ? " · TLS" : ""}${config.keepAlive ? " · keep-alive" : ""}`,
+    cls: at("connections") ?? at("network-in") ?? (a && a.rejected > 0.01 ? "bad" : undefined),
+  }], "input");
+  g.column([{
+    id: "backlog",
+    title: "Backlog",
+    sub: `${n(a?.queued)} / ${config.backlog} queued · waits ${(a?.waitMs ?? 0).toFixed(0)} ms`,
+    cls: a && a.queued > 0.5 ? "warn" : undefined,
+  }]);
+  g.column([{
+    id: "workers",
+    title: config.processing === "sync" ? `${config.workers} sync workers` : `${config.workers} async workers × ${config.maxConcurrency}`,
+    sub: `${n(a?.active)} in flight · ${(a?.cpuUsed ?? 0).toFixed(2)} / ${a?.cpuTotal ?? 0} vCPU · ${n(a?.memoryMb)} / ${n(a?.memoryTotalMb)} MB`,
+    cls: at("cpu") ?? at("slots") ?? (a?.outOfMemory ? "bad" : undefined),
+  }]);
+  g.link("in", "backlog", 1);
+  g.link("backlog", "workers", 1);
+  let last = "workers";
+  const mw = (config.middleware ?? []).map((name) => rules.middleware?.find((x) => x.name === name) ?? { name, label: name, ms: 0, cpuMs: 0 });
+  if (mw.length) {
+    g.column([{
+      id: "mw",
+      title: `Middleware: ${mw.map((m) => m.label).join(" → ")}`,
+      sub: `+${mw.reduce((t, m) => t + m.ms, 0)} ms · ${mw.reduce((t, m) => t + m.cpuMs, 0)} CPU-ms per request`,
+    }]);
+    g.link(last, "mw", 1);
+    last = "mw";
+  }
+
+  const routes = a?.routes ?? config.routes.map((r) => ({ endpoint: r.endpoint, rps: 0, errors: 0, timeouts: 0, latencyMs: 0 }));
+  g.column(routes.map((r) => ({
+    id: `rt:${r.endpoint}`,
+    title: r.endpoint,
+    sub: `${n(r.rps)}/s · ${r.latencyMs.toFixed(0)} ms${r.errors > 0.01 ? ` · ${n(r.errors)}/s errors` : ""}${r.timeouts > 0.01 ? ` · ${n(r.timeouts)}/s timeouts` : ""}`,
+    cls: r.errors + r.timeouts > 0.01 ? "bad" : undefined,
+  })));
+  const share = (rps: number) => (total > 0 ? rps / total : 1 / routes.length);
+  const depsOf = (endpoint: string) =>
+    (config.routes.find((r) => r.endpoint === endpoint) ?? config.routes.find((r) => r.endpoint === "*"))?.deps ?? [];
+  for (const r of routes) g.link(last, `rt:${r.endpoint}`, share(r.rps));
+
+  const used = DEPS.filter((d) => routes.some((r) => depsOf(r.endpoint).includes(d)));
+  const targets = (dep: string) => {
+    const out = game.edges.filter((e) => e.from === node.id).map((e) => game.nodes.find((x) => x.id === e.to));
+    for (const kinds of DEP_KINDS[dep]) {
+      const hit = out.filter((x) => x && kinds.includes(x.kind)).map((x) => x!.id);
+      if (hit.length) return hit;
+    }
+    return [];
+  };
+  g.column(used.map((d) => {
+    const to = targets(d);
+    return { id: `d:${d}`, title: d, sub: to.length ? `→ ${to.join(", ")}` : "not connected: calls fail", cls: to.length ? undefined : "bad" };
+  }));
+  for (const r of routes) for (const d of depsOf(r.endpoint)) g.link(`rt:${r.endpoint}`, `d:${d}`, share(r.rps));
+
+  g.column([{
+    id: "out",
+    title: "Response",
+    sub: `${n(a?.success)}/s ok · ${n(a?.errors)}/s errors · ${n(a?.timeouts)}/s timeouts`,
+    cls: at("network-out") ?? ((a?.errors ?? 0) + (a?.timeouts ?? 0) > 0.01 ? "bad" : undefined),
+  }], "output");
+  for (const r of routes) g.link(`rt:${r.endpoint}`, "out", share(r.rps));
+
+  return (
+    <InnerView
+      title={`Inside ${node.id}`}
+      hint={
+        <>
+          {config.name} · {config.framework} · ×{node.replicas}
+          {a && <> · <span className={healthLevel(a.health)}>{a.health}</span>, bottleneck {BOTTLENECK[a.bottleneck] ?? a.bottleneck}</>} · values over all replicas
+        </>
+      }
+      graph={g}
+      onBack={onBack}
+    />
+  );
+}
 
 // AppPanel is an application instance's part of the inspector: its runtime
 // state, every value from the engine, and the way into its configuration.
