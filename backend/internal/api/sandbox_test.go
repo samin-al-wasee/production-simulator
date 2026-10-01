@@ -357,3 +357,31 @@ func TestSandboxConfiguresTheInternet(t *testing.T) {
 		t.Fatalf("the flow should break traffic down: %+v", out.State.Flow.Traffic)
 	}
 }
+
+func TestSandboxConfiguresAnApp(t *testing.T) {
+	srv, _ := sandboxServer(t)
+	var rules sandbox.Ruleset
+	call(t, srv, "GET", "/api/v1/sandbox/ruleset", nil, 200, &rules)
+	if rules.App == nil || len(rules.Middleware) == 0 || len(rules.Frameworks) == 0 || rules.Sizes[0].VCPU == 0 {
+		t.Fatal("the ruleset must carry the default app, middleware, frameworks, and size resources")
+	}
+	var st SandboxState
+	call(t, srv, "POST", "/api/v1/sandbox/games", map[string]int64{"seed": 7}, 201, &st)
+	build(t, srv, st.ID)
+	base := "/api/v1/sandbox/games/" + st.ID
+
+	cfg := *rules.App
+	cfg.Workers = 0
+	call(t, srv, "POST", base+"/commands", sandbox.Command{Type: sandbox.CmdConfigure, Node: "app-instance-1", App: &cfg}, 422, nil)
+	cfg.Workers = 8
+	var out commandResult
+	call(t, srv, "POST", base+"/commands", sandbox.Command{Type: sandbox.CmdConfigure, Node: "app-instance-1", App: &cfg}, 200, &out)
+	if out.State.Nodes[1].App == nil || out.State.Nodes[1].App.Workers != 8 {
+		t.Fatalf("the configuration should be on the node: %+v", out.State.Nodes[1])
+	}
+	for _, n := range out.State.Flow.Nodes {
+		if n.ID == "app-instance-1" && (n.App == nil || n.App.Health == "" || len(n.App.Routes) == 0) {
+			t.Fatalf("the flow should carry the app's runtime state: %+v", n)
+		}
+	}
+}

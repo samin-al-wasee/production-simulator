@@ -13,7 +13,9 @@ import {
   newGroupKey,
   percentTotal,
   problems,
+  routedStorage,
   toDraft,
+  type Command,
   type GameState,
   type GroupDraft,
   type Pattern,
@@ -62,7 +64,7 @@ function reshape(p: Pattern, shape: PatternShape): Pattern {
   };
 }
 
-function Num({
+export function Num({
   label,
   value,
   onChange,
@@ -131,7 +133,7 @@ export function InternetPanel({
 }: {
   game: GameState;
   rules: Ruleset;
-  onConfigure: (tc: TrafficConfig) => Promise<string | null>;
+  onConfigure: (c: Command) => Promise<string | null>;
 }) {
   const [open, setOpen] = useState(false);
   const t = game.flow.traffic;
@@ -182,7 +184,7 @@ export function InternetPanel({
         </details>
       )}
       {open && config && (
-        <TrafficDialog rules={rules} config={config} onConfigure={onConfigure} onClose={() => setOpen(false)} />
+        <TrafficDialog rules={rules} routed={routedStorage(game, rules)} config={config} onConfigure={onConfigure} onClose={() => setOpen(false)} />
       )}
     </div>
   );
@@ -190,13 +192,16 @@ export function InternetPanel({
 
 function TrafficDialog({
   rules,
+  routed,
   config,
   onConfigure,
   onClose,
 }: {
   rules: Ruleset;
+  // From v5 an application's routes decide what fetches from storage.
+  routed: boolean;
   config: TrafficConfig;
-  onConfigure: (tc: TrafficConfig) => Promise<string | null>;
+  onConfigure: (c: Command) => Promise<string | null>;
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -229,7 +234,7 @@ function TrafficDialog({
       return;
     }
     setBusy(true);
-    const err = await onConfigure(tc);
+    const err = await onConfigure({ type: "configure", node: "internet", traffic: tc });
     setBusy(false);
     if (err) setErrors(problems(err));
     else onClose();
@@ -411,7 +416,7 @@ function TrafficDialog({
       <details className="sb-section">
         <summary>Endpoints</summary>
         <p className="sb-hint">
-          GET is a read, anything else a write. A CDN can answer cacheable reads; storage requests also fetch from object storage.
+          GET is a read, anything else a write. A CDN can answer cacheable reads.{!routed && " Storage requests also fetch from object storage."}
         </p>
         {draft.endpoints.map((e, k) => (
           <div className="sb-row" key={k}>
@@ -449,7 +454,7 @@ function TrafficDialog({
               />
               cacheable
             </label>
-            <label>
+            {!routed && <label>
               <input
                 type="checkbox"
                 checked={!!e.storage}
@@ -458,7 +463,7 @@ function TrafficDialog({
                 }
               />
               storage
-            </label>
+            </label>}
             <button
               className="secondary danger"
               disabled={draft.endpoints.length <= 1}
@@ -534,10 +539,12 @@ function TrafficDialog({
 export function InternetView({
   config,
   game,
+  routed,
   onBack,
 }: {
   config: TrafficConfig;
   game: GameState;
+  routed: boolean;
   onBack: () => void;
 }) {
   useEffect(() => {
@@ -592,7 +599,7 @@ export function InternetView({
   column(560, config.endpoints.map((e) => ({
     id: `e:${endpointName(e)}`,
     title: endpointName(e),
-    sub: `${formatCompact(rps(t?.endpoints, endpointName(e)))}/s${e.cacheable ? " · cacheable" : ""}${e.storage ? " · storage" : ""}`,
+    sub: `${formatCompact(rps(t?.endpoints, endpointName(e)))}/s${e.cacheable ? " · cacheable" : ""}${e.storage && !routed ? " · storage" : ""}`,
   })));
   const out = game.edges.filter((e) => e.from === "internet").map((e) => e.to);
   column(840, [{

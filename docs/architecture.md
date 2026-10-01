@@ -1,7 +1,7 @@
 # ForgeLab Architecture
 
 **Document status:** v2.0 (re-scoped by [ADR-0014](decisions/0014-sandbox-only-platform.md))
-**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic)
+**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic), [ADR-0017](decisions/0017-application-instance-model.md) (application instance)
 
 ForgeLab is the **Production Sandbox**: a city-builder for software production. A new game is an **empty world**, an Internet traffic source and starting cash. The player places components, wires them together, and keeps the system healthy and profitable as users arrive, traffic swings, and incidents happen. Everything is a deterministic model computed in the Go core; nothing runs on the host.
 
@@ -104,6 +104,40 @@ The Internet is one node on the canvas. Its configuration (`TrafficConfig`, set 
   * requests in flight: `attempts × mean latency` (Little's law)
   * RPS by group, region, and endpoint
 
+## Application instance model
+
+From `sandbox/v5` an application instance is a modelled backend web/API service ([ADR-0017](decisions/0017-application-instance-model.md)). Its configuration (`AppConfig`, set with `configure`) applies to each replica. The CPU, memory, and network come from its size: small 1 vCPU / 1 GB / 100 Mbps, medium 2 / 4 / 250, large 4 / 8 / 500. Rulesets v1 to v4 keep the flat capacity described below.
+
+* **Routes.** The instance splits each request class back into endpoints, in the Internet's shares, and gives each endpoint its route (or the `*` route).
+  * A route's own time is `base + middleware ms`, and its CPU is `cpu + middleware CPU + TLS handshake CPU per new connection`.
+  * A connection carries one request, or 10 with keep-alive, and a kept-alive connection then idles for 5 s.
+  * Its wall time adds its dependencies' latency from the previous tick.
+* **Capacity** is the smallest of these, each `capacity ÷ (use per request at this tick's mix)`. The smallest is reported as the bottleneck.
+
+  | Limit | Capacity per replica | Use per request |
+  |---|---|---|
+  | CPU | `min(workers, vCPU) × 1000` CPU-ms/s | CPU-ms |
+  | Slots | workers (sync) or max concurrency (async) | wall time in seconds (Little's law) |
+  | Connections | max connections | wall time + keep-alive idle |
+  | Network in / out | size Mbps | request / response size in Mb |
+
+  A tick in which the instance starts loses 30 s of capacity.
+* **Queue.**
+  * The rate-limit middleware first rejects load above its limit.
+  * Below capacity, `wait = mean wall time × ρ / (1 − ρ)`, and the queue (`load × wait`) is capped at the backlog.
+  * At or above capacity, the instance serves its capacity, the backlog is full, `wait = backlog ÷ capacity`, and the rest is rejected.
+* **Outcomes per route.**
+  * rejected: as above
+  * timed out: `served × exp(−(timeout − own − dependency latency) ÷ wait)`, or all served if the work alone exceeds the timeout
+  * failed: the handler's error rate, and any dependency call that fails or has no target
+  * The rest succeed with latency `own + wait + dependency latency`.
+
+  Dependency calls are made for every served request, including those whose client timed out.
+* **Dependencies.** `cache` (falls back to the database), `db-read`, `db-write` (through a connected queue, else the primary), `queue`, `storage`.
+* **Memory** is `workers × 150 MB + (in flight + queued) × route memory`. Beyond the size's memory the instance is out of memory: it is down for `RestartTicks`, then starts again.
+* **Health** is derived each tick: stopped, unhealthy (out of memory or > 20% failing), starting, degraded (ρ > 0.85 or > 1% failing), healthy.
+* **Reported** in the node's flow as `app`: health, bottleneck, capacity, CPU, memory, in flight, queued, connections, wait, outcome rates, and per-route RPS, outcomes, and latency.
+
 ## Flow solver (initial model)
 
 The solver walks the topology from the Internet node. The formulas are deliberately simple and documented, so a learner can check them:
@@ -163,7 +197,8 @@ The economy is generic: revenue per successful request, cost per component-hour.
 | `sandbox/v1` | The first ruleset: component kinds, sizes, economy, and growth. It has no events, and stays unchanged so v1 saves replay exactly. |
 | `sandbox/v2` | v1 plus the Event Deck and incident responses, with a rebalanced economy. |
 | `sandbox/v3` | v2 plus goals and unlocks. |
-| `sandbox/v4` | v3 plus a configurable Internet: traffic groups, endpoints, regions, retries, and load tests. The CDN's hit ratio becomes 45% of cacheable reads. New games use it; an older version can be chosen when a game is created. |
+| `sandbox/v4` | v3 plus a configurable Internet: traffic groups, endpoints, regions, retries, and load tests. The CDN's hit ratio becomes 45% of cacheable reads. |
+| `sandbox/v5` | v4 plus the application instance model: capacity from CPU, slots, connections, and network under the routes' costs; middleware; queueing, timeouts, rejection, out-of-memory crashes, and health. New games use it; an older version can be chosen when a game is created. |
 
 **v2 rebalancing.** Under v1, one application instance costing $2/h earned about $90/h at capacity. Over-provisioning therefore always paid, and incidents never threatened solvency.
 

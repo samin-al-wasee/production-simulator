@@ -290,3 +290,52 @@ test("configure the Internet's traffic", async ({ page }) => {
   await expect(page.locator(".sb-toast")).toHaveCount(0);
   expect(errors, "browser errors").toEqual([]);
 });
+
+test("an application instance shows why it is slow and can be reconfigured", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+  // The browser logs the one rejected configuration below as a failed request.
+  page.on("console", (m) => {
+    if (m.type() === "error" && !m.text().includes("status of 422")) errors.push(`console: ${m.text()}`);
+  });
+
+  const api = page.request;
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 3 } })).json();
+  const game = `/api/forgelab/sandbox/games/${created.id}`;
+  const command = async (c: object) => {
+    const res = await api.post(`${game}/commands`, { data: c });
+    expect(res.ok(), await res.text()).toBe(true);
+    return (await res.json()) as { node?: string };
+  };
+  const app = (await command({ type: "place", kind: "app-instance", x: 300, y: 0 })).node!;
+  const db = (await command({ type: "place", kind: "db-primary", x: 600, y: -100 })).node!;
+  const st = (await command({ type: "place", kind: "object-storage", x: 600, y: 100 })).node!;
+  await command({ type: "connect", from: "internet", to: app });
+  await command({ type: "connect", from: app, to: db });
+  await command({ type: "connect", from: app, to: st });
+  await api.post(`${game}/step`, { data: { ticks: 2 } });
+
+  await page.goto("/sandbox");
+  await page.evaluate((id) => localStorage.setItem("forgelab.sandbox.game", id), created.id);
+  await page.reload();
+  await node(page, app).click();
+  const inspector = page.locator(".sb-inspector");
+  await expect(inspector.locator("tr", { hasText: "Health" })).toContainText("healthy");
+  await expect(inspector.locator("tr", { hasText: "Bottleneck" })).toContainText("CPU");
+
+  // Zero workers is rejected with the reason; one sync worker moves the bottleneck.
+  await inspector.getByRole("button", { name: "Configure app" }).click();
+  const dialog = page.getByRole("dialog", { name: "Application instance" });
+  await dialog.getByLabel("Workers").fill("0");
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("workers must be between 1 and 64");
+  await dialog.getByLabel("Workers").fill("1");
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(inspector.locator("tr", { hasText: "Bottleneck" })).toContainText("workers / concurrency slots");
+  await page.getByText("Routes", { exact: true }).click();
+  await expect(inspector.locator(".sb-breakdown tr", { hasText: "GET /products" }).first()).toBeVisible();
+
+  await expect(page.locator(".sb-toast")).toHaveCount(0);
+  expect(errors, "browser errors").toEqual([]);
+});

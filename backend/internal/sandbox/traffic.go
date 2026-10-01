@@ -251,8 +251,11 @@ func (g *Game) breakdown(t *Traffic) {
 // configure replaces the Internet's traffic configuration and restarts its
 // pattern clock.
 func (g *Game) configure(c Command) error {
+	if n := g.Node(c.Node); n != nil && n.Kind == KindApp {
+		return g.configureApp(n, c.App)
+	}
 	if c.Node != InternetID {
-		return invalid("only the Internet has a traffic configuration")
+		return invalid("only the Internet and application instances can be configured")
 	}
 	if g.Rules.Traffic == nil {
 		return invalid("ruleset %s has no traffic configuration", g.Rules.Version)

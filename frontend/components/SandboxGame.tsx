@@ -21,11 +21,11 @@ import {
   freeSpot,
   internetConfig,
   newest,
+  routedStorage,
   sandboxApi,
   type Command,
   type GameState,
   type Ruleset,
-  type TrafficConfig,
 } from "@/lib/sandbox";
 import { SandboxEvents } from "./SandboxEvents";
 import { InternetView } from "./SandboxInternet";
@@ -212,9 +212,9 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
   // Configuring the Internet reports a rejection to its form, not as a toast:
   // a configuration can have several problems to fix at once.
   const configure = useCallback(
-    async (traffic: TrafficConfig) => {
+    async (c: Command) => {
       try {
-        const res = await sandboxApi.command(game.id, { type: "configure", node: "internet", traffic });
+        const res = await sandboxApi.command(game.id, c);
         onState(res.state);
         return null;
       } catch (err) {
@@ -314,7 +314,7 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
             <Controls showInteractive={false} fitViewOptions={{ maxZoom: 1, padding: 0.4 }} />
             <MiniMap pannable zoomable />
           </ReactFlow>
-          {inside && traffic && <InternetView config={traffic} game={game} onBack={back} />}
+          {inside && traffic && <InternetView config={traffic} game={game} routed={routedStorage(game, rules)} onBack={back} />}
           {toast && (
             <div className="sb-toast" role="alert">
               {toast}

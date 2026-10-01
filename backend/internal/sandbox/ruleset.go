@@ -57,6 +57,10 @@ type Size struct {
 	Name           string  `json:"name"`
 	CapacityFactor float64 `json:"capacityFactor"`
 	CostFactor     float64 `json:"costFactor"`
+	// An application instance's resources at this size (v5 and later).
+	VCPU        float64 `json:"vcpu,omitempty"`
+	MemoryGB    float64 `json:"memoryGb,omitempty"`
+	NetworkMbps float64 `json:"networkMbps,omitempty"`
 }
 
 // Tier is a named scale level reached at a userbase.
@@ -132,6 +136,13 @@ type Ruleset struct {
 	MaxRetries int `json:"maxRetries,omitempty"`
 	// MaxTrafficRPS bounds a configured source's rate.
 	MaxTrafficRPS float64 `json:"maxTrafficRps,omitempty"`
+
+	// App is a new application instance's configuration; a ruleset without
+	// one uses the kind's flat capacity and cannot configure applications.
+	App        *AppConfig   `json:"app,omitempty"`
+	AppRuntime AppRuntime   `json:"appRuntime,omitzero"`
+	Middleware []Middleware `json:"middleware,omitempty"`
+	Frameworks []Framework  `json:"frameworks,omitempty"`
 }
 
 // RulesetV1 is the first Sandbox ruleset.
@@ -204,13 +215,15 @@ func Rulesets(version string) (*Ruleset, error) {
 		return RulesetV3(), nil
 	case "sandbox/v4":
 		return RulesetV4(), nil
+	case "sandbox/v5":
+		return RulesetV5(), nil
 	}
 	return nil, fmt.Errorf("unknown ruleset %q", version)
 }
 
 // Latest returns the ruleset new games are played with.
 func Latest() *Ruleset {
-	return RulesetV4()
+	return RulesetV5()
 }
 
 // Kind returns a kind by name.
