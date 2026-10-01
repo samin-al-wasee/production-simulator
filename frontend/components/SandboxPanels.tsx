@@ -165,7 +165,7 @@ export function SandboxInspector({
         </table>
       )}
 
-      {internet && <InternetPanel game={game} rules={rules} node={node} onConfigure={onConfigure} />}
+      {internet && <InternetPanel game={game} rules={rules} onConfigure={onConfigure} />}
 
       {!internet && (
         <div className="sb-actions">

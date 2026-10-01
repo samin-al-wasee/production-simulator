@@ -24,6 +24,7 @@ Let a player build and run a production system visually. The canvas renders the 
   - retries
 
   The form shows running totals but corrects nothing: the engine validates the configuration and the form lists every problem it reports. A load test shows a *load test* badge in the meters and on the Internet node, and the goals strip says goals are paused.
+- **Inside the Internet:** clicking the Internet node opens it on the canvas with a short zoom animation. It shows regions → traffic groups → endpoints → the components the Internet sends to, with the engine's RPS on each node. Edges are animated while traffic flows, and their width and label show the configured share. **← System** or Esc goes back, and the selection is kept.
 - **Controls:** pause, 1×, 2×, 4×, 8×, skip an hour or a day, save, new game. The game id is kept in browser storage so a reload resumes it.
 
 ## Dependencies

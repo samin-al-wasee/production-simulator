@@ -237,6 +237,8 @@ test("configure the Internet's traffic", async ({ page }) => {
   await node(page, "internet").click();
   await expect(page.locator(".sb-inspector h3")).toHaveText("Internet");
   await expect(page.locator(".sb-inspector")).toContainText("Market (your users)");
+  // Clicking the Internet also opens it; go back to the system for now.
+  await page.keyboard.press("Escape");
 
   // Switch to a load test with a mistake in the group shares: the engine
   // rejects it, the form says why, and nothing changes.
@@ -262,6 +264,20 @@ test("configure the Internet's traffic", async ({ page }) => {
   await page.getByText("Traffic breakdown").click();
   await expect(page.locator(".sb-breakdown tr", { hasText: "Web users" })).toContainText("21.0/s");
   await expect(page.locator(".sb-breakdown tr", { hasText: "asia" })).toContainText("12.0/s");
+
+  // Clicking the Internet opens it: regions, groups, and endpoints with
+  // animated traffic. Esc and the back button return to the system.
+  const inside = page.getByLabel("Inside the Internet");
+  await node(page, "internet").click();
+  await expect(inside).toBeVisible();
+  await expect(inside.locator(".react-flow__node", { hasText: "Web users" })).toContainText("21.0/s");
+  await expect(inside.locator(".react-flow__node", { hasText: "asia" })).toContainText("12.0/s");
+  await expect(inside.locator(".react-flow__edge.animated").first()).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(inside).toHaveCount(0);
+  await node(page, "internet").click();
+  await inside.getByRole("button", { name: "← System" }).click();
+  await expect(inside).toHaveCount(0);
 
   // Back to the market: users drive the volume again.
   await page.getByRole("button", { name: "Configure traffic" }).click();
