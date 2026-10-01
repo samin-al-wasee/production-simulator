@@ -22,6 +22,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phase 11: the application instance as a modelled backend service (ADR-0017), in ruleset `sandbox/v5`. New games use v5, and v1 to v4 replay bit for bit.
+  - **Configuration:** `configure` on an application instance sets its configuration:
+    - labels and a framework preset
+    - sync or async processing, workers, max concurrency, backlog, max connections, timeout, TLS, and keep-alive
+    - middleware from a catalog (each adds ms and CPU-ms; rate limiting rejects above its limit)
+    - routes per endpoint with a `*` catch-all: base and CPU time, memory, request and response size, error rate, and dependencies (`cache`, `db-read`, `db-write`, `queue`, `storage`)
+
+    Validation corrects nothing. CPU, memory, and network come from the priced size.
+  - **Capacity emerges** as the smallest of the CPU, slot, connection, and network limits under the routes' costs, and it is reported as the bottleneck. Dependency waits use last tick's latency, so a slow database fills sync workers.
+  - **Overload:** the backlog fills, waits grow, requests time out (exponential waits) and are rejected. Running out of memory crashes the instance, which restarts. Health is derived: starting, healthy, degraded, unhealthy, stopped.
+  - **Reported:** the node's flow carries `app`, with runtime state and per-route RPS, outcomes, and latency.
+  - **Routing:** `db-write` goes through a connected queue, and `cache` falls back to the database, so v4 designs keep working. From v5, routes, not endpoint flags, decide storage fetches.
+  - **Balance:** the default instance serves about 56 RPS on small, against v4's 50. Overload now collapses as it does in production, so events cost designs with little headroom more. The v5 balance test pins this.
+  - **Dashboard:** an app runtime panel, a **Configure app** form with a worker-memory note, and nodes coloured by health.
+  - **Tests:** Go tests for each part of the model, its validation, replay, v4 designs, and balance; an API test; and a browser test.
 - Phase 11 started: a configurable Internet (ADR-0016), in ruleset `sandbox/v4`. New games use v4, and v1 to v3 replay as before.
   - **Traffic configuration:** the new `configure` command sets the Internet's configuration:
     - the source: `market` (users, as before) or a `configured` load test with a pattern (constant, ramp, spike, burst, periodic, or daily schedule)

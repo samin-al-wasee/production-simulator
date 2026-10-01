@@ -10,7 +10,7 @@ Everything is a deterministic model computed in a Go core. Nothing runs on your 
 
 ## Status
 
-**Phase 10 (Production Sandbox) is complete.** The engine, API, dashboard canvas, event deck (surges, outages, attacks, with restart, failover, and rate limiting), and goals with unlocks and automatic learning-path completion are playable. **Phase 11 (Deep component simulation) is in progress.** The Internet is configurable: select it to shape traffic with groups, endpoints, regions, and retries, or run a load test with a spike, ramp, burst, or daily schedule. See [`ROADMAP.md`](ROADMAP.md).
+**Phase 10 (Production Sandbox) is complete.** The engine, API, dashboard canvas, event deck (surges, outages, attacks, with restart, failover, and rate limiting), and goals with unlocks and automatic learning-path completion are playable. **Phase 11 (Deep component simulation) is in progress.** The Internet is configurable: select it to shape traffic with groups, endpoints, regions, and retries, or run a load test with a spike, ramp, burst, or daily schedule. Application instances are modelled backend services: select one to see its bottleneck, queue, timeouts, and health, and configure its workers, middleware, and routes. See [`ROADMAP.md`](ROADMAP.md).
 
 ForgeLab used to be a real-infrastructure lab (Docker Compose, Kubernetes, Terraform, chaos drills). That **Live mode** was retired in favour of the game ([ADR-0014](docs/decisions/0014-sandbox-only-platform.md)); it is kept on the `archive/live-lab` branch.
 

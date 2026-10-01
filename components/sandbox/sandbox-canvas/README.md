@@ -2,7 +2,7 @@
 
 The dashboard screen where the Production Sandbox is played.
 
-**Status:** implemented (Phase 10, ADR-0013); Internet traffic configuration added in Phase 11 (ADR-0016)
+**Status:** implemented (Phase 10, ADR-0013); Internet traffic (ADR-0016) and application instance (ADR-0017) configuration added in Phase 11
 
 ## Purpose
 
@@ -24,6 +24,13 @@ Let a player build and run a production system visually. The canvas renders the 
   - retries
 
   The form shows running totals but corrects nothing: the engine validates the configuration and the form lists every problem it reports. A load test shows a *load test* badge in the meters and on the Internet node, and the goals strip says goals are paused.
+- **Application instance** (v5): the inspector shows health, bottleneck, CPU, memory, in flight, queued (with the wait), connections, and success, error, timeout, and rejection rates, with per-route RPS and latency. **Configure app** opens a form:
+  - application labels and a framework preset
+  - server and concurrency (sync or async, workers, backlog, connections, timeout, TLS, keep-alive), with a note on the workers' memory
+  - middleware
+  - routes, with their costs and dependencies
+
+  The engine validates the configuration and the form lists every problem. Nodes are coloured by health.
 - **Inside the Internet:** clicking the Internet node opens it on the canvas with a short zoom animation. It shows regions → traffic groups → endpoints → the components the Internet sends to, with the engine's RPS on each node. Edges are animated while traffic flows, and their width and label show the configured share. **← System** or Esc goes back, and the selection is kept.
 - **Controls:** pause, 1×, 2×, 4×, 8×, skip an hour or a day, save, new game. The game id is kept in browser storage so a reload resumes it.
 

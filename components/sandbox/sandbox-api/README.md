@@ -2,7 +2,7 @@
 
 HTTP endpoints that let the dashboard, or any client, play Sandbox games.
 
-**Status:** implemented (Phase 10, ADR-0013); `configure` added in Phase 11 (ADR-0016)
+**Status:** implemented (Phase 10, ADR-0013); `configure` added in Phase 11 (ADR-0016, ADR-0017)
 
 ## Purpose
 
@@ -14,12 +14,12 @@ Served by `forgelab serve` (`backend/internal/api/sandbox.go`):
 
 | Endpoint | Does |
 |---|---|
-| `GET /api/v1/sandbox/ruleset` | The latest ruleset (`sandbox/v4`): placeable kinds, sizes, tuning, the event deck, goals, regions, and the default traffic configuration |
+| `GET /api/v1/sandbox/ruleset` | The latest ruleset (`sandbox/v5`): placeable kinds, sizes with their resources, tuning, the event deck, goals, regions, the default traffic and application configurations, and the middleware and framework catalogs |
 | `GET /api/v1/sandbox/games` | Games held by this server |
-| `POST /api/v1/sandbox/games` | New empty game (`{"seed": n, "ruleset": "sandbox/v4"}`, both optional; the latest ruleset by default), or a replay (`{"save": {...}}`) |
+| `POST /api/v1/sandbox/games` | New empty game (`{"seed": n, "ruleset": "sandbox/v5"}`, both optional; the latest ruleset by default), or a replay (`{"save": {...}}`) |
 | `GET /api/v1/sandbox/games/{id}` | Full state: meters, nodes (the Internet with its `traffic` configuration once set), edges, per-node flow and the `traffic` breakdown, history, events (upcoming, active, recently judged), and goals with their progress |
 | `DELETE /api/v1/sandbox/games/{id}` | End a game and its streams |
-| `POST /api/v1/sandbox/games/{id}/commands` | Apply a command, including `{"type": "respond", "action": ..., "node": ...}` and `{"type": "configure", "node": "internet", "traffic": {...}}`; `422` with the reason (every problem, separated by `; `) when invalid |
+| `POST /api/v1/sandbox/games/{id}/commands` | Apply a command, including `{"type": "respond", "action": ..., "node": ...}` `{"type": "configure", "node": "internet", "traffic": {...}}`, and `{"type": "configure", "node": "app-instance-1", "app": {...}}`; `422` with the reason (every problem, separated by `; `) when invalid |
 | `POST /api/v1/sandbox/games/{id}/speed` | `{"speed": 0\|1\|2\|4\|8}` ticks per real second; `0` pauses |
 | `POST /api/v1/sandbox/games/{id}/step` | Advance `{"ticks": n}` at once (1 to 2880) |
 | `POST /api/v1/sandbox/games/{id}/save` | Write the replayable save to `.forgelab/sandbox/<id>.json` (git-ignored) and return it |

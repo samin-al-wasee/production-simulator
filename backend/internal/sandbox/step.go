@@ -39,6 +39,8 @@ type Snapshot struct {
 
 	backlog     []float64
 	attemptFail vec
+	path        map[string]vec
+	outOfMemory []string
 }
 
 const historyLimit = 576
@@ -133,6 +135,13 @@ func (g *Game) Step() Snapshot {
 		n.Backlog = snap.backlog[i]
 	}
 	g.attemptFail = snap.attemptFail
+	g.lastPath = snap.path
+	// An instance out of memory crashes, restarts, and starts again.
+	for _, id := range snap.outOfMemory {
+		n := g.Node(id)
+		n.CrashedUntil = g.Tick + 1 + r.RestartTicks
+		n.StartedAt = n.CrashedUntil
+	}
 
 	before := g.meters(f)
 	hours := r.TickSeconds / 3600

@@ -1,7 +1,7 @@
 "use client";
 
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { formatCompact, level, type NodeStats } from "@/lib/sandbox";
+import { formatCompact, healthLevel, level, type NodeStats } from "@/lib/sandbox";
 
 export type SandboxNodeData = {
   label: string;
@@ -23,7 +23,8 @@ export function SandboxNode({ id, data, selected }: NodeProps<SandboxFlowNode>) 
   const s = data.stats;
   const internet = data.kind === "internet";
   const util = s?.utilization ?? 0;
-  const cls = data.down || data.downReplicas > 0 ? "bad" : level(util);
+  const health = s?.app?.health;
+  const cls = data.down || data.downReplicas > 0 ? "bad" : health ? healthLevel(health) : level(util);
   return (
     <div className={`sb-node lvl-${cls}${selected ? " selected" : ""}${internet ? " internet" : ""}`}>
       {data.target && <Handle type="target" position={Position.Left} />}
@@ -54,6 +55,7 @@ export function SandboxNode({ id, data, selected }: NodeProps<SandboxFlowNode>) 
         </div>
       )}
       {data.rateLimited && <div className="sb-node-meta">rate-limited</div>}
+      {health && health !== "healthy" && <div className={`sb-node-meta ${cls}`}>{health}</div>}
       {data.source && <Handle type="source" position={Position.Right} />}
     </div>
   );

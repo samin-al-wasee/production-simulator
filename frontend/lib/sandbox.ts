@@ -21,6 +21,93 @@ export interface Size {
   name: string;
   capacityFactor: number;
   costFactor: number;
+  vcpu?: number;
+  memoryGb?: number;
+  networkMbps?: number;
+}
+
+export type Processing = "sync" | "async";
+export const DEPS = ["cache", "db-read", "db-write", "queue", "storage"] as const;
+
+export interface AppRoute {
+  endpoint: string;
+  baseMs: number;
+  cpuMs: number;
+  memoryMb: number;
+  requestKb: number;
+  responseKb: number;
+  errorRate?: number;
+  deps?: string[];
+}
+
+export interface AppConfig {
+  name: string;
+  framework: string;
+  version: string;
+  environment: string;
+  protocol: string;
+  port: number;
+  interface: string;
+  server: string;
+  processing: Processing;
+  workers: number;
+  maxConcurrency: number;
+  backlog: number;
+  maxConnections: number;
+  timeoutMs: number;
+  tls: boolean;
+  keepAlive: boolean;
+  middleware: string[] | null;
+  rateLimitRps?: number;
+  routes: AppRoute[];
+}
+
+export interface Middleware {
+  name: string;
+  label: string;
+  ms: number;
+  cpuMs: number;
+}
+
+export interface Framework {
+  name: string;
+  interface: string;
+  server: string;
+  processing: Processing;
+  workers: number;
+  maxConcurrency: number;
+}
+
+export type Health = "starting" | "healthy" | "degraded" | "unhealthy" | "stopped";
+
+export interface RouteStats {
+  endpoint: string;
+  rps: number;
+  success: number;
+  errors: number;
+  timeouts: number;
+  rejected: number;
+  latencyMs: number;
+}
+
+export interface AppStats {
+  health: Health;
+  bottleneck: string;
+  capacity: number;
+  cpuUsed: number;
+  cpuTotal: number;
+  memoryMb: number;
+  memoryTotalMb: number;
+  active: number;
+  queued: number;
+  connections: number;
+  waitMs: number;
+  success: number;
+  errors: number;
+  timeouts: number;
+  rejected: number;
+  outOfMemory?: boolean;
+  routes: RouteStats[] | null;
 }
 
 export type TrafficSource = "market" | "configured";
@@ -93,6 +180,10 @@ export interface Ruleset {
   regions?: string[];
   maxRetries?: number;
   maxTrafficRps?: number;
+  app?: AppConfig;
+  middleware?: Middleware[];
+  frameworks?: Framework[];
+  appRuntime?: { workerMemoryMb: number };
 }
 
 export interface SandboxNode {
@@ -108,6 +199,7 @@ export interface SandboxNode {
   backlog?: number;
   traffic?: TrafficConfig;
   trafficSince?: number;
+  app?: AppConfig;
 }
 
 export interface Edge {
@@ -127,6 +219,7 @@ export interface NodeStats {
   latencyMs: number;
   backlog?: number;
   costPerHour: number;
+  app?: AppStats;
 }
 
 export interface Meters {
@@ -222,7 +315,7 @@ export type Command =
   | { type: "scale"; node: string; replicas: number }
   | { type: "move"; node: string; x: number; y: number }
   | { type: "respond"; action: "restart" | "failover" | "rate-limit" | "lift-rate-limit"; node: string }
-  | { type: "configure"; node: string; traffic: TrafficConfig };
+  | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig };
 
 export const SPEEDS = [0, 1, 2, 4, 8] as const;
 
@@ -426,6 +519,25 @@ export function internetConfig(game: GameState, rules: Ruleset): TrafficConfig |
   return game.nodes.find((n) => n.id === "internet")?.traffic ?? (game.ruleset === rules.version ? rules.traffic : undefined);
 }
 
+// appConfig is an application instance's configuration: its own once set,
+// else the ruleset's, under the same version rule as internetConfig.
+export function appConfig(game: GameState, rules: Ruleset, node: SandboxNode): AppConfig | undefined {
+  return node.app ?? (game.ruleset === rules.version ? rules.app : undefined);
+}
+
+// routedStorage reports whether a game's applications, not its endpoints,
+// decide which requests fetch from object storage (v5 and later).
+export function routedStorage(game: GameState, rules: Ruleset): boolean {
+  return game.ruleset === rules.version && !!rules.app;
+}
+
+// healthLevel maps an application's health to a status class.
+export function healthLevel(h: Health): "ok" | "warn" | "bad" {
+  if (h === "healthy") return "ok";
+  if (h === "starting" || h === "degraded") return "warn";
+  return "bad";
+}
+
 // The traffic form edits percentages; the engine takes shares from 0 to 1.
 // These helpers only convert between the two and never correct a value: the
 // engine validates the configuration and reports what is wrong.
@@ -506,7 +618,7 @@ export function percentTotal(values: number[]): number {
 
 // hasBlankNumber reports an empty or non-numeric field, which JSON would
 // send as null and the engine would read as 0.
-export function hasBlankNumber(tc: TrafficConfig): boolean {
+export function hasBlankNumber(tc: unknown): boolean {
   let blank = false;
   JSON.stringify(tc, (_, v) => {
     if (typeof v === "number" && !Number.isFinite(v)) blank = true;

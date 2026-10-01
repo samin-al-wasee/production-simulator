@@ -195,6 +195,9 @@ func factor(m map[string]float64, key string) float64 {
 
 // upReplicas is how many of a node's replicas are serving this tick.
 func (g *Game) upReplicas(n *Node) int {
+	if g.Tick < n.CrashedUntil {
+		return 0
+	}
 	return max(0, n.Replicas-g.fx.down[n.ID])
 }
 

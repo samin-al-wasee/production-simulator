@@ -49,6 +49,12 @@ type Node struct {
 	// from which its pattern runs.
 	Traffic      *TrafficConfig `json:"traffic,omitempty"`
 	TrafficSince int            `json:"trafficSince,omitempty"`
+	// App is an application instance's configuration once set. StartedAt is
+	// the tick it starts in; it is down until CrashedUntil after running out
+	// of memory.
+	App          *AppConfig `json:"app,omitempty"`
+	StartedAt    int        `json:"startedAt,omitempty"`
+	CrashedUntil int        `json:"crashedUntil,omitempty"`
 }
 
 // Edge sends traffic from one node to another.
@@ -69,8 +75,9 @@ type Command struct {
 	Replicas int     `json:"replicas,omitempty"`
 	X        float64 `json:"x,omitempty"`
 	Y        float64 `json:"y,omitempty"`
-	// Traffic is the Internet's new configuration for a configure command.
+	// Traffic or App is the new configuration for a configure command.
 	Traffic *TrafficConfig `json:"traffic,omitempty"`
+	App     *AppConfig     `json:"app,omitempty"`
 }
 
 // LoggedCommand is a command applied before a given tick was simulated.
@@ -107,6 +114,11 @@ type Game struct {
 	// attemptFail is the share of each class's request attempts that
 	// failed last tick, which decides how often clients retry this tick.
 	attemptFail vec
+	// lastPath is each node's latency per request class last tick, which
+	// decides how long an application waits on its dependencies.
+	lastPath map[string]vec
+	// appCaps is each application's capacity during the current solve.
+	appCaps map[*Node]float64
 
 	Last    Snapshot
 	History []Meters
@@ -223,6 +235,9 @@ func (g *Game) place(c Command) (string, error) {
 	}
 	g.nextID[k.Name]++
 	n := &Node{ID: fmt.Sprintf("%s-%d", k.Name, g.nextID[k.Name]), Kind: k.Name, Size: size, Replicas: 1, X: c.X, Y: c.Y}
+	if g.appModel(n) {
+		n.StartedAt = g.Tick
+	}
 	g.Nodes = append(g.Nodes, n)
 	return n.ID, nil
 }

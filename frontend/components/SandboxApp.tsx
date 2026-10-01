@@ -1,0 +1,324 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import {
+  DEPS,
+  appConfig,
+  formatCompact,
+  hasBlankNumber,
+  healthLevel,
+  problems,
+  toPercent,
+  type AppConfig,
+  type AppRoute,
+  type Command,
+  type GameState,
+  type NodeStats,
+  type Processing,
+  type Ruleset,
+  type SandboxNode,
+} from "@/lib/sandbox";
+import { Num } from "./SandboxInternet";
+
+const BOTTLENECK: Record<string, string> = {
+  cpu: "CPU",
+  slots: "workers / concurrency slots",
+  connections: "connections",
+  "network-in": "inbound network",
+  "network-out": "outbound network",
+};
+
+// AppPanel is an application instance's part of the inspector: its runtime
+// state, every value from the engine, and the way into its configuration.
+export function AppPanel({
+  game,
+  rules,
+  node,
+  stats,
+  onConfigure,
+}: {
+  game: GameState;
+  rules: Ruleset;
+  node: SandboxNode;
+  stats?: NodeStats;
+  onConfigure: (c: Command) => Promise<string | null>;
+}) {
+  const [open, setOpen] = useState(false);
+  const config = appConfig(game, rules, node);
+  const a = stats?.app;
+  const size = rules.sizes.find((s) => s.name === node.size);
+  if (!config) return null;
+  const rows: [string, string, string?][] = a
+    ? [
+        ["Health", a.health, healthLevel(a.health)],
+        ["Bottleneck", BOTTLENECK[a.bottleneck] ?? a.bottleneck],
+        ["CPU", `${a.cpuUsed.toFixed(2)} / ${a.cpuTotal} vCPU`],
+        ["Memory", `${formatCompact(a.memoryMb)} / ${formatCompact(a.memoryTotalMb)} MB`, a.outOfMemory ? "bad" : undefined],
+        ["In flight", formatCompact(a.active)],
+        ["Queued", `${formatCompact(a.queued)} · waits ${a.waitMs.toFixed(0)} ms`, a.queued > 0.5 ? "warn" : undefined],
+        ["Connections", formatCompact(a.connections)],
+        ["Succeeded", `${formatCompact(a.success)}/s`],
+        ["Errors", `${formatCompact(a.errors)}/s`, a.errors > 0.01 ? "bad" : undefined],
+        ["Timed out", `${formatCompact(a.timeouts)}/s`, a.timeouts > 0.01 ? "bad" : undefined],
+        ["Rejected", `${formatCompact(a.rejected)}/s`, a.rejected > 0.01 ? "bad" : undefined],
+      ]
+    : [];
+  return (
+    <div className="sb-internet">
+      <div className="meta">
+        {config.name} · {config.framework} · {config.processing}, {config.workers} workers · {size?.vcpu} vCPU, {size?.memoryGb} GB
+      </div>
+      {a && (
+        <table>
+          <tbody>
+            {rows.map(([k, v, cls]) => (
+              <tr key={k}>
+                <th>{k}</th>
+                <td className={`num ${cls ?? ""}`}>{v}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <button onClick={() => setOpen(true)}>Configure app</button>
+      {a?.routes && (
+        <details className="sb-section">
+          <summary>Routes</summary>
+          <table className="sb-breakdown">
+            <tbody>
+              {a.routes.map((r) => (
+                <tr key={r.endpoint} title={`ok ${formatCompact(r.success)}/s · errors ${formatCompact(r.errors)}/s · timeouts ${formatCompact(r.timeouts)}/s · rejected ${formatCompact(r.rejected)}/s`}>
+                  <th>{r.endpoint}</th>
+                  <td className="num">{formatCompact(r.rps)}/s</td>
+                  <td className="num">{r.latencyMs.toFixed(0)} ms</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      )}
+      {open && (
+        <AppDialog
+          rules={rules}
+          config={config}
+          memoryMb={(size?.memoryGb ?? 0) * 1024}
+          onApply={(app) => onConfigure({ type: "configure", node: node.id, app })}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function Text({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <label className="sb-field">
+      <span>{label}</span>
+      <input type="text" aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} />
+    </label>
+  );
+}
+
+function Check({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label>
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} /> {label}
+    </label>
+  );
+}
+
+function AppDialog({
+  rules,
+  config,
+  memoryMb,
+  onApply,
+  onClose,
+}: {
+  rules: Ruleset;
+  config: AppConfig;
+  memoryMb: number;
+  onApply: (c: AppConfig) => Promise<string | null>;
+  onClose: () => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  // Taken once, so live updates never overwrite the player's edits.
+  const [c, setC] = useState<AppConfig>(() => structuredClone({ ...config, middleware: config.middleware ?? [] }));
+  const [errors, setErrors] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const d = dialog.current;
+    d?.showModal();
+    return () => d?.close();
+  }, []);
+
+  const set = (p: Partial<AppConfig>) => setC((x) => ({ ...x, ...p }));
+  const setRoute = (i: number, p: Partial<AppRoute>) => setC((x) => ({ ...x, routes: x.routes.map((r, j) => (j === i ? { ...r, ...p } : r)) }));
+  const mw = c.middleware ?? [];
+  const idleMb = c.workers * (rules.appRuntime?.workerMemoryMb ?? 0);
+
+  const apply = async () => {
+    if (hasBlankNumber(c)) {
+      setErrors(["Fill in every number field."]);
+      return;
+    }
+    setBusy(true);
+    const err = await onApply(c);
+    setBusy(false);
+    if (err) setErrors(problems(err));
+    else onClose();
+  };
+
+  return (
+    <dialog ref={dialog} className="sb-dialog" aria-label="Application instance" onCancel={onClose}>
+      <h3>Application instance</h3>
+      <p className="sb-hint">
+        Simulated: one backend web/API service per replica. Its capacity is not a number you set; it comes from the CPU,
+        workers, connections, and network below, under what each route costs. CPU and memory come from the size.
+      </p>
+
+      <details className="sb-section" open>
+        <summary>Application</summary>
+        <div className="sb-row">
+          <Text label="Name" value={c.name} onChange={(name) => set({ name })} />
+          <label className="sb-field">
+            <span>Framework</span>
+            <select
+              aria-label="Framework"
+              value={c.framework}
+              onChange={(e) => {
+                const f = rules.frameworks?.find((x) => x.name === e.target.value);
+                set(f ? { framework: f.name, interface: f.interface, server: f.server, processing: f.processing, workers: f.workers, maxConcurrency: f.maxConcurrency } : { framework: e.target.value });
+              }}
+            >
+              {(rules.frameworks ?? []).map((f) => (
+                <option key={f.name}>{f.name}</option>
+              ))}
+            </select>
+          </label>
+          <Text label="Version" value={c.version} onChange={(version) => set({ version })} />
+          <Text label="Environment" value={c.environment} onChange={(environment) => set({ environment })} />
+        </div>
+        <p className="sb-hint">A framework fills in its usual server and workers; the name, version, and environment are labels.</p>
+      </details>
+
+      <details className="sb-section" open>
+        <summary>Server and concurrency</summary>
+        <div className="sb-row">
+          <label className="sb-field">
+            <span>Processing</span>
+            <select aria-label="Processing" value={c.processing} onChange={(e) => set({ processing: e.target.value as Processing })}>
+              <option value="sync">sync: a worker per request, held while it waits</option>
+              <option value="async">async: requests wait without holding a worker</option>
+            </select>
+          </label>
+          <Num label="Workers" value={c.workers} onChange={(workers) => set({ workers })} />
+          {c.processing === "async" && (
+            <Num label="Max concurrent requests" value={c.maxConcurrency} onChange={(maxConcurrency) => set({ maxConcurrency })} />
+          )}
+          <Num label="Backlog" value={c.backlog} onChange={(backlog) => set({ backlog })} />
+          <Num label="Max connections" value={c.maxConnections} onChange={(maxConnections) => set({ maxConnections })} />
+          <Num label="Timeout (ms)" value={c.timeoutMs} onChange={(timeoutMs) => set({ timeoutMs })} />
+        </div>
+        <p className={`sb-hint ${idleMb > memoryMb ? "bad" : ""}`}>
+          Workers alone take {c.workers} × {rules.appRuntime?.workerMemoryMb} MB = {formatCompact(idleMb)} MB of this size&apos;s{" "}
+          {formatCompact(memoryMb)} MB; requests in flight and queued need the rest. Out of memory, the instance crashes and restarts.
+        </p>
+        <div className="sb-row">
+          <Check label="TLS (handshake CPU per new connection)" checked={c.tls} onChange={(tls) => set({ tls })} />
+          <Check label="Keep-alive (fewer handshakes, idle connections)" checked={c.keepAlive} onChange={(keepAlive) => set({ keepAlive })} />
+        </div>
+        <div className="sb-row">
+          <Text label="Protocol" value={c.protocol} onChange={(protocol) => set({ protocol })} />
+          <Num label="Port" value={c.port} onChange={(port) => set({ port })} />
+          <Text label="Interface" value={c.interface} onChange={(i) => set({ interface: i })} />
+          <Text label="Server" value={c.server} onChange={(server) => set({ server })} />
+        </div>
+      </details>
+
+      <details className="sb-section">
+        <summary>Middleware</summary>
+        <p className="sb-hint">Runs before every route, in this order; each stage adds time and CPU to every request.</p>
+        {(rules.middleware ?? []).map((m) => (
+          <div className="sb-row" key={m.name}>
+            <Check
+              label={`${m.label} (+${m.ms} ms, ${m.cpuMs} CPU-ms)`}
+              checked={mw.includes(m.name)}
+              onChange={(on) => set({ middleware: on ? [...mw, m.name] : mw.filter((x) => x !== m.name) })}
+            />
+            {m.name === "rate-limit" && mw.includes(m.name) && (
+              <Num label="Limit (req/s per replica)" value={c.rateLimitRps} onChange={(rateLimitRps) => set({ rateLimitRps })} />
+            )}
+          </div>
+        ))}
+      </details>
+
+      <details className="sb-section">
+        <summary>Routes</summary>
+        <p className="sb-hint">
+          What each endpoint costs and calls. The <code>*</code> route handles endpoints without their own. A call to a
+          component that is not connected fails the request; a cache call falls back to the database.
+        </p>
+        {c.routes.map((r, i) => (
+          <div className="sb-group" key={i}>
+            <div className="sb-row">
+              <Text label="Endpoint" value={r.endpoint} onChange={(endpoint) => setRoute(i, { endpoint })} />
+              <button
+                className="secondary danger"
+                disabled={r.endpoint === "*"}
+                onClick={() => setC((x) => ({ ...x, routes: x.routes.filter((_, j) => j !== i) }))}
+              >
+                remove
+              </button>
+            </div>
+            <div className="sb-grid">
+              <Num label="Base time (ms)" value={r.baseMs} onChange={(baseMs) => setRoute(i, { baseMs })} />
+              <Num label="CPU time (ms)" value={r.cpuMs} onChange={(cpuMs) => setRoute(i, { cpuMs })} />
+              <Num label="Memory (MB)" value={r.memoryMb} onChange={(memoryMb) => setRoute(i, { memoryMb })} />
+              <Num label="Request (KB)" value={r.requestKb} onChange={(requestKb) => setRoute(i, { requestKb })} />
+              <Num label="Response (KB)" value={r.responseKb} onChange={(responseKb) => setRoute(i, { responseKb })} />
+              <Num label="Errors %" value={toPercent(r.errorRate ?? 0)} step={0.1} max={100} onChange={(v) => setRoute(i, { errorRate: v / 100 })} />
+            </div>
+            <div className="sb-row">
+              {DEPS.map((d) => (
+                <Check
+                  key={d}
+                  label={d}
+                  checked={(r.deps ?? []).includes(d)}
+                  onChange={(on) => setRoute(i, { deps: on ? [...(r.deps ?? []), d] : (r.deps ?? []).filter((x) => x !== d) })}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+        <button
+          className="secondary"
+          onClick={() =>
+            setC((x) => ({
+              ...x,
+              routes: [...x.routes, { endpoint: "GET /new", baseMs: 20, cpuMs: 10, memoryMb: 1, requestKb: 1, responseKb: 5, deps: [] }],
+            }))
+          }
+        >
+          Add route
+        </button>
+      </details>
+
+      {errors.length > 0 && (
+        <ul className="sb-errors" role="alert">
+          {errors.map((e) => (
+            <li key={e}>{e}</li>
+          ))}
+        </ul>
+      )}
+      <div className="sb-dialog-actions">
+        <button className="secondary" onClick={onClose}>
+          Cancel
+        </button>
+        <button onClick={apply} disabled={busy}>
+          Apply
+        </button>
+      </div>
+    </dialog>
+  );
+}

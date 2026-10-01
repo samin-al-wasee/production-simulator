@@ -11,7 +11,8 @@ ForgeLab is the **Production Sandbox** ([ADR-0014](docs/decisions/0014-sandbox-o
 > Each component becomes progressively realistic, one at a time, so players learn production engineering by experimenting: configuration inside the component, behavior in the Go core, metrics out. The canvas stays simple: one node per infrastructure concept. ADR-0016.
 
 - [x] Internet: traffic groups, endpoint mix and request classes, regions, client retries, and load tests with patterns (constant, ramp, spike, burst, periodic, schedule); the flow solver routes per request class; traffic breakdown; Internet configuration form (ruleset `sandbox/v4`, ADR-0016)
-- [ ] Next components (CDN, load balancer, application, cache, database, and others), each in its own slice
+- [x] Application instance: a backend service whose capacity emerges from CPU, workers or concurrency slots, connections, and network under its routes' costs; middleware; backlog, timeouts, rejection, out-of-memory crashes, derived health; per-route metrics; configuration form (ruleset `sandbox/v5`, ADR-0017)
+- [ ] Next components (CDN, load balancer, cache, database, and others), each in its own slice
 
 ## Phase 10 — Production Sandbox *✅ done*
 
