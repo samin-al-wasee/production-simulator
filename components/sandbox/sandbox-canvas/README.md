@@ -2,7 +2,7 @@
 
 The dashboard screen where the Production Sandbox is played.
 
-**Status:** implemented (Phase 10, ADR-0013); Internet traffic (ADR-0016) and application instance (ADR-0017) configuration added in Phase 11
+**Status:** implemented (Phase 10, ADR-0013); Internet traffic (ADR-0016), application instance (ADR-0017), and traffic component (ADR-0018) configuration added in Phase 11
 
 ## Purpose
 
@@ -24,6 +24,7 @@ Let a player build and run a production system visually. The canvas renders the 
   - retries
 
   The form shows running totals but corrects nothing: the engine validates the configuration and the form lists every problem it reports. A load test shows a *load test* badge in the meters and on the Internet node, and the goals strip says goals are paused.
+- **Traffic component** (v6): a free palette entry, placed any number of times. A new one asks for nothing and says so; wiring it to an app instance fills in the app's protocol, port, scheme, keep-alive, and routes, **Configure app** updates them, and disconnecting clears them again. Its node is titled by its population and coloured by how its requests fare; a contract problem (wrong protocol or port, a TLS mismatch, not connected) shows on the node, on its edge, and in red in the inspector. The inspector shows the source, requests, retries, attack, successes, failures by reason, latency, and requests in flight. **Configure traffic** opens a form with single choices for clients (name, client type, region), the connection (protocol, scheme, port, client timeout, retries, keep-alive), the volume (market or load test), and the endpoint mix. The engine validates it and the form lists every problem. An older game opens with its own ruleset, so a v5 game still shows the Internet and its forms.
 - **Application instance** (v5): the inspector shows health, bottleneck, CPU, memory, in flight, queued (with the wait), connections, and success, error, timeout, and rejection rates, with per-route RPS and latency. **Configure app** opens a form:
   - application labels and a framework preset
   - server and concurrency (sync or async, workers, backlog, connections, timeout, TLS, keep-alive), with a note on the workers' memory
@@ -32,7 +33,8 @@ Let a player build and run a production system visually. The canvas renders the 
 
   The engine validates the configuration and the form lists every problem. Nodes are coloured by health.
 - **Inside the Internet:** clicking the Internet node opens it on the canvas with a short zoom animation. It shows regions → traffic groups → endpoints → the components the Internet sends to, with the engine's RPS on each node. Edges are animated while traffic flows, and their width and label show the configured share. **← System** or Esc goes back, and the selection is kept.
-- **Inside an application instance:** clicking an app instance opens it the same way. A request's path runs connections → backlog → workers → middleware → routes → dependencies → response, with the engine's values over all replicas: connections and rejections, queued and wait, in flight with CPU and memory, per-route RPS, latency, and errors, and success, error, and timeout rates. The bottleneck and failing parts are marked. Each dependency names the components it reaches (a cache call falls back to the database, a write goes to a connected queue) or says it is not connected. Edge width and label show each route's share of the traffic.
+- **Inside a traffic component:** clicking one opens it the same way, in three columns: its clients (type, region, RPS) → its endpoints (share and RPS, a 404 marked) → the app it sends to (successes and latency, or the contract problem in red). The connection (protocol, scheme, port, keep-alive, timeout) and source are in the bar; edges carry no labels.
+- **Inside an application instance:** clicking an app instance opens it the same way. Its traffic inputs come first (a refused one marked with its reason), then a request's path runs connections → backlog → workers → middleware → routes → dependencies → response, with the engine's values over all replicas: connections and rejections, queued and wait, in flight with CPU and memory, per-route RPS, latency, and errors, and success, error, and timeout rates. The bottleneck, failing parts, and routes that answer 404 are marked. The inspector lists the inputs with their rates and successes. Each dependency names the components it reaches (a cache call falls back to the database, a write goes to a connected queue) or says it is not connected. Edge width and label show each route's share of the traffic.
 - **Controls:** pause, 1×, 2×, 4×, 8×, skip an hour or a day, save, new game. The game id is kept in browser storage so a reload resumes it.
 
 ## Dependencies

@@ -52,22 +52,28 @@ test("build, run, scale, delete, and resume a game", async ({ page }) => {
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.getByRole("button", { name: "New game" }).click();
-  await expect(node(page, "internet")).toBeVisible();
+  // A new world is empty: even the traffic is placed by the player.
+  await expect(page.locator(".sb-canvas .react-flow__node")).toHaveCount(0);
 
-  // Only the first kinds are unlocked; a load balancer waits for the first request.
-  const lb = page.locator('.sb-kind[data-kind="load-balancer"]');
-  await expect(lb).toBeDisabled();
-  await expect(lb).toContainText("goal: First request");
+  // Only the first kinds are unlocked; a cache waits for the startup tier.
+  const cache = page.locator('.sb-kind[data-kind="cache"]');
+  await expect(cache).toBeDisabled();
+  await expect(cache).toContainText("goal: Startup");
 
   // Click to place: it must not crash, and the new node becomes the selection.
+  await page.locator(".sb-kind", { hasText: "Traffic" }).click();
+  await expect(node(page, "traffic-1")).toBeVisible();
+  await expect(page.locator(".sb-inspector h3")).toHaveText("Traffic");
+  // It asks for nothing until it is connected to an app.
+  await expect(page.locator(".sb-inspector")).toContainText("Connect it to an application instance");
   await page.locator(".sb-kind", { hasText: "Application instance" }).click();
   await expect(node(page, "app-instance-1")).toBeVisible();
   await expect(page.locator(".sb-inspector h3")).toHaveText("Application instance");
 
   // A click-placed node never lands on top of another.
-  const internet = (await node(page, "internet").boundingBox())!;
+  const traffic = (await node(page, "traffic-1").boundingBox())!;
   const app = (await node(page, "app-instance-1").boundingBox())!;
-  expect(app.x >= internet.x + internet.width || app.y >= internet.y + internet.height).toBe(true);
+  expect(app.x >= traffic.x + traffic.width || app.y >= traffic.y + traffic.height).toBe(true);
 
   // Drag to place the rest at known spots, then move one by dragging.
   const box = (await page.locator(".sb-canvas").boundingBox())!;
@@ -84,7 +90,7 @@ test("build, run, scale, delete, and resume a game", async ({ page }) => {
 
   await page.locator(".react-flow__controls-fitview").click();
   await settle(page);
-  await wire(page, "internet", "app-instance-1");
+  await wire(page, "traffic-1", "app-instance-1");
   await wire(page, "app-instance-1", "db-primary-1");
   await wire(page, "app-instance-1", "object-storage-1");
   await expect(page.locator(".react-flow__edge")).toHaveCount(3);
@@ -94,8 +100,7 @@ test("build, run, scale, delete, and resume a game", async ({ page }) => {
 
   // Run the clock: revenue appears and errors are zero.
   await page.getByRole("button", { name: "8×" }).click();
-  await expect(page.locator(".sb-notice")).toContainText("Goal reached: First request. Unlocked Load balancer.");
-  await expect(lb).toBeEnabled();
+  await expect(page.locator(".sb-notice")).toContainText("Goal reached: First request.");
   await expect(page.locator('.sb-goal[data-goal="first-request"]')).toHaveCount(0);
   await expect.poll(() => tile(page, "Revenue / h"), { timeout: 10_000 }).not.toBe("$0.00");
   await expect.poll(() => tile(page, "Errors")).toBe("0.0%");
@@ -219,9 +224,10 @@ test("configure the Internet's traffic", async ({ page }) => {
     if (m.type() === "error" && !m.text().includes("status of 422")) errors.push(`console: ${m.text()}`);
   });
 
-  // Internet → app → primary and storage, built through the API.
+  // Internet → app → primary and storage, built through the API. Only
+  // rulesets before v6 have the Internet; the dashboard still opens them.
   const api = page.request;
-  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 3 } })).json();
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 3, ruleset: "sandbox/v5" } })).json();
   const game = `/api/forgelab/sandbox/games/${created.id}`;
   const command = async (c: object) => {
     const res = await api.post(`${game}/commands`, { data: c });
@@ -311,10 +317,11 @@ test("an application instance shows why it is slow and can be reconfigured", asy
     expect(res.ok(), await res.text()).toBe(true);
     return (await res.json()) as { node?: string };
   };
+  const src = (await command({ type: "place", kind: "traffic", x: 0, y: 0 })).node!;
   const app = (await command({ type: "place", kind: "app-instance", x: 300, y: 0 })).node!;
   const db = (await command({ type: "place", kind: "db-primary", x: 600, y: -100 })).node!;
   const st = (await command({ type: "place", kind: "object-storage", x: 600, y: 100 })).node!;
-  await command({ type: "connect", from: "internet", to: app });
+  await command({ type: "connect", from: src, to: app });
   await command({ type: "connect", from: app, to: db });
   await command({ type: "connect", from: app, to: st });
   await api.post(`${game}/step`, { data: { ticks: 2 } });
@@ -358,6 +365,103 @@ test("an application instance shows why it is slow and can be reconfigured", asy
   await node(page, app).click();
   await inside.getByRole("button", { name: "← System" }).click();
   await expect(inside).toHaveCount(0);
+
+  await expect(page.locator(".sb-toast")).toHaveCount(0);
+  expect(errors, "browser errors").toEqual([]);
+});
+
+test("traffic components connect under a contract and add up", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+  page.on("console", (m) => {
+    if (m.type() === "error" && !m.text().includes("status of 422")) errors.push(`console: ${m.text()}`);
+  });
+
+  // Two traffic components → one app → primary and storage.
+  const api = page.request;
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 5 } })).json();
+  const game = `/api/forgelab/sandbox/games/${created.id}`;
+  const command = async (c: object) => {
+    const res = await api.post(`${game}/commands`, { data: c });
+    expect(res.ok(), await res.text()).toBe(true);
+    return (await res.json()) as { node?: string };
+  };
+  const web = (await command({ type: "place", kind: "traffic", x: 0, y: -100 })).node!;
+  const mobile = (await command({ type: "place", kind: "traffic", x: 0, y: 100 })).node!;
+  const app = (await command({ type: "place", kind: "app-instance", x: 300, y: 0 })).node!;
+  const db = (await command({ type: "place", kind: "db-primary", x: 600, y: -100 })).node!;
+  const st = (await command({ type: "place", kind: "object-storage", x: 600, y: 100 })).node!;
+  for (const [from, to] of [[web, app], [mobile, app], [app, db], [app, st]]) await command({ type: "connect", from, to });
+  await api.post(`${game}/step`, { data: { ticks: 2 } });
+
+  await page.goto("/sandbox");
+  await page.evaluate((id) => localStorage.setItem("forgelab.sandbox.game", id), created.id);
+  await page.reload();
+  await expect(page.locator(".react-flow__edge")).toHaveCount(4);
+
+  // Point the mobile clients at the wrong port: every request is refused,
+  // and the node and its edge say why.
+  await node(page, mobile).click();
+  await page.keyboard.press("Escape");
+  const inspector = page.locator(".sb-inspector");
+  await expect(inspector.locator("h3")).toHaveText("Traffic");
+  await inspector.getByRole("button", { name: "Configure traffic" }).click();
+  const dialog = page.getByRole("dialog", { name: "Traffic component" });
+  // Connecting adopted the app's connection and one endpoint per route.
+  await expect(dialog.getByLabel("Port")).toHaveValue("8000");
+  await expect(dialog.getByLabel("Scheme")).toHaveValue("https");
+  await expect(dialog.getByLabel("Endpoint 1 path")).toHaveValue("/products");
+  await expect(dialog.getByLabel("Endpoint 6 path")).toHaveValue("/login");
+  await expect(dialog.locator(".sb-total")).toHaveText("Requests: 100%");
+  await dialog.getByLabel("Name").fill("Mobile users");
+  await dialog.getByLabel("Client type").selectOption("mobile");
+  await dialog.getByLabel("Port").fill("8080");
+  await dialog.getByLabel("Endpoint 1 %").fill("10");
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("endpoint shares must sum to 100%");
+  await dialog.getByLabel("Endpoint 1 %").fill("16.7");
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await expect(dialog).toBeHidden();
+  const refused = "connection refused: port 8080, the app listens on 8000";
+  await expect(node(page, mobile)).toContainText(refused);
+  await expect(inspector).toContainText(refused);
+  await expect(page.locator(".react-flow__edge-text", { hasText: refused })).toBeVisible();
+
+  // The app lists its inputs, and its inside view shows the refused one.
+  await node(page, app).click();
+  const inside = page.getByLabel(`Inside ${app}`);
+  await expect(inside.locator(".react-flow__node", { hasText: mobile })).toContainText("connection refused");
+  await expect(inside.locator(".react-flow__node", { hasText: web })).toContainText("/s");
+  await page.keyboard.press("Escape");
+  await page.getByText("Inputs", { exact: true }).click();
+  await expect(inspector.locator(".sb-breakdown tr", { hasText: mobile })).toContainText("refused");
+
+  // Fix the port: both components send, and the meters add them up.
+  await node(page, mobile).click();
+  await page.keyboard.press("Escape");
+  await inspector.getByRole("button", { name: "Configure traffic" }).click();
+  await dialog.getByLabel("Port").fill("8000");
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(node(page, mobile)).not.toContainText("refused");
+  const state = await (await api.get(game)).json();
+  const sum = state.flow.traffic.components.reduce((a: number, c: { rps: number }) => a + c.rps, 0);
+  expect(state.flow.traffic.components).toHaveLength(2);
+  expect(Math.abs(sum - state.flow.rps)).toBeLessThan(1e-9);
+
+  // Inside a traffic component: its clients, requests, and connection.
+  await node(page, web).click();
+  const view = page.getByLabel(`Inside ${web}`);
+  await expect(view.locator(".sb-inner-bar")).toContainText("HTTP/1.1 · https:8000");
+  await expect(view.locator(".react-flow__node", { hasText: app })).toContainText("ok");
+  await expect(view.locator(".react-flow__edge-text")).toHaveCount(0);
+  await view.getByRole("button", { name: "← System" }).click();
+
+  // Disconnecting returns it to asking for nothing.
+  await page.keyboard.press("Escape");
+  await inspector.locator(".sb-links li", { hasText: app }).getByRole("button", { name: "disconnect" }).click();
+  await expect(node(page, web)).toContainText("not connected");
+  await expect(inspector).toContainText("Connect it to an application instance");
 
   await expect(page.locator(".sb-toast")).toHaveCount(0);
   expect(errors, "browser errors").toEqual([]);

@@ -12,6 +12,7 @@ import {
 } from "@/lib/sandbox";
 import { AppPanel } from "./SandboxApp";
 import { InternetPanel } from "./SandboxInternet";
+import { TrafficPanel } from "./SandboxTraffic";
 
 export const KIND_DRAG_TYPE = "application/x-forgelab-kind";
 
@@ -51,7 +52,11 @@ export function SandboxPalette({
             >
               <span className="sb-kind-label">{k.label}</span>
               <span className="sb-kind-cost">
-                {locked ? `🔒 goal: ${locked.title}` : `${formatMoney(k.buildCost)} + ${formatMoney(k.costPerHour)}/h`}
+                {locked
+                  ? `🔒 goal: ${locked.title}`
+                  : k.name === "traffic"
+                    ? "free · one population of users"
+                    : `${formatMoney(k.buildCost)} + ${formatMoney(k.costPerHour)}/h`}
               </span>
             </button>
           );
@@ -79,8 +84,10 @@ export function SandboxInspector({
       <aside className="sb-inspector">
         <h3>Inspector</h3>
         <p className="sb-hint">
-          Select a component to see its load and change it. A new world is empty: connect the Internet to an
-          application instance, give it a database and object storage, and users start paying.
+          Select a component to see its load and change it.{" "}
+          {rules.client
+            ? "A new world is empty: place Traffic for your users, connect it to an application instance, give that a database and object storage, and users start paying."
+            : "A new world is empty: connect the Internet to an application instance, give it a database and object storage, and users start paying."}
         </p>
       </aside>
     );
@@ -89,6 +96,8 @@ export function SandboxInspector({
   const stats = game.flow.nodes.find((s) => s.id === node.id);
   const size = rules.sizes.find((s) => s.name === node.size);
   const internet = node.kind === "internet";
+  // A traffic component is a source too: nothing to size, scale, or serve.
+  const source = internet || node.kind === "traffic";
   const replicaCost = (kind?.buildCost ?? 0) * (size?.costFactor ?? 1);
   const downstream = game.edges.filter((e) => e.from === node.id).map((e) => e.to);
   // Mirrors the engine's rule so the button is only offered when it can work;
@@ -108,7 +117,7 @@ export function SandboxInspector({
     <aside className="sb-inspector">
       <h3>{kind?.label ?? node.kind}</h3>
       <div className="meta">{node.id}</div>
-      {stats && (
+      {stats && node.kind !== "traffic" && (
         <table>
           <tbody>
             <tr>
@@ -119,7 +128,7 @@ export function SandboxInspector({
               <th>Served</th>
               <td className="num">{formatCompact(stats.served)}/s</td>
             </tr>
-            {!internet && (
+            {!source && (
               <>
                 <tr>
                   <th>Dropped</th>
@@ -166,9 +175,17 @@ export function SandboxInspector({
       )}
 
       {internet && <InternetPanel game={game} rules={rules} onConfigure={onConfigure} />}
+      {node.kind === "traffic" && <TrafficPanel game={game} rules={rules} node={node} onConfigure={onConfigure} />}
       {node.kind === "app-instance" && <AppPanel game={game} rules={rules} node={node} stats={stats} onConfigure={onConfigure} />}
 
-      {!internet && (
+      {node.kind === "traffic" && (
+        <div className="sb-actions">
+          <button className="secondary danger" onClick={() => onCommand({ type: "remove", node: node.id })}>
+            Remove
+          </button>
+        </div>
+      )}
+      {!source && (
         <div className="sb-actions">
           <label>
             Size
@@ -205,7 +222,7 @@ export function SandboxInspector({
         </div>
       )}
 
-      {!internet && (crashed || zoned || node.kind === "db-primary" || node.kind === "api-gateway") && (
+      {!source && (crashed || zoned || node.kind === "db-primary" || node.kind === "api-gateway") && (
         <div className="sb-respond">
           <h4>Respond</h4>
           {crashed && (

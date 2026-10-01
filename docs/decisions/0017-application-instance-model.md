@@ -1,6 +1,6 @@
 # ADR-0017: The application instance as a modelled backend service
 
-**Status:** accepted
+**Status:** accepted; item 10 superseded by [ADR-0018](0018-traffic-components.md) from `sandbox/v6` (each application mixes its own inputs)
 **Date:** 2026-10-01
 
 ## Context

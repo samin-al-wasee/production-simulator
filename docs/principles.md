@@ -8,7 +8,7 @@ These principles guide every decision in ForgeLab. If a proposal conflicts with 
 
 ForgeLab is a model of a production system, not a recording of one. Every value it shows (latency, errors, RPS, users, cost, satisfaction) is derived each tick from declared capacities, service times, and the player's topology, never from scripted curves or random metric values. Randomness is limited to seeded events such as a surge or an outage; how the system responds to them is computed. Every surface is labelled as simulated.
 
-The one declared input is a **load test** ([ADR-0016](decisions/0016-configurable-internet-traffic.md)): the player may set the Internet's request rate and its pattern (constant, ramp, spike, burst, periodic wave, daily schedule) instead of letting users drive it. The rate is an input the player chose, labelled as a load test. Everything the system does under it is still computed, and a load test earns nothing and moves no user or goal.
+The one declared input is a **load test** ([ADR-0016](decisions/0016-configurable-internet-traffic.md)): the player may set a traffic source's request rate and its pattern (constant, ramp, spike, burst, periodic wave, daily schedule) instead of letting users drive it. The rate is an input the player chose, labelled as a load test. Everything the system does under it is still computed, and a load test earns nothing and moves no user or goal.
 
 ## 2. Bottlenecks come from the design
 
@@ -20,7 +20,7 @@ The model uses simple, documented formulas (see `docs/architecture.md`) that a l
 
 ## 4. The player composes everything
 
-A new game is an empty world. Nothing is implied: no default database, no free load balancer. Every component is placed and wired by the player, and a system with no path from the Internet to an application instance serves no one.
+A new game is an empty world. Nothing is implied: no default database, no free load balancer, and from `sandbox/v6` not even the traffic ([ADR-0018](decisions/0018-traffic-components.md)). Every component is placed and wired by the player, and a system with no path from a traffic source to an application instance serves no one.
 
 ## 5. Failure is a feature
 

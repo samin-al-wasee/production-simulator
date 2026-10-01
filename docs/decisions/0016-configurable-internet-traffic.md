@@ -1,6 +1,6 @@
 # ADR-0016: A configurable Internet: traffic groups, request mix, and load tests
 
-**Status:** accepted
+**Status:** accepted; partly superseded by [ADR-0018](0018-traffic-components.md) from `sandbox/v6` (traffic is placeable components, one population each)
 **Date:** 2026-09-30
 
 ## Context

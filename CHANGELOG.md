@@ -22,6 +22,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phase 11: traffic components (ADR-0018), in ruleset `sandbox/v6`. New games use v6, and v1 to v5 replay bit for bit.
+  - **Empty start:** a v6 game has no node. The Internet becomes **Traffic**, a free component the player places any number of times.
+  - **One population each:** `configure` on a traffic component sets a single client type, region, protocol, scheme, port, keep-alive, client timeout, retries, and source (market or load test), plus a weighted endpoint mix. The market's volume is split by client-type and region share; components of one segment split it.
+  - **Adopting on connect:** a new traffic component has no endpoints. Connecting it to an application instance sets its protocol, port, scheme, and keep-alive to the app's and its endpoints to one per route (catch-all aside) in equal shares; reconfiguring the app updates its connected traffic, and disconnecting or removing the app clears them again. The player can change them while connected.
+  - **Contract:** a traffic component connects to exactly one application instance. A protocol, port, or TLS mismatch refuses every request before it reaches the app; an endpoint with no route fails with 404 (the `*` route is optional in v6); keep-alive needs both sides; the shorter timeout decides success. The app's protocol and port become model inputs.
+  - **Per-application mix:** each app's endpoint mix comes from its inputs, closing ADR-0017's global-mix gap. Retries are tracked per component.
+  - **Events:** traffic cards and the DDoS hit one or more traffic components, drawn by the seed; component cards never hit them.
+  - **Aggregated:** meters and revenue add up every component. The flow's `traffic` adds RPS by client type and component, and each traffic node reports RPS, retries, successes, failures by reason, latency, concurrency, and the contract problem. Sentiment holds still while no real traffic flows.
+  - **Catalog:** CDN, load balancer, and API gateway leave v6 until they have a traffic contract; *Scale out* becomes two or more app replicas serving.
+  - **API:** `GET /api/v1/sandbox/ruleset?version=` serves an older ruleset, so the dashboard opens an older game with its own catalog and defaults.
+  - **Dashboard:** a Traffic palette entry, nodes titled by their population and coloured by how their requests fare, the contract problem on the node and its edge, a **Configure traffic** form, an *Inputs* breakdown and an inputs column in the app's inside view, and **Inside a traffic component** (clients → requests → connection → app).
+  - **Tests:** Go tests for the empty start, segment volume, each contract mismatch, 404s, client timeouts and keep-alive, per-app mixes, retries, targeted events, sentiment, validation, replay, and v6 balance; an API test; a browser test.
 - Phase 11: the application instance as a modelled backend service (ADR-0017), in ruleset `sandbox/v5`. New games use v5, and v1 to v4 replay bit for bit.
   - **Configuration:** `configure` on an application instance sets its configuration:
     - labels and a framework preset

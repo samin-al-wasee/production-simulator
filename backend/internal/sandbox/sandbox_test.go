@@ -38,7 +38,20 @@ func basic(t *testing.T, g *Game) (app, db string) {
 	t.Helper()
 	app, db = place(t, g, KindApp), place(t, g, KindDBPrimary)
 	st := place(t, g, KindStorage)
-	connect(t, g, InternetID, app)
+	if g.clientModel() {
+		// One traffic component per segment captures the whole market.
+		for _, ct := range g.Rules.ClientTypes {
+			for _, rg := range g.Rules.RegionShares {
+				id := place(t, g, KindTraffic)
+				connect(t, g, id, app)
+				c := *g.Node(id).Client
+				c.ClientType, c.Region = ct.Name, rg.Name
+				must(t, g, Command{Type: CmdConfigure, Node: id, Client: &c})
+			}
+		}
+	} else {
+		connect(t, g, InternetID, app)
+	}
 	connect(t, g, app, db)
 	connect(t, g, app, st)
 	return app, db

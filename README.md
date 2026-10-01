@@ -1,6 +1,6 @@
 # ForgeLab
 
-**ForgeLab** is the **Production Sandbox**: a city-builder for software production. You start with an empty world (the Internet, full of users, and a little money), place every component yourself, wire them together, and keep the system healthy and profitable as users arrive, traffic swings, and things break.
+**ForgeLab** is the **Production Sandbox**: a city-builder for software production. You start with an empty world (a market of users and a little money), place every component yourself, even the traffic, wire them together, and keep the system healthy and profitable as users arrive, traffic swings, and things break.
 
 > **Start from nothing → build a production system → watch it grow and buckle → learn why architectures look the way they do.**
 
@@ -10,7 +10,7 @@ Everything is a deterministic model computed in a Go core. Nothing runs on your 
 
 ## Status
 
-**Phase 10 (Production Sandbox) is complete.** The engine, API, dashboard canvas, event deck (surges, outages, attacks, with restart, failover, and rate limiting), and goals with unlocks and automatic learning-path completion are playable. **Phase 11 (Deep component simulation) is in progress.** The Internet is configurable: select it to shape traffic with groups, endpoints, regions, and retries, or run a load test with a spike, ramp, burst, or daily schedule. Application instances are modelled backend services: select one to see its bottleneck, queue, timeouts, and health, and configure its workers, middleware, and routes. See [`ROADMAP.md`](ROADMAP.md).
+**Phase 10 (Production Sandbox) is complete.** The engine, API, dashboard canvas, event deck (surges, outages, attacks, with restart, failover, and rate limiting), and goals with unlocks and automatic learning-path completion are playable. **Phase 11 (Deep component simulation) is in progress.** Traffic is a component: place one per client population (web, mobile, API, bot; one region each), connect it to an app whose protocol, port, TLS, and routes match, or watch its requests be refused, and run load tests with a spike, ramp, burst, or daily schedule. Application instances are modelled backend services: select one to see its bottleneck, queue, timeouts, and health, and configure its workers, middleware, and routes. See [`ROADMAP.md`](ROADMAP.md).
 
 ForgeLab used to be a real-infrastructure lab (Docker Compose, Kubernetes, Terraform, chaos drills). That **Live mode** was retired in favour of the game ([ADR-0014](docs/decisions/0014-sandbox-only-platform.md)); it is kept on the `archive/live-lab` branch.
 
@@ -28,10 +28,10 @@ make frontend-dev   # terminal 2: dashboard on http://localhost:3001
 
 Open <http://localhost:3001> and click **New game**.
 
-1. Place an **Application instance**, a **Database primary**, and **Object storage** from the palette (click, or drag onto the canvas).
-2. Wire them by dragging between handles: **Internet → app → database**, and **app → storage**.
+1. Place **Traffic**, an **Application instance**, a **Database primary**, and **Object storage** from the palette (click, or drag onto the canvas).
+2. Wire them by dragging between handles: **traffic → app → database**, and **app → storage**. Each traffic component brings its client type and region's share of your users; add more for the populations you want to reach.
 3. Press **1×**. Users start paying. Watch the meters: cash, profit, users, RPS, p95 latency, errors, health, satisfaction, popularity, complexity.
-4. As users grow, the app saturates (its bar turns red). Add replicas, a load balancer, a cache, read replicas, a queue with workers: whatever the bottleneck calls for, and whatever you can afford.
+4. As users grow, the app saturates (its bar turns red). Add replicas, a cache, read replicas, a queue with workers: whatever the bottleneck calls for, and whatever you can afford.
 
 Games survive a page reload; **Save** writes a replayable save to `.forgelab/sandbox/`.
 

@@ -23,6 +23,8 @@ const (
 	KindCache     = "cache"
 	KindQueue     = "queue"
 	KindStorage   = "object-storage"
+	// KindTraffic is a population of clients (v6 and later, ADR-0018).
+	KindTraffic = "traffic"
 )
 
 // Kind declares one placeable component. Capacity and costs are for the
@@ -143,6 +145,15 @@ type Ruleset struct {
 	AppRuntime AppRuntime   `json:"appRuntime,omitzero"`
 	Middleware []Middleware `json:"middleware,omitempty"`
 	Frameworks []Framework  `json:"frameworks,omitempty"`
+
+	// Client is a new traffic component's configuration; a ruleset with one
+	// starts empty and takes its traffic from traffic components. Its market
+	// is split by ClientTypes and RegionShares.
+	Client       *ClientConfig `json:"client,omitempty"`
+	ClientTypes  []Weight      `json:"clientTypes,omitempty"`
+	RegionShares []Weight      `json:"regionShares,omitempty"`
+	// Protocols are the wire protocols both sides of a connection share.
+	Protocols []string `json:"protocols,omitempty"`
 }
 
 // RulesetV1 is the first Sandbox ruleset.
@@ -217,13 +228,15 @@ func Rulesets(version string) (*Ruleset, error) {
 		return RulesetV4(), nil
 	case "sandbox/v5":
 		return RulesetV5(), nil
+	case "sandbox/v6":
+		return RulesetV6(), nil
 	}
 	return nil, fmt.Errorf("unknown ruleset %q", version)
 }
 
 // Latest returns the ruleset new games are played with.
 func Latest() *Ruleset {
-	return RulesetV5()
+	return RulesetV6()
 }
 
 // Kind returns a kind by name.

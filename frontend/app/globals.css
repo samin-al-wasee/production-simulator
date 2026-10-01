@@ -437,6 +437,10 @@ main:has(.sandbox) {
   color: var(--muted);
 }
 
+.sb-hint.bad {
+  color: var(--bad);
+}
+
 .sb-kind {
   display: flex;
   flex-direction: column;
@@ -488,7 +492,7 @@ main:has(.sandbox) {
   border-color: var(--bad);
 }
 
-.sb-node.internet {
+.sb-node.internet:not(.lvl-bad):not(.lvl-warn) {
   border-color: var(--accent);
 }
 

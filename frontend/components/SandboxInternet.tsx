@@ -24,6 +24,7 @@ import {
   type TrafficConfig,
   type Rate,
   type TrafficDraft,
+  type TrafficSource,
 } from "@/lib/sandbox";
 
 const SHAPES: { shape: PatternShape; label: string }[] = [
@@ -92,6 +93,112 @@ export function Num({
         onChange={(e) => onChange(e.target.valueAsNumber)}
       />
     </label>
+  );
+}
+
+// VolumeFields chooses where a source's volume comes from: the market, or a
+// load test with its pattern.
+export function VolumeFields({
+  source,
+  pattern,
+  maxRps,
+  onSource,
+  onPattern,
+}: {
+  source: TrafficSource;
+  pattern: Pattern;
+  maxRps?: number;
+  onSource: (s: TrafficSource) => void;
+  onPattern: (p: Partial<Pattern>) => void;
+}) {
+  const p = pattern;
+  const configured = source === "configured";
+  // A new schedule step starts on the hour after the last one.
+  const lastStep = p.schedule?.[p.schedule.length - 1];
+  const nextHour = lastStep ? Math.floor(lastStep.hour) + 1 : 0;
+  return (
+    <fieldset className="sb-source">
+      <legend>Volume</legend>
+      <label>
+        <input type="radio" name="source" checked={!configured} onChange={() => onSource("market")} />
+        Market: follows your users and the time of day
+      </label>
+      <label>
+        <input type="radio" name="source" checked={configured} onChange={() => onSource("configured")} />
+        Load test: you set the rate and its pattern
+      </label>
+      {configured ? (
+        <>
+          <p className="sb-hint">
+            A load test earns nothing, and users, satisfaction, and goals hold still until you switch back. Events still happen.
+            The pattern starts when you apply it.
+          </p>
+          <label className="sb-field">
+            <span>Pattern</span>
+            <select aria-label="Pattern" value={p.shape} onChange={(e) => onPattern(reshape(p, e.target.value as PatternShape))}>
+              {SHAPES.map((s) => (
+                <option key={s.shape} value={s.shape}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="sb-row">
+            {FIELDS[p.shape].map(([key, label]) => (
+              <Num
+                key={key}
+                label={label}
+                value={p[key] as number | undefined}
+                max={key === "rps" || key === "peakRps" ? maxRps : undefined}
+                onChange={(v) => onPattern({ [key]: v })}
+              />
+            ))}
+          </div>
+          {p.shape === "schedule" && (
+            <div className="sb-schedule">
+              {(p.schedule ?? []).map((s, i) => (
+                <div className="sb-row" key={i}>
+                  <label className="sb-field">
+                    <span>From</span>
+                    <input
+                      type="time"
+                      aria-label={`Step ${i + 1} time`}
+                      value={formatClock(1, s.hour).slice(-5)}
+                      onChange={(e) => {
+                        const [h, m] = e.target.value.split(":").map(Number);
+                        const hour = h + m / 60;
+                        onPattern({ schedule: p.schedule!.map((x, j) => (j === i ? { ...x, hour } : x)) });
+                      }}
+                    />
+                  </label>
+                  <Num
+                    label={`Step ${i + 1} req/s`}
+                    value={s.rps}
+                    onChange={(rps) => onPattern({ schedule: p.schedule!.map((x, j) => (j === i ? { ...x, rps } : x)) })}
+                  />
+                  <button
+                    className="secondary"
+                    disabled={(p.schedule ?? []).length <= 1}
+                    onClick={() => onPattern({ schedule: p.schedule!.filter((_, j) => j !== i) })}
+                  >
+                    remove
+                  </button>
+                </div>
+              ))}
+              <button
+                className="secondary"
+                disabled={nextHour >= 24}
+                onClick={() => onPattern({ schedule: [...(p.schedule ?? []), { hour: nextHour, rps: lastStep?.rps ?? 0 }] })}
+              >
+                Add step
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="sb-hint">RPS = active users × requests per user × time of day × events. Grow it by keeping users happy.</p>
+      )}
+    </fieldset>
   );
 }
 
@@ -240,11 +347,6 @@ function TrafficDialog({
     else onClose();
   };
 
-  const p = draft.pattern;
-  const configured = draft.source === "configured";
-  // A new schedule step starts on the hour after the last one.
-  const lastStep = p.schedule?.[p.schedule.length - 1];
-  const nextHour = lastStep ? Math.floor(lastStep.hour) + 1 : 0;
   return (
     <dialog ref={dialog} className="sb-dialog" aria-label="Internet traffic" onCancel={onClose}>
       <h3>Internet traffic</h3>
@@ -253,88 +355,13 @@ function TrafficDialog({
         live inside the Internet, not on the canvas.
       </p>
 
-      <fieldset className="sb-source">
-        <legend>Volume</legend>
-        <label>
-          <input type="radio" name="source" checked={!configured} onChange={() => set((d) => ({ ...d, source: "market" }))} />
-          Market: follows your users and the time of day
-        </label>
-        <label>
-          <input type="radio" name="source" checked={configured} onChange={() => set((d) => ({ ...d, source: "configured" }))} />
-          Load test: you set the rate and its pattern
-        </label>
-        {configured ? (
-          <>
-            <p className="sb-hint">
-              A load test earns nothing, and users, satisfaction, and goals hold still until you switch back. Events still happen.
-              The pattern starts when you apply it.
-            </p>
-            <label className="sb-field">
-              <span>Pattern</span>
-              <select aria-label="Pattern" value={p.shape} onChange={(e) => setPattern(reshape(p, e.target.value as PatternShape))}>
-                {SHAPES.map((s) => (
-                  <option key={s.shape} value={s.shape}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="sb-row">
-              {FIELDS[p.shape].map(([key, label]) => (
-                <Num
-                  key={key}
-                  label={label}
-                  value={p[key] as number | undefined}
-                  max={key === "rps" || key === "peakRps" ? rules.maxTrafficRps : undefined}
-                  onChange={(v) => setPattern({ [key]: v })}
-                />
-              ))}
-            </div>
-            {p.shape === "schedule" && (
-              <div className="sb-schedule">
-                {(p.schedule ?? []).map((s, i) => (
-                  <div className="sb-row" key={i}>
-                    <label className="sb-field">
-                      <span>From</span>
-                      <input
-                        type="time"
-                        aria-label={`Step ${i + 1} time`}
-                        value={formatClock(1, s.hour).slice(-5)}
-                        onChange={(e) => {
-                          const [h, m] = e.target.value.split(":").map(Number);
-                          const hour = h + m / 60;
-                          setPattern({ schedule: p.schedule!.map((x, j) => (j === i ? { ...x, hour } : x)) });
-                        }}
-                      />
-                    </label>
-                    <Num
-                      label={`Step ${i + 1} req/s`}
-                      value={s.rps}
-                      onChange={(rps) => setPattern({ schedule: p.schedule!.map((x, j) => (j === i ? { ...x, rps } : x)) })}
-                    />
-                    <button
-                      className="secondary"
-                      disabled={(p.schedule ?? []).length <= 1}
-                      onClick={() => setPattern({ schedule: p.schedule!.filter((_, j) => j !== i) })}
-                    >
-                      remove
-                    </button>
-                  </div>
-                ))}
-                <button
-                  className="secondary"
-                  disabled={nextHour >= 24}
-                  onClick={() => setPattern({ schedule: [...(p.schedule ?? []), { hour: nextHour, rps: lastStep?.rps ?? 0 }] })}
-                >
-                  Add step
-                </button>
-              </div>
-            )}
-          </>
-        ) : (
-          <p className="sb-hint">RPS = active users × requests per user × time of day × events. Grow it by keeping users happy.</p>
-        )}
-      </fieldset>
+      <VolumeFields
+        source={draft.source}
+        pattern={draft.pattern}
+        maxRps={rules.maxTrafficRps}
+        onSource={(source) => set((d) => ({ ...d, source }))}
+        onPattern={setPattern}
+      />
 
       <details className="sb-section" open>
         <summary>Traffic groups</summary>
@@ -601,14 +628,14 @@ export function graph(flowing: boolean) {
     );
     x += 280;
   };
-  const link = (from: string, to: string, share: number) => {
+  const link = (from: string, to: string, share: number, labelled = true) => {
     if (share <= 0) return;
     edges.push({
       id: `${from}>${to}`,
       source: from,
       target: to,
       // Small shares go unlabelled to keep the view readable.
-      label: share >= 0.05 && share < 0.995 ? `${Math.round(share * 100)}%` : undefined,
+      label: labelled && share >= 0.05 && share < 0.995 ? `${Math.round(share * 100)}%` : undefined,
       animated: flowing,
       style: { stroke: "var(--accent)", strokeWidth: 1 + 8 * Math.sqrt(share), animationDuration: `${Math.max(0.25, 1.2 - share)}s` },
     });

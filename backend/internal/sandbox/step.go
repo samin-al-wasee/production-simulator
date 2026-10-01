@@ -39,6 +39,7 @@ type Snapshot struct {
 
 	backlog     []float64
 	attemptFail vec
+	clientFail  map[string]float64
 	path        map[string]vec
 	outOfMemory []string
 }
@@ -62,7 +63,11 @@ func (g *Game) engagement() float64 {
 
 func (g *Game) rps() float64 {
 	if tc := g.traffic(); tc != nil && tc.Source == SourceConfigured {
-		return g.patternRPS(tc.Pattern) * g.fx.traffic
+		since := 0
+		if n := g.Node(InternetID); n != nil {
+			since = n.TrafficSince
+		}
+		return g.patternRPS(tc.Pattern, since) * g.fx.traffic
 	}
 	_, hour := g.clock()
 	return g.Users * g.Rules.ActiveShare * g.engagement() * diurnal(hour) * g.fx.traffic
@@ -135,6 +140,7 @@ func (g *Game) Step() Snapshot {
 		n.Backlog = snap.backlog[i]
 	}
 	g.attemptFail = snap.attemptFail
+	g.clientFail = snap.clientFail
 	g.lastPath = snap.path
 	// An instance out of memory crashes, restarts, and starts again.
 	for _, id := range snap.outOfMemory {
@@ -147,8 +153,9 @@ func (g *Game) Step() Snapshot {
 	hours := r.TickSeconds / 3600
 	g.Cash += (before.RevenuePerHour - before.CostPerHour) * hours
 
-	// A load test's synthetic clients are not users: the market holds still.
-	if !g.loadTest() {
+	// A load test's synthetic clients are not users: the market holds still,
+	// as it does from v6 while no traffic component sends real requests.
+	if !g.loadTest() && !(g.clientModel() && f.RPS == 0) {
 		g.Satisfaction += (g.quality(f) - g.Satisfaction) * r.SatisfactionPull
 		g.Popularity += (g.Satisfaction - g.Popularity) * r.PopularityPull
 		growth := r.GrowthRate * g.Popularity / 100 * g.Users * (1 - g.Users/r.MarketSize)

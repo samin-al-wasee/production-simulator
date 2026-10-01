@@ -40,6 +40,14 @@ const DEP_KINDS: Record<string, string[][]> = {
   storage: [["object-storage"]],
 };
 
+// trafficInputs are the traffic components sending to an application, with
+// the engine's view of each (v6).
+function trafficInputs(game: GameState, id: string) {
+  return game.edges
+    .filter((e) => e.to === id && game.nodes.find((n) => n.id === e.from)?.kind === "traffic")
+    .map((e) => ({ id: e.from, stats: game.flow.nodes.find((s) => s.id === e.from)?.traffic }));
+}
+
 // AppView opens an application instance: a request's path through its
 // connections, backlog, workers, middleware, routes, and dependencies. Every
 // value is the engine's, over all replicas; edges show each route's share.
@@ -61,13 +69,26 @@ export function AppView({
   const g = graph((a?.success ?? 0) + (a?.errors ?? 0) + (a?.timeouts ?? 0) > 0);
   const total = (a?.routes ?? []).reduce((sum, r) => sum + r.rps, 0);
   const n = (v = 0) => formatCompact(v);
+  const inputs = trafficInputs(game, node.id);
+  if (inputs.length > 0) {
+    g.column(inputs.map(({ id, stats: t }) => ({
+      id: `src:${id}`,
+      title: id,
+      sub: t?.problem ?? `${n((t?.rps ?? 0) + (t?.retryRps ?? 0))}/s`,
+      cls: t?.problem ? "bad" : undefined,
+    })), "input");
+  }
 
   g.column([{
     id: "in",
     title: "Connections",
     sub: `${n(total)}/s · ${n(a?.connections)} open${a?.rejected ? ` · ${n(a.rejected)}/s rejected` : ""}${config.tls ? " · TLS" : ""}${config.keepAlive ? " · keep-alive" : ""}`,
     cls: at("connections") ?? at("network-in") ?? (a && a.rejected > 0.01 ? "bad" : undefined),
-  }], "input");
+  }], inputs.length > 0 ? undefined : "input");
+  const sent = inputs.reduce((sum, { stats: t }) => sum + (t?.problem ? 0 : (t?.rps ?? 0) + (t?.retryRps ?? 0)), 0);
+  for (const { id, stats: t } of inputs) {
+    if (!t?.problem) g.link(`src:${id}`, "in", sent > 0 ? ((t?.rps ?? 0) + (t?.retryRps ?? 0)) / sent : 1 / inputs.length);
+  }
   g.column([{
     id: "backlog",
     title: "Backlog",
@@ -94,11 +115,14 @@ export function AppView({
     last = "mw";
   }
 
-  const routes = a?.routes ?? config.routes.map((r) => ({ endpoint: r.endpoint, rps: 0, errors: 0, timeouts: 0, latencyMs: 0 }));
+  const routes: { endpoint: string; rps: number; errors: number; timeouts: number; latencyMs: number; notFound?: boolean }[] =
+    a?.routes ?? config.routes.map((r) => ({ endpoint: r.endpoint, rps: 0, errors: 0, timeouts: 0, latencyMs: 0 }));
   g.column(routes.map((r) => ({
     id: `rt:${r.endpoint}`,
     title: r.endpoint,
-    sub: `${n(r.rps)}/s · ${r.latencyMs.toFixed(0)} ms${r.errors > 0.01 ? ` · ${n(r.errors)}/s errors` : ""}${r.timeouts > 0.01 ? ` · ${n(r.timeouts)}/s timeouts` : ""}`,
+    sub: r.notFound
+      ? `${n(r.rps)}/s · 404: no route`
+      : `${n(r.rps)}/s · ${r.latencyMs.toFixed(0)} ms${r.errors > 0.01 ? ` · ${n(r.errors)}/s errors` : ""}${r.timeouts > 0.01 ? ` · ${n(r.timeouts)}/s timeouts` : ""}`,
     cls: r.errors + r.timeouts > 0.01 ? "bad" : undefined,
   })));
   const share = (rps: number) => (total > 0 ? rps / total : 1 / routes.length);
@@ -163,6 +187,7 @@ export function AppPanel({
   const config = appConfig(game, rules, node);
   const a = stats?.app;
   const size = rules.sizes.find((s) => s.name === node.size);
+  const inputs = trafficInputs(game, node.id);
   if (!config) return null;
   const rows: [string, string, string?][] = a
     ? [
@@ -197,6 +222,22 @@ export function AppPanel({
         </table>
       )}
       <button onClick={() => setOpen(true)}>Configure app</button>
+      {inputs.length > 0 && (
+        <details className="sb-section">
+          <summary>Inputs</summary>
+          <table className="sb-breakdown">
+            <tbody>
+              {inputs.map(({ id, stats: t }) => (
+                <tr key={id} title={t?.problem}>
+                  <th>{id}</th>
+                  <td className={`num ${t?.problem ? "bad" : ""}`}>{t?.problem ? "refused" : `${formatCompact((t?.rps ?? 0) + (t?.retryRps ?? 0))}/s`}</td>
+                  <td className="num">{t?.problem ? "" : `${formatCompact(t?.success ?? 0)}/s ok`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      )}
       {a?.routes && (
         <details className="sb-section">
           <summary>Routes</summary>
