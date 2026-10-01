@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Flow solver:** load is routed per request class (cacheable read, read, write). A CDN answers only cacheable reads (45% of them in v4), and the endpoint mix sets an application's read, write, and storage shares.
   - **Retries:** they add `load × (f + … + f^N)` attempts from last tick's failure rate `f`. A request fails only if every attempt fails.
   - **Breakdown:** the flow carries `traffic`: source, RPS, retry RPS, requests in flight (Little's law), and RPS by group, region, and endpoint. Meters carry `loadTest`, and events carry `loadTest`.
-  - **Dashboard:** the Internet inspector shows live traffic and its breakdown. A **Configure traffic** form lists the engine's validation problems. A *load test* badge appears in the meters and on the Internet node, and the goals strip notes that goals are paused.
+  - **Dashboard:** clicking the Internet opens an animated view inside it (regions → groups → endpoints → downstream); **← System** or Esc returns. The Internet inspector shows live traffic and its breakdown. A **Configure traffic** form lists the engine's validation problems. A *load test* badge appears in the meters and on the Internet node, and the goals strip notes that goals are paused.
   - **Tests:**
     - Go tests for every pattern, group and endpoint splits, CDN and application class routing, zero traffic, Little's law, retries (storms and recovery), load-test economics and goals, a validation table and its boundaries, JSON replay, and v4 balance
     - an API test for `configure`

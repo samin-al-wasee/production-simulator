@@ -419,6 +419,13 @@ export function lockedBy(kind: Kind, goals: GoalStatus[]): GoalStatus | undefine
   return goal && goal.achievedAt === undefined ? goal : undefined;
 }
 
+// internetConfig is the Internet's traffic configuration: its own once set,
+// else the ruleset's. The palette's ruleset is the latest, so an older game
+// has none.
+export function internetConfig(game: GameState, rules: Ruleset): TrafficConfig | undefined {
+  return game.nodes.find((n) => n.id === "internet")?.traffic ?? (game.ruleset === rules.version ? rules.traffic : undefined);
+}
+
 // The traffic form edits percentages; the engine takes shares from 0 to 1.
 // These helpers only convert between the two and never correct a value: the
 // engine validates the configuration and reports what is wrong.

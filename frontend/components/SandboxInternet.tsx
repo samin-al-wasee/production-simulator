@@ -1,5 +1,6 @@
 "use client";
 
+import { Background, Position, ReactFlow, ReactFlowProvider, type Edge, type Node } from "@xyflow/react";
 import { useEffect, useRef, useState } from "react";
 import {
   describePattern,
@@ -8,6 +9,7 @@ import {
   formatCompact,
   fromDraft,
   hasBlankNumber,
+  internetConfig,
   newGroupKey,
   percentTotal,
   problems,
@@ -17,7 +19,6 @@ import {
   type Pattern,
   type PatternShape,
   type Ruleset,
-  type SandboxNode,
   type TrafficConfig,
   type Rate,
   type TrafficDraft,
@@ -126,18 +127,15 @@ function Breakdown({ title, rows, total }: { title: string; rows?: Rate[]; total
 export function InternetPanel({
   game,
   rules,
-  node,
   onConfigure,
 }: {
   game: GameState;
   rules: Ruleset;
-  node: SandboxNode;
   onConfigure: (tc: TrafficConfig) => Promise<string | null>;
 }) {
   const [open, setOpen] = useState(false);
   const t = game.flow.traffic;
-  // The palette's ruleset is the latest; an older game may have none.
-  const config = node.traffic ?? (game.ruleset === rules.version ? rules.traffic : undefined);
+  const config = internetConfig(game, rules);
   return (
     <div className="sb-internet">
       {t && (
@@ -527,5 +525,105 @@ function TrafficDialog({
         </button>
       </div>
     </dialog>
+  );
+}
+
+// InternetView opens the Internet: where its traffic comes from, who sends
+// it, what they ask for, and where it leaves. Rates are the engine's; edge
+// widths and labels show the configured shares.
+export function InternetView({
+  config,
+  game,
+  onBack,
+}: {
+  config: TrafficConfig;
+  game: GameState;
+  onBack: () => void;
+}) {
+  useEffect(() => {
+    // Captured first, so Esc only closes this view and keeps the selection.
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || document.querySelector("dialog[open]")) return;
+      e.stopPropagation();
+      onBack();
+    };
+    window.addEventListener("keydown", esc, true);
+    return () => window.removeEventListener("keydown", esc, true);
+  }, [onBack]);
+
+  const t = game.flow.traffic;
+  const rps = (rows: Rate[] | undefined, name: string) => rows?.find((r) => r.name === name)?.rps ?? 0;
+  const flowing = (t?.rps ?? 0) > 0;
+  const nodes: Node[] = [];
+  const edges: Edge[] = [];
+  const column = (x: number, items: { id: string; title: string; sub: string }[], type?: string) =>
+    items.forEach((it, i) =>
+      nodes.push({
+        id: it.id,
+        type,
+        position: { x, y: (i - (items.length - 1) / 2) * 90 },
+        data: { label: <><strong>{it.title}</strong><div className="sb-hint">{it.sub}</div></> },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        className: "sb-inner-node",
+      }),
+    );
+  const link = (from: string, to: string, share: number) => {
+    if (share <= 0) return;
+    edges.push({
+      id: `${from}>${to}`,
+      source: from,
+      target: to,
+      // Small shares go unlabelled to keep the view readable.
+      label: share >= 0.05 ? `${Math.round(share * 100)}%` : undefined,
+      animated: flowing,
+      // ponytail: speed and width follow configured share, not live per-edge rates
+      style: { stroke: "var(--accent)", strokeWidth: 1 + 8 * Math.sqrt(share), animationDuration: `${Math.max(0.25, 1.2 - share)}s` },
+    });
+  };
+
+  const regions = [...new Set(config.groups.flatMap((g) => g.regions.map((r) => r.name)))];
+  column(0, regions.map((r) => ({ id: `r:${r}`, title: r, sub: `${formatCompact(rps(t?.regions, r))}/s` })), "input");
+  column(280, config.groups.map((g) => ({
+    id: `g:${g.name}`,
+    title: g.name,
+    sub: `${formatCompact(rps(t?.groups, g.name))}/s${g.retries ? ` · ${g.retries} retries` : ""}`,
+  })));
+  column(560, config.endpoints.map((e) => ({
+    id: `e:${endpointName(e)}`,
+    title: endpointName(e),
+    sub: `${formatCompact(rps(t?.endpoints, endpointName(e)))}/s${e.cacheable ? " · cacheable" : ""}${e.storage ? " · storage" : ""}`,
+  })));
+  const out = game.edges.filter((e) => e.from === "internet").map((e) => e.to);
+  column(840, [{
+    id: "out",
+    title: out.length ? `→ ${out.join(", ")}` : "→ nothing connected",
+    sub: `${formatCompact(t?.rps ?? 0)}/s${t?.retryRps ? ` + ${formatCompact(t.retryRps)}/s retries` : ""}`,
+  }], "output");
+
+  for (const g of config.groups) {
+    for (const r of g.regions) link(`r:${r.name}`, `g:${g.name}`, g.share * r.share);
+    for (const e of g.endpoints) link(`g:${g.name}`, `e:${e.name}`, g.share * e.share);
+  }
+  for (const e of config.endpoints) {
+    const share = config.groups.reduce((sum, g) => sum + g.share * (g.endpoints.find((w) => w.name === endpointName(e))?.share ?? 0), 0);
+    link(`e:${endpointName(e)}`, "out", share);
+  }
+
+  return (
+    <div className="sb-inner" aria-label="Inside the Internet">
+      <div className="sb-inner-bar">
+        <button className="secondary" onClick={onBack}>← System</button>
+        <strong>Inside the Internet</strong>
+        <span className="sb-hint">
+          {t?.source === "configured" ? `Load test: ${describePattern(config.pattern)}` : "Market: volume follows your users"} · regions → groups → endpoints · Esc to go back
+        </span>
+      </div>
+      <ReactFlowProvider>
+        <ReactFlow nodes={nodes} edges={edges} nodesDraggable={false} nodesConnectable={false} colorMode="system" fitView>
+          <Background />
+        </ReactFlow>
+      </ReactFlowProvider>
+    </div>
   );
 }
