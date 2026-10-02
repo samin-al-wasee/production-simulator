@@ -346,7 +346,7 @@ func TestSentimentHoldsWithoutTrafficAndLoadTestsPause(t *testing.T) {
 }
 
 func TestAppTemplatesAndPlacingWithAConfiguration(t *testing.T) {
-	r := RulesetV6()
+	r := RulesetV7()
 	small, _ := r.Size("small")
 	for _, st := range r.AppStacks {
 		for _, ty := range r.AppTypes {

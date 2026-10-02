@@ -357,15 +357,15 @@ test("an application instance shows why it is slow and can be reconfigured", asy
   await expect(inspector.locator(".sb-breakdown tr", { hasText: "GET /products" }).first()).toBeVisible();
 
   // The app is open on the canvas: a request's path through it, with the
-  // engine's values. The cache call falls back to the database; storage is
-  // reached directly. Esc and the back button return to the system.
+  // engine's values and what each connection carried (the database over
+  // SQL, storage over S3). Esc and the back button return to the system.
   const inside = page.getByLabel(`Inside ${app}`);
   await expect(inside).toBeVisible();
   await expect(inside.locator(".react-flow__node", { hasText: "1 sync workers" })).toContainText("in flight");
   await expect(inside.locator(".react-flow__node", { hasText: "Backlog" })).toContainText("/ 100 queued");
   await expect(inside.locator(".react-flow__node", { hasText: "GET /products" }).first()).toContainText("/s");
-  await expect(inside.locator(".react-flow__node", { hasText: /^cache/ })).toContainText(`→ ${db}`);
-  await expect(inside.locator(".react-flow__node", { hasText: /^storage/ })).toContainText(`→ ${st}`);
+  await expect(inside.locator(".react-flow__node", { hasText: db })).toContainText("SQL");
+  await expect(inside.locator(".react-flow__node", { hasText: st })).toContainText("S3");
   await expect(inside.locator(".react-flow__node", { hasText: "Middleware" })).toContainText("CPU-ms per request");
   await expect(inside.locator(".react-flow__edge.animated")).not.toHaveCount(0);
   await page.keyboard.press("Escape");
@@ -500,6 +500,76 @@ test("traffic components connect under a contract and add up", async ({ page }) 
   await inspector.locator(".sb-links li", { hasText: app }).getByRole("button", { name: "disconnect" }).click();
   await expect(node(page, web)).toContainText("not connected");
   await expect(inspector).toContainText("Connect it to an application instance");
+
+  await expect(page.locator(".sb-toast")).toHaveCount(0);
+  expect(errors, "browser errors").toEqual([]);
+});
+
+test("services call each other over configured connections", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+  page.on("console", (m) => {
+    if (m.type() === "error" && !m.text().includes("status of 422")) errors.push(`console: ${m.text()}`);
+  });
+
+  // A storefront calling a catalog service, each with its own database,
+  // built from the templates through the API.
+  const api = page.request;
+  const rules = await (await api.get("/api/forgelab/sandbox/ruleset")).json();
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 9 } })).json();
+  const game = `/api/forgelab/sandbox/games/${created.id}`;
+  const command = async (c: object) => {
+    const res = await api.post(`${game}/commands`, { data: c });
+    expect(res.ok(), await res.text()).toBe(true);
+    return (await res.json()) as { node?: string };
+  };
+  const type = (name: string) => rules.appTypes.find((t: { name: string }) => t.name === name);
+  const app = (name: string, x: number, y: number) =>
+    command({ type: "place", kind: "app-instance", x, y, app: { ...rules.appStacks[4].app, name: `${name} API`, routes: type(name).routes } });
+  const front = (await app("Storefront", 300, 0)).node!;
+  const catalog = (await app("Catalog", 600, -100)).node!;
+  const db = (await command({ type: "place", kind: "db-primary", x: 900, y: -100 })).node!;
+  const src = (await command({ type: "place", kind: "traffic", x: 0, y: 0 })).node!;
+  for (const [from, to] of [[src, front], [front, catalog], [catalog, db]]) await command({ type: "connect", from, to });
+  await api.post(`${game}/step`, { data: { ticks: 2 } });
+
+  await page.goto("/sandbox");
+  await page.evaluate((id) => localStorage.setItem("forgelab.sandbox.game", id), created.id);
+  await page.reload();
+  await expect(page.locator(".react-flow__edge")).toHaveCount(3);
+
+  // The app's inside view lists what each connection carried.
+  await node(page, front).click();
+  const inside = page.getByLabel(`Inside ${front}`);
+  await expect(inside.locator(".react-flow__node", { hasText: `${catalog} (Catalog API)` })).toContainText("HTTP/1.1");
+  await page.keyboard.press("Escape");
+
+  // Select the catalog's database connection: SQL on 5432, adopted. Break
+  // its port: the edge says why, and the catalog's calls fail.
+  await page.locator(`.react-flow__edge[data-id="${catalog}->${db}"]`).click({ force: true });
+  const inspector = page.locator(".sb-inspector");
+  await expect(inspector.locator("h3")).toHaveText("Connection");
+  await expect(inspector).toContainText("SQL · port 5432 · no TLS · pool 20");
+  await inspector.getByRole("button", { name: "Configure connection" }).click();
+  const dialog = page.getByRole("dialog", { name: "Connection" });
+  await dialog.getByLabel("Pool (per replica)").fill("0");
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("pool must be between 1 and 1000");
+  await dialog.getByLabel("Pool (per replica)").fill("10");
+  await dialog.getByLabel("Port").fill("5433");
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await expect(dialog).toBeHidden();
+  const refused = `connection refused: port 5433, ${db} listens on 5432`;
+  await expect(inspector).toContainText(refused);
+  await expect(page.locator(".react-flow__edge-text", { hasText: refused })).toBeVisible();
+
+  // Moving the database's listener makes the connection follow it again.
+  await node(page, db).click();
+  await inspector.getByRole("button", { name: "change" }).click();
+  await inspector.getByLabel("Listener port").fill("5433");
+  await inspector.getByRole("button", { name: "Apply" }).click();
+  await expect(inspector).toContainText("Listens on SQL · port 5433");
+  await expect(page.locator(".react-flow__edge-text", { hasText: refused })).toHaveCount(0);
 
   await expect(page.locator(".sb-toast")).toHaveCount(0);
   expect(errors, "browser errors").toEqual([]);

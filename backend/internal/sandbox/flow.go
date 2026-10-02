@@ -38,6 +38,8 @@ type Flow struct {
 	// Traffic is what the Internet sent, broken down by group, region, and
 	// endpoint.
 	Traffic Traffic `json:"traffic"`
+	// Edges is what each connection carried (v7).
+	Edges []EdgeStats `json:"edges,omitempty"`
 }
 
 // p95Factor converts a mean latency to a p95 under an exponential latency
@@ -243,6 +245,24 @@ func (g *Game) solve() Snapshot {
 	if g.clientModel() {
 		g.clients = g.clientLoads()
 	}
+	g.problem, g.epLoad, g.edgeRun, g.edgeFailNext = nil, nil, nil, map[string]float64{}
+	g.runs = make([]*appRun, len(g.Nodes))
+	if g.callModel() {
+		// Requests are carried per endpoint to every application (v7).
+		g.problem = g.edgeProblems()
+		g.edgeRun = map[string]*EdgeStats{}
+		g.epLoad = make([]map[string]float64, len(g.Nodes))
+		for i := range g.epLoad {
+			g.epLoad[i] = map[string]float64{}
+		}
+		for _, cl := range g.clients {
+			if cl.problem == "" {
+				for _, e := range cl.cfg.Endpoints {
+					g.epLoad[cl.to][e.Name] += (cl.attempts + cl.attack) * e.Share
+				}
+			}
+		}
+	}
 	// An application's capacity depends on its configuration, replicas, and
 	// last tick's dependency latency, none of which change during a solve.
 	g.appCaps = map[*Node]float64{}
@@ -332,6 +352,7 @@ func (g *Game) solve() Snapshot {
 		if g.appModel(nd) {
 			run := g.runApp(i, load[i])
 			apps[i] = &run
+			g.runs[i] = &run
 			served[i] = run.served
 			plans[i] = [nClass]plan{{local: 1}, {local: 1}, {local: 1}}
 			a := share(i)
@@ -339,10 +360,22 @@ func (g *Game) solve() Snapshot {
 				// The server works on every request it accepts, even one
 				// its client has given up on.
 				v := rr.rate * run.served / (run.served + run.rejected)
-				for d, to := range rr.deps {
-					for _, x := range to {
-						load[x.to][rr.depCls[d]] += v * x.share
-						attack[x.to] += v * x.share * a
+				for _, c := range rr.calls {
+					for _, x := range c.to {
+						w := v * x.share
+						if g.callModel() {
+							w *= amplify(g.edge(nd.ID, g.Nodes[x.to].ID).Conn, g.edgeFail[nd.ID+">"+g.Nodes[x.to].ID])
+							g.edgeStat(i, x.to).RPS += w
+							// A refused call is attempted and never arrives.
+							if g.problem[[2]int{i, x.to}] != "" {
+								continue
+							}
+							if c.endpoint != "" {
+								g.epLoad[x.to][c.endpoint] += w
+							}
+						}
+						load[x.to][c.cls] += w
+						attack[x.to] += w * a
 					}
 				}
 			}
@@ -401,11 +434,18 @@ func (g *Game) solve() Snapshot {
 			v, st := load[i][cl]*keep, store[i][cl]*keep
 			send := func(grp group, storage bool) {
 				for _, rt := range grp.routes {
+					// A connection that breaks its contract carries nothing.
+					if g.problem[[2]int{i, rt.to}] != "" {
+						continue
+					}
 					f := grp.fraction * rt.share
 					load[rt.to][cl] += v * f
 					attack[rt.to] += v * f * a
 					if storage {
 						store[rt.to][cl] += st * f
+					}
+					if g.callModel() && nd.Kind != KindTraffic {
+						g.edgeStat(i, rt.to).RPS += v * f
 					}
 				}
 			}
@@ -485,6 +525,9 @@ func (g *Game) solve() Snapshot {
 			for _, grp := range p.groups {
 				gs, gt := 0.0, 0.0
 				for _, rt := range grp.routes {
+					if g.problem[[2]int{i, rt.to}] != "" {
+						continue
+					}
 					gs += rt.share * s[rt.to][cl]
 					gt += rt.share * s[rt.to][cl] * t[rt.to][cl]
 				}
@@ -580,7 +623,29 @@ func (g *Game) solve() Snapshot {
 		f.Traffic.Source = SourceConfigured
 	}
 	g.breakdown(&f.Traffic)
-	snap := Snapshot{Flow: f, backlog: backlog, attemptFail: fail, clientFail: clientFail, path: map[string]vec{}}
+	if g.callModel() {
+		for k, cl := range g.clients {
+			if cl.to < 0 {
+				continue
+			}
+			ts := stats[cl.node].Traffic
+			es := g.edgeStat(cl.node, cl.to)
+			es.RPS, es.RetryRPS, es.LatencyMs = cl.attempts+cl.attack, cl.attempts-cl.unique, clientLat[k]
+			es.ok, es.lat, es.weight = clientOK[k], clientLat[k], 1
+			es.Problem = ts.Problem
+		}
+		f.Edges = g.edgeStats(load, s, t)
+	}
+	snap := Snapshot{Flow: f, backlog: backlog, attemptFail: fail, clientFail: clientFail, edgeFail: g.edgeFailNext, epPath: map[string]map[string]float64{}, path: map[string]vec{}}
+	for i, run := range g.runs {
+		if run != nil && run.out != nil {
+			ms := map[string]float64{}
+			for name, o := range run.out {
+				ms[name] = o[1]
+			}
+			snap.epPath[g.Nodes[i].ID] = ms
+		}
+	}
 	for i, nd := range g.Nodes {
 		snap.path[nd.ID] = t[i]
 		if apps[i] != nil && apps[i].stats.OutOfMemory {

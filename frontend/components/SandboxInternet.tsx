@@ -619,7 +619,7 @@ export function graph(flowing: boolean) {
       nodes.push({
         id: it.id,
         type,
-        position: { x, y: (i - (items.length - 1) / 2) * 90 },
+        position: { x, y: (i - (items.length - 1) / 2) * 110 },
         data: { label: <><strong>{it.title}</strong><div className={`sb-hint ${it.cls ?? ""}`}>{it.sub}</div></> },
         sourcePosition: Position.Right,
         targetPosition: Position.Left,

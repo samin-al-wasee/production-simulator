@@ -31,6 +31,7 @@ import {
 } from "@/lib/sandbox";
 import { SandboxEvents } from "./SandboxEvents";
 import { AppView, NewAppDialog } from "./SandboxApp";
+import { EdgePanel } from "./SandboxConn";
 import { InternetView } from "./SandboxInternet";
 import { TrafficView } from "./SandboxTraffic";
 import { SandboxGoals } from "./SandboxGoals";
@@ -88,6 +89,9 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
   const [game, setGame] = useState<GameState>(initial);
   const [toast, setToast] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // The connection the inspector shows, as "from->to".
+  const [edgeSel, setEdgeSel] = useState<string | null>(null);
+  const selectedEdge = game.edges.find((e) => `${e.from}->${e.to}` === edgeSel);
   // Where an application instance waits to be placed while its template is chosen.
   const [newApp, setNewApp] = useState<{ x: number; y: number } | null>(null);
   // The component whose inside the canvas shows instead of the system.
@@ -157,8 +161,9 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
           selected: pending ? n.id === pending : (old?.selected ?? false),
           deletable: n.kind !== "internet",
           data: {
-            // A traffic component is titled by the population it is.
-            label: (n.kind === "traffic" && clientConfig(game, rules, n)?.name) || (kind?.label ?? n.kind),
+            // A traffic component is titled by the population it is, and an
+            // application by its service name once it has one of its own.
+            label: (n.kind === "traffic" && clientConfig(game, rules, n)?.name) || (n.kind === "app-instance" && n.app?.name) || (kind?.label ?? n.kind),
             kind: n.kind,
             size: n.size,
             replicas: n.replicas,
@@ -194,18 +199,23 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
         const from = game.flow.nodes.find((s) => s.id === e.from);
         const to = game.flow.nodes.find((s) => s.id === e.to);
         const saturated = (to?.utilization ?? 0) >= 1 || (to?.capacity === 0 && (to?.offered ?? 0) > 0);
-        // A traffic component that breaks its contract says why on the edge.
-        const problem = from?.traffic?.problem;
+        // A connection that breaks its contract says why on the edge; one
+        // whose calls fail is marked (v7 reports every connection).
+        const es = game.flow.edges?.find((x) => x.from === e.from && x.to === e.to);
+        const problem = es?.problem ?? from?.traffic?.problem;
+        const failing = !!es && es.rps > 0 && es.errors / es.rps > 0.01;
+        const id = `${e.from}->${e.to}`;
         return {
-          id: `${e.from}->${e.to}`,
+          id,
           source: e.from,
           target: e.to,
           animated: !problem && (from?.served ?? 0) > 0 && (to?.offered ?? 0) > 0,
-          className: saturated || problem ? "sb-edge-bad" : undefined,
+          className: [saturated || problem || failing ? "sb-edge-bad" : "", edgeSel === id ? "sb-edge-selected" : ""].join(" ").trim() || undefined,
           label: problem,
+          interactionWidth: 16,
         };
       }),
-    [game],
+    [game, edgeSel],
   );
 
   const send = useCallback(
@@ -344,7 +354,15 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
                 .filter((e) => !gone.has(e.source) && !gone.has(e.target))
                 .forEach((e) => send({ type: "disconnect", from: e.source, to: e.target }));
             }}
-            onNodeClick={(_, n) => ["internet", "traffic", "app-instance"].includes(n.data.kind) && setInside(n.id)}
+            onNodeClick={(_, n) => {
+              setEdgeSel(null);
+              if (["internet", "traffic", "app-instance"].includes(n.data.kind)) setInside(n.id);
+            }}
+            onEdgeClick={(_, e) => {
+              setNodes((prev) => prev.map((p) => ({ ...p, selected: false })));
+              setEdgeSel(e.id);
+            }}
+            onPaneClick={() => setEdgeSel(null)}
             deleteKeyCode={["Backspace", "Delete"]}
             colorMode="system"
             fitView
@@ -369,7 +387,11 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
             </div>
           )}
         </div>
-        <SandboxInspector game={game} rules={rules} selected={selected} onCommand={send} onConfigure={configure} />
+        {selectedEdge && !selected ? (
+          <EdgePanel game={game} rules={rules} from={selectedEdge.from} to={selectedEdge.to} onConfigure={configure} onCommand={send} />
+        ) : (
+          <SandboxInspector game={game} rules={rules} selected={selected} onCommand={send} onConfigure={configure} />
+        )}
       </div>
       <div className="sb-footer">
         <span className="legend">

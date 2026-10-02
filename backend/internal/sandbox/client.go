@@ -288,7 +288,19 @@ func (g *Game) keepAlive(i int, cfg *AppConfig) float64 {
 	if !g.clientModel() {
 		return 1
 	}
-	on, all := 0.0, 0.0
+	// From v7 calls from other services arrive over pooled, kept-alive
+	// connections.
+	pooled := 0.0
+	if g.callModel() {
+		for _, v := range g.epLoad[i] {
+			pooled += v
+		}
+		for _, cl := range g.inputs(i) {
+			pooled -= cl.attempts + cl.attack
+		}
+		pooled = math.Max(0, pooled)
+	}
+	on, all := pooled, pooled
 	for _, cl := range g.inputs(i) {
 		v := cl.attempts + cl.attack
 		all += v
