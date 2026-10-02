@@ -345,6 +345,75 @@ func TestSentimentHoldsWithoutTrafficAndLoadTestsPause(t *testing.T) {
 	}
 }
 
+func TestAppTemplatesAndPlacingWithAConfiguration(t *testing.T) {
+	r := RulesetV6()
+	small, _ := r.Size("small")
+	for _, st := range r.AppStacks {
+		for _, ty := range r.AppTypes {
+			a := st.App
+			a.Routes = ty.Routes
+			if p := r.ValidateApp(a); len(p) != 0 {
+				t.Errorf("%s on %s is invalid: %v", ty.Name, st.Name, p)
+			}
+		}
+		if mem := float64(st.App.Workers) * r.AppRuntime.WorkerMemoryMB; mem >= small.MemoryGB*1024 {
+			t.Errorf("stack %s does not fit a small instance: %v MB of workers", st.Name, mem)
+		}
+	}
+	for _, ty := range r.AppTypes {
+		sum := 0.0
+		for _, rt := range ty.Routes {
+			sum += rt.Share
+		}
+		if !near(sum, 1, 1e-9) {
+			t.Errorf("%s: typical shares sum to %v", ty.Name, sum)
+		}
+	}
+
+	// A traffic component adopts the routes' typical shares.
+	g := newGameV6(t)
+	a := r.AppStacks[1].App
+	a.Routes = r.AppTypes[2].Routes // ride sharing
+	id := must(t, g, Command{Type: CmdPlace, Kind: KindApp, App: &a})
+	if got := g.Node(id).App; got.Framework != "Python / FastAPI" || got.Routes[0].Endpoint != "POST /drivers/location" {
+		t.Fatalf("an app placed with a template carries it: %+v", got)
+	}
+	src := place(t, g, KindTraffic)
+	connect(t, g, src, id)
+	if eps := g.Node(src).Client.Endpoints; eps[0].Name != "POST /drivers/location" || !near(eps[0].Share, 0.5, 1e-9) || !near(eps[2].Share, 0.05, 1e-9) {
+		t.Fatalf("adopted shares follow the routes: %+v", eps)
+	}
+
+	// The video type's claim holds: the network runs out before the CPU.
+	video := r.AppStacks[4].App
+	video.Routes = r.AppTypes[4].Routes
+	vid := must(t, g, Command{Type: CmdPlace, Kind: KindApp, App: &video})
+	connect(t, g, vid, place(t, g, KindStorage))
+	connect(t, g, vid, place(t, g, KindDBPrimary))
+	viewers := place(t, g, KindTraffic)
+	connect(t, g, viewers, vid)
+	load := constant(*g.Node(viewers).Client, 10)
+	must(t, g, Command{Type: CmdConfigure, Node: viewers, Client: &load})
+	if st := appStats(t, g, vid); st.Bottleneck != "network-out" {
+		t.Fatalf("video streaming should be bound by outbound network: %s", st.Bottleneck)
+	}
+
+	cash := g.Cash
+	bad := a
+	bad.Workers = 0
+	nodes := len(g.Nodes)
+	if _, err := g.Apply(Command{Type: CmdPlace, Kind: KindApp, App: &bad}); err == nil || g.Cash != cash || len(g.Nodes) != nodes {
+		t.Fatalf("an invalid configuration places and charges nothing: %v", err)
+	}
+	if _, err := g.Apply(Command{Type: CmdPlace, Kind: KindDBPrimary, App: &a}); err == nil {
+		t.Fatal("only an application instance takes a configuration")
+	}
+	v4 := New(RulesetV4(), 1)
+	if _, err := v4.Apply(Command{Type: CmdPlace, Kind: KindApp, App: &a}); err == nil {
+		t.Fatal("v4 has no application configuration")
+	}
+}
+
 func TestClientValidation(t *testing.T) {
 	r := RulesetV6()
 	if p := r.ValidateClient(client()); len(p) != 0 {

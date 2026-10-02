@@ -132,6 +132,11 @@ Up to `sandbox/v5` the Internet is one node on the canvas. Its configuration (`T
 
 From `sandbox/v5` an application instance is a modelled backend web/API service ([ADR-0017](decisions/0017-application-instance-model.md)). Its configuration (`AppConfig`, set with `configure`) applies to each replica. The CPU, memory, and network come from its size: small 1 vCPU / 1 GB / 100 Mbps, medium 2 / 4 / 250, large 4 / 8 / 500. Rulesets v1 to v4 keep the flat capacity described below.
 
+* **Placing.** `place` may carry the instance's configuration, validated before anything is paid, so an instance can start from a **template**. From v6 a template is two choices, both ruleset data the engine never reads:
+  * an **application type** sets the routes: e-commerce (the default), flight booking, ride sharing, social feed, video streaming. Each is route names with their costs, dependencies, and a typical share of a client's requests; the economy stays generic (Principle 7).
+  * a **stack** sets how they are served: Django, FastAPI, Express, Rails, Go (server, processing, workers, concurrency, middleware, port).
+
+  A route's typical `share` is what a traffic component adopts on connecting (equal shares when none is set).
 * **Routes.** The instance splits each request class back into endpoints, in the Internet's shares, and gives each endpoint its route (or the `*` route).
   * A route's own time is `base + middleware ms`, and its CPU is `cpu + middleware CPU + TLS handshake CPU per new connection`.
   * A connection carries one request, or 10 with keep-alive, and a kept-alive connection then idles for 5 s.

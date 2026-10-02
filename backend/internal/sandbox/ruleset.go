@@ -145,6 +145,10 @@ type Ruleset struct {
 	AppRuntime AppRuntime   `json:"appRuntime,omitzero"`
 	Middleware []Middleware `json:"middleware,omitempty"`
 	Frameworks []Framework  `json:"frameworks,omitempty"`
+	// AppStacks and AppTypes are the templates offered when an application
+	// instance is placed: how it serves, and what it serves.
+	AppStacks []AppStack `json:"appStacks,omitempty"`
+	AppTypes  []AppType  `json:"appTypes,omitempty"`
 
 	// Client is a new traffic component's configuration; a ruleset with one
 	// starts empty and takes its traffic from traffic components. Its market

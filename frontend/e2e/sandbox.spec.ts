@@ -66,9 +66,18 @@ test("build, run, scale, delete, and resume a game", async ({ page }) => {
   await expect(page.locator(".sb-inspector h3")).toHaveText("Traffic");
   // It asks for nothing until it is connected to an app.
   await expect(page.locator(".sb-inspector")).toContainText("Connect it to an application instance");
+  // An application instance starts from a template; cancelling places nothing.
   await page.locator(".sb-kind", { hasText: "Application instance" }).click();
+  const chooser = page.getByRole("dialog", { name: "New application instance" });
+  await chooser.getByRole("button", { name: "Cancel" }).click();
+  await expect(node(page, "app-instance-1")).toHaveCount(0);
+  await page.locator(".sb-kind", { hasText: "Application instance" }).click();
+  await chooser.getByRole("radio", { name: /^FastAPI/ }).check();
+  await chooser.getByRole("button", { name: "Place" }).click();
+  await expect(chooser).toBeHidden();
   await expect(node(page, "app-instance-1")).toBeVisible();
   await expect(page.locator(".sb-inspector h3")).toHaveText("Application instance");
+  await expect(page.locator(".sb-inspector")).toContainText("Python / FastAPI · async, 2 workers");
 
   // A click-placed node never lands on top of another.
   const traffic = (await node(page, "traffic-1").boundingBox())!;
@@ -413,13 +422,14 @@ test("traffic components connect under a contract and add up", async ({ page }) 
   await expect(dialog.getByLabel("Endpoint 1 path")).toHaveValue("/products");
   await expect(dialog.getByLabel("Endpoint 6 path")).toHaveValue("/login");
   await expect(dialog.locator(".sb-total")).toHaveText("Requests: 100%");
+  await expect(dialog.getByLabel("Endpoint 1 %")).toHaveValue("35");
   await dialog.getByLabel("Name").fill("Mobile users");
   await dialog.getByLabel("Client type").selectOption("mobile");
   await dialog.getByLabel("Port").fill("8080");
   await dialog.getByLabel("Endpoint 1 %").fill("10");
   await dialog.getByRole("button", { name: "Apply" }).click();
   await expect(dialog.getByRole("alert")).toContainText("endpoint shares must sum to 100%");
-  await dialog.getByLabel("Endpoint 1 %").fill("16.7");
+  await dialog.getByLabel("Endpoint 1 %").fill("35");
   await dialog.getByRole("button", { name: "Apply" }).click();
   await expect(dialog).toBeHidden();
   const refused = "connection refused: port 8080, the app listens on 8000";
@@ -457,7 +467,35 @@ test("traffic components connect under a contract and add up", async ({ page }) 
   await expect(view.locator(".react-flow__edge-text")).toHaveCount(0);
   await view.getByRole("button", { name: "← System" }).click();
 
+  // A third app from a domain template: its routes and their typical shares
+  // are what a traffic component adopts.
+  await page.locator(".sb-kind", { hasText: "Application instance" }).click();
+  const types = page.getByRole("dialog", { name: "New application instance" });
+  await types.getByRole("radio", { name: /^Ride sharing/ }).check();
+  await types.getByRole("radio", { name: /^Go/ }).check();
+  await expect(types).toContainText("POST /drivers/location 50%");
+  await types.getByRole("button", { name: "Place" }).click();
+  await expect(types).toBeHidden();
+  await expect(inspector).toContainText("Ride sharing API · Go / net/http · async");
+
+  // A second app, defined by hand: the engine checks the form before it is placed.
+  await page.keyboard.press("Escape");
+  await page.locator(".sb-kind", { hasText: "Application instance" }).click();
+  const chooser = page.getByRole("dialog", { name: "New application instance" });
+  await chooser.getByRole("button", { name: "define everything manually" }).click();
+  await expect(chooser.getByLabel("Workers")).toBeVisible();
+  await chooser.getByLabel("Workers").fill("0");
+  await chooser.getByRole("button", { name: "Apply" }).click();
+  await expect(chooser.getByRole("alert")).toContainText("workers must be between 1 and 64");
+  await expect(page.locator(".sb-canvas .react-flow__node")).toHaveCount(6);
+  await chooser.getByLabel("Workers").fill("2");
+  await chooser.getByRole("button", { name: "Apply" }).click();
+  await expect(chooser).toBeHidden();
+  await expect(page.locator(".sb-canvas .react-flow__node")).toHaveCount(7);
+  await expect(inspector).toContainText("sync, 2 workers");
+
   // Disconnecting returns it to asking for nothing.
+  await node(page, web).click();
   await page.keyboard.press("Escape");
   await inspector.locator(".sb-links li", { hasText: app }).getByRole("button", { name: "disconnect" }).click();
   await expect(node(page, web)).toContainText("not connected");

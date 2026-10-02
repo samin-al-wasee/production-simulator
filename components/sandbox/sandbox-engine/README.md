@@ -22,7 +22,7 @@ Run a player-built production system as a model: traffic, load, latency, errors,
   - Capacity emerges each tick as the smallest of the CPU, slot, connection, and network limits.
   - Overload fills the backlog, then requests time out and are rejected.
   - Running out of memory crashes the instance, and it restarts.
-  - Health is derived, never set. `NodeStats.App` reports the runtime state and per-route outcomes. `Ruleset.ValidateApp` lists every problem.
+  - Health is derived, never set. `NodeStats.App` reports the runtime state and per-route outcomes. `Ruleset.ValidateApp` lists every problem. `place` may carry an `AppConfig`, checked before anything is paid; v6 offers application types (routes with typical shares) and stacks in `templates.go`, which the engine never reads; a route's `share` is what an adopting traffic component takes.
 - **Traffic model** (`traffic.go`): the Internet's `TrafficConfig` has two parts:
   - **Volume:** from the `market` (users) or a `configured` load test, whose pattern is constant, ramp, spike, burst, periodic, or a daily schedule.
   - **Groups:** each group has a share and its own endpoint mix, region mix, and retries.

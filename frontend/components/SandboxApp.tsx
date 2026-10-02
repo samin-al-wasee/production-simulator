@@ -284,16 +284,133 @@ function Check({ label, checked, onChange }: { label: string; checked: boolean; 
   );
 }
 
+// NewAppDialog is how an application instance is placed when the ruleset
+// offers templates: what it serves (an application type, which sets its
+// routes) on which stack (which sets how it serves them), or a configuration
+// defined by hand. Nothing is placed until the player confirms, and the
+// engine validates either.
+export function NewAppDialog({
+  rules,
+  onPlace,
+  onClose,
+}: {
+  rules: Ruleset;
+  onPlace: (app: AppConfig) => Promise<string | null>;
+  onClose: () => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const types = rules.appTypes ?? [];
+  const stacks = rules.appStacks ?? [];
+  const [type, setType] = useState(0);
+  const [stack, setStack] = useState(0);
+  const [manual, setManual] = useState(false);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const memoryMb = (rules.sizes[0]?.memoryGb ?? 0) * 1024;
+
+  useEffect(() => {
+    const d = dialog.current;
+    d?.showModal();
+    return () => d?.close();
+  }, [manual]);
+
+  if (manual && rules.app) {
+    return <AppDialog rules={rules} config={rules.app} memoryMb={memoryMb} title="New application instance" onApply={onPlace} onClose={onClose} />;
+  }
+  const chosen = (): AppConfig | undefined => {
+    const s = stacks[stack]?.app;
+    const t = types[type];
+    return s && t && { ...s, name: `${t.name} API`, routes: t.routes };
+  };
+  const place = async () => {
+    const app = chosen();
+    if (!app) return;
+    setBusy(true);
+    const err = await onPlace(app);
+    setBusy(false);
+    if (err) setErrors(problems(err));
+    else onClose();
+  };
+  const t = types[type];
+  return (
+    <dialog ref={dialog} className="sb-dialog" aria-label="New application instance" onCancel={onClose}>
+      <h3>New application instance</h3>
+      <p className="sb-hint">
+        Pick what it serves and the stack it runs on, then tune it later with Configure app, or{" "}
+        <button className="link" onClick={() => setManual(true)}>
+          define everything manually
+        </button>
+        .
+      </p>
+      <div className="sb-template-grid">
+      <fieldset className="sb-templates">
+        <legend>Application type</legend>
+        {types.map((x, i) => (
+          <label key={x.name} className={`sb-template ${type === i ? "selected" : ""}`}>
+            <input type="radio" name="app-type" checked={type === i} onChange={() => setType(i)} />
+            <span>
+              <strong>{x.name}</strong>
+              <span className="sb-hint">{x.description}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+      <fieldset className="sb-templates">
+        <legend>Stack</legend>
+        {stacks.map((x, i) => (
+          <label key={x.name} className={`sb-template ${stack === i ? "selected" : ""}`}>
+            <input type="radio" name="app-stack" checked={stack === i} onChange={() => setStack(i)} />
+            <span>
+              <strong>{x.name}</strong>
+              <span className="sb-hint">
+                {x.app.framework} · {x.app.processing}, {x.app.workers} {x.app.workers === 1 ? "worker" : "workers"}
+                {x.app.processing === "async" ? ` × ${x.app.maxConcurrency}` : ""} · port {x.app.port} · {x.app.middleware?.length ?? 0} middleware
+              </span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+      </div>
+      {t && (
+        <p className="sb-hint">
+          {t.name} routes, with a typical client&apos;s share of requests:{" "}
+          {t.routes
+            .filter((r) => r.endpoint !== "*")
+            .map((r) => `${r.endpoint}${r.share ? ` ${Math.round(r.share * 100)}%` : ""}`)
+            .join(" · ")}
+        </p>
+      )}
+      {errors.length > 0 && (
+        <ul className="sb-errors" role="alert">
+          {errors.map((e) => (
+            <li key={e}>{e}</li>
+          ))}
+        </ul>
+      )}
+      <div className="sb-dialog-actions">
+        <button className="secondary" onClick={onClose}>
+          Cancel
+        </button>
+        <button onClick={place} disabled={busy}>
+          Place
+        </button>
+      </div>
+    </dialog>
+  );
+}
+
 function AppDialog({
   rules,
   config,
   memoryMb,
+  title = "Application instance",
   onApply,
   onClose,
 }: {
   rules: Ruleset;
   config: AppConfig;
   memoryMb: number;
+  title?: string;
   onApply: (c: AppConfig) => Promise<string | null>;
   onClose: () => void;
 }) {
@@ -327,8 +444,8 @@ function AppDialog({
   };
 
   return (
-    <dialog ref={dialog} className="sb-dialog" aria-label="Application instance" onCancel={onClose}>
-      <h3>Application instance</h3>
+    <dialog ref={dialog} className="sb-dialog" aria-label={title} onCancel={onClose}>
+      <h3>{title}</h3>
       <p className="sb-hint">
         Simulated: one backend web/API service per replica. Its capacity is not a number you set; it comes from the CPU,
         workers, connections, and network below, under what each route costs. CPU and memory come from the size.
@@ -435,6 +552,7 @@ function AppDialog({
               <Num label="Request (KB)" value={r.requestKb} onChange={(requestKb) => setRoute(i, { requestKb })} />
               <Num label="Response (KB)" value={r.responseKb} onChange={(responseKb) => setRoute(i, { responseKb })} />
               <Num label="Errors %" value={toPercent(r.errorRate ?? 0)} step={0.1} max={100} onChange={(v) => setRoute(i, { errorRate: v / 100 })} />
+              <Num label="Typical share %" value={toPercent(r.share ?? 0)} step={0.1} max={100} onChange={(v) => setRoute(i, { share: v / 100 })} />
             </div>
             <div className="sb-row">
               {DEPS.map((d) => (
