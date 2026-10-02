@@ -27,6 +27,7 @@ This directory records ForgeLab's architecture decisions. Rules live in `AGENTS.
 | [0019](0019-connections-and-service-calls.md) | Accepted | Connections and inter-service communication (Phase 11) |
 | [0020](0020-database-model.md) | Accepted | The database as a modelled data store (Phase 11) |
 | [0021](0021-cache-model.md) | Accepted | The cache as a modelled store (Phase 11) |
+| [0022](0022-object-storage-model.md) | Accepted | Object storage as a priced, rate-limited service (Phase 11) |
 
 ## Conventions
 

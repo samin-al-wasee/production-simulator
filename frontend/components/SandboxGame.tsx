@@ -34,6 +34,7 @@ import { AppView, NewAppDialog } from "./SandboxApp";
 import { EdgePanel } from "./SandboxConn";
 import { CacheView } from "./SandboxCache";
 import { DbView } from "./SandboxDb";
+import { StorageView } from "./SandboxStorage";
 import { InternetView } from "./SandboxInternet";
 import { TrafficView } from "./SandboxTraffic";
 import { SandboxGoals } from "./SandboxGoals";
@@ -358,7 +359,7 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
             }}
             onNodeClick={(_, n) => {
               setEdgeSel(null);
-              if (["internet", "traffic", "app-instance"].includes(n.data.kind) || n.data.stats?.db || n.data.stats?.cache) setInside(n.id);
+              if (["internet", "traffic", "app-instance"].includes(n.data.kind) || n.data.stats?.db || n.data.stats?.cache || n.data.stats?.storage) setInside(n.id);
             }}
             onEdgeClick={(_, e) => {
               setNodes((prev) => prev.map((p) => ({ ...p, selected: false })));
@@ -377,6 +378,7 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
           {opened?.kind === "app-instance" && <AppView game={game} rules={rules} node={opened} onBack={back} />}
           {opened && game.flow.nodes.find((s) => s.id === opened.id)?.db && <DbView game={game} node={opened} onBack={back} />}
           {opened && game.flow.nodes.find((s) => s.id === opened.id)?.cache && <CacheView game={game} node={opened} onBack={back} />}
+          {opened && game.flow.nodes.find((s) => s.id === opened.id)?.storage && <StorageView game={game} node={opened} onBack={back} />}
           {opened?.kind === "traffic" && <TrafficView game={game} rules={rules} node={opened} onBack={back} />}
           {inside === "internet" && traffic && <InternetView config={traffic} game={game} routed={routedStorage(game, rules)} onBack={back} />}
           {newApp && <NewAppDialog rules={rules} onPlace={placeApp} onClose={() => setNewApp(null)} />}

@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phase 11.7: object storage as a priced, rate-limited managed service (ADR-0022), in ruleset `sandbox/v10`: prefixes with 5,500 GETs/s each and throttling, latency from the class's first byte plus the transfer, and usage pricing for storage, requests, retrieval, and egress instead of replicas; a storage panel with the bill by part, a form, and an inside view.
 - Phase 11.6: the cache as a modelled store (ADR-0021), in ruleset `sandbox/v9`: memory against the working set, LRU/LFU/none eviction, TTL against traffic, warm-up after a start or restart, CPU and network limits, max connections; a cache panel, form, and inside view. Free-build games unlock every kind from the start.
 - Phase 11.5: the database as a modelled data store (ADR-0020), in ruleset `sandbox/v8`: query profiles (CPU, pages, indexes), a buffer cache over data that grows with users, CPU, disk IOPS (a new size resource), row locks, max connections against the callers' pools, read replicas that apply every write and can lag, derived health; a database panel, form, and inside view.
 - Phase 11.4: connections and inter-service communication (ADR-0019), in ruleset `sandbox/v7`. New games use v7; v1 to v6 replay bit for bit, now pinned by `testdata/replay.golden`.

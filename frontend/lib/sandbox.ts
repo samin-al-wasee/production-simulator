@@ -138,6 +138,39 @@ export interface CacheStats {
   latencyMs: number;
 }
 
+// StorageConfig and StorageStats are object storage's model (v10).
+export interface StorageConfig {
+  class: string;
+  prefixes: number;
+  objectKb: number;
+}
+
+export interface StorageClass {
+  name: string;
+  label: string;
+  firstByteMs: number;
+  gbMonth: number;
+  perThousand: number;
+  retrievalGb: number;
+}
+
+export interface StorageStats {
+  health: Health;
+  class: string;
+  capacity: number;
+  gets: number;
+  throttled: number;
+  firstByteMs: number;
+  transferMs: number;
+  latencyMs: number;
+  storedGb: number;
+  egressMbps: number;
+  storageCost: number;
+  requestCost: number;
+  retrievalCost: number;
+  egressCost: number;
+}
+
 export interface EdgeStats {
   from: string;
   to: string;
@@ -358,6 +391,8 @@ export interface Ruleset {
   networkHopMs?: number;
   db?: DBConfig;
   cache?: CacheConfig;
+  storage?: StorageConfig;
+  storageRuntime?: { classes: StorageClass[]; getsPerPrefix: number };
 }
 
 export interface SandboxNode {
@@ -379,6 +414,7 @@ export interface SandboxNode {
   db?: DBConfig;
   cache?: CacheConfig;
   warmth?: number;
+  storage?: StorageConfig;
 }
 
 export interface Edge {
@@ -403,6 +439,7 @@ export interface NodeStats {
   traffic?: ClientStats;
   db?: DBStats;
   cache?: CacheStats;
+  storage?: StorageStats;
 }
 
 export interface Meters {
@@ -501,7 +538,7 @@ export type Command =
   | { type: "scale"; node: string; replicas: number }
   | { type: "move"; node: string; x: number; y: number }
   | { type: "respond"; action: "restart" | "failover" | "rate-limit" | "lift-rate-limit"; node: string }
-  | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig; client?: ClientConfig; listener?: Listener; db?: DBConfig; cache?: CacheConfig }
+  | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig; client?: ClientConfig; listener?: Listener; db?: DBConfig; cache?: CacheConfig; storage?: StorageConfig }
   | { type: "configure"; from: string; to: string; connection: Connection };
 
 export const SPEEDS = [0, 1, 2, 4, 8] as const;
