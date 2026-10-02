@@ -31,6 +31,7 @@ This directory records ForgeLab's architecture decisions. Rules live in `AGENTS.
 | [0023](0023-queue-and-worker-model.md) | Accepted | Message queues with redelivery, and workers as consumers (Phase 11) |
 | [0024](0024-event-streams.md) | Accepted | Event streams and event-driven architecture (Phase 11) |
 | [0025](0025-edge-components.md) | Accepted | Load balancer, API gateway, and CDN with contracts (Phase 11) |
+| [0026](0026-container-deployment.md) | Accepted | Deploying the API as a container (Render) |
 
 ## Conventions
 

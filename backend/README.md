@@ -27,3 +27,14 @@ cd backend && go run ./cmd/forgelab security scan-secrets ..
 ```
 
 YAML files (pipelines, learning path, secret-scan allowlist) are parsed with `sigs.k8s.io/yaml`.
+
+## Deploying
+
+`Dockerfile` builds the API into a small distroless image; build it from the repository root, which holds `learning/` and `manifests/` ([ADR-0026](../docs/decisions/0026-container-deployment.md)):
+
+```sh
+docker build -f backend/Dockerfile -t forgelab-api .
+docker run -p 8090:8090 forgelab-api            # or -e PORT=10000 -p 10000:10000
+```
+
+`serve` listens on `:$PORT` when `PORT` is set, takes `FORGELAB_ALLOW_ORIGIN` for CORS, and stops cleanly on SIGTERM. On Render, `render.yaml` at the repository root defines the service (Docker, context `.`, health check `/healthz`). Saves go to `/app/.forgelab`, which needs a persistent disk to survive a redeploy.

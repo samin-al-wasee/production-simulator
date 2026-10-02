@@ -1,0 +1,6 @@
+# Only backend/, learning/, and manifests/ go into the API image.
+*
+!backend/
+!learning/
+!manifests/
+backend/**/*.md
