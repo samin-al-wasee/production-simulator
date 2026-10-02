@@ -273,6 +273,9 @@ func (g *Game) configure(c Command) error {
 	if n := g.Node(c.Node); n != nil && n.Kind == KindTraffic {
 		return g.configureClient(n, c.Client)
 	}
+	if n := g.Node(c.Node); n != nil && g.cacheModel(n) && c.Cache != nil {
+		return g.configureCache(n, c.Cache)
+	}
 	if n := g.Node(c.Node); n != nil && g.dbModel(n) && c.DB != nil {
 		return g.configureDB(n, c.DB)
 	}

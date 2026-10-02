@@ -963,3 +963,8 @@ button.link {
 .sb-listener {
   margin: 8px 0;
 }
+
+.sb-free {
+  display: block;
+  margin: 8px 0 12px;
+}

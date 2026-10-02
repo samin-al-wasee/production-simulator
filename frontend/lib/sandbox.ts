@@ -105,6 +105,39 @@ export interface DBStats {
   lagSeconds?: number;
 }
 
+// CacheConfig and CacheStats are a cache's model (v9).
+export interface CacheConfig {
+  engine: string;
+  eviction: "lru" | "lfu" | "none";
+  ttlSeconds: number;
+  valueKb: number;
+  maxConnections: number;
+}
+
+export interface CacheStats {
+  health: Health;
+  bottleneck: string;
+  capacity: number;
+  hitRatio: number;
+  fits: number;
+  fresh: number;
+  warmth: number;
+  memoryUsedMb: number;
+  memoryTotalMb: number;
+  keys: number;
+  hits: number;
+  misses: number;
+  evictions: number;
+  cpuUsed: number;
+  cpuTotal: number;
+  networkMbps: number;
+  networkTotalMbps: number;
+  connections: number;
+  maxConnections: number;
+  refused: number;
+  latencyMs: number;
+}
+
 export interface EdgeStats {
   from: string;
   to: string;
@@ -324,6 +357,7 @@ export interface Ruleset {
   connDefaults?: Connection;
   networkHopMs?: number;
   db?: DBConfig;
+  cache?: CacheConfig;
 }
 
 export interface SandboxNode {
@@ -343,6 +377,8 @@ export interface SandboxNode {
   client?: ClientConfig;
   listener?: Listener;
   db?: DBConfig;
+  cache?: CacheConfig;
+  warmth?: number;
 }
 
 export interface Edge {
@@ -366,6 +402,7 @@ export interface NodeStats {
   app?: AppStats;
   traffic?: ClientStats;
   db?: DBStats;
+  cache?: CacheStats;
 }
 
 export interface Meters {
@@ -433,6 +470,7 @@ export interface GameState {
   simulated: true;
   ruleset: string;
   seed: number;
+  freeBuild?: boolean;
   status: "running" | "bankrupt";
   speed: number;
   revision: number;
@@ -463,7 +501,7 @@ export type Command =
   | { type: "scale"; node: string; replicas: number }
   | { type: "move"; node: string; x: number; y: number }
   | { type: "respond"; action: "restart" | "failover" | "rate-limit" | "lift-rate-limit"; node: string }
-  | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig; client?: ClientConfig; listener?: Listener; db?: DBConfig }
+  | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig; client?: ClientConfig; listener?: Listener; db?: DBConfig; cache?: CacheConfig }
   | { type: "configure"; from: string; to: string; connection: Connection };
 
 export const SPEEDS = [0, 1, 2, 4, 8] as const;
@@ -479,7 +517,7 @@ const game = (id: string) => `/sandbox/games/${encodeURIComponent(id)}`;
 export const sandboxApi = {
   ruleset: (version?: string) => request<Ruleset>(`/sandbox/ruleset${version ? `?version=${encodeURIComponent(version)}` : ""}`),
   list: () => request<{ id: string; status: string; tick: number }[]>("/sandbox/games"),
-  create: () => request<GameState>("/sandbox/games", json({})),
+  create: (freeBuild = false) => request<GameState>("/sandbox/games", json(freeBuild ? { freeBuild } : {})),
   get: (id: string) => request<GameState>(game(id)),
   remove: (id: string) => fetch(`/api/forgelab${game(id)}`, { method: "DELETE" }),
   command: (id: string, c: Command) => request<{ node?: string; state: GameState }>(`${game(id)}/commands`, json(c)),
