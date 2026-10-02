@@ -25,6 +25,8 @@ type NodeStats struct {
 	// DB is a database's runtime state (v8); Cache a cache's (v9).
 	DB    *DBStats    `json:"db,omitempty"`
 	Cache *CacheStats `json:"cache,omitempty"`
+	// Storage is object storage's (v10).
+	Storage *StorageStats `json:"storage,omitempty"`
 }
 
 // Flow is the result of routing one tick's traffic through the topology.
@@ -62,6 +64,9 @@ func (g *Game) capacity(n *Node) float64 {
 	}
 	if c, ok := g.cacheCaps[n]; ok {
 		return c
+	}
+	if g.storageModel(n) {
+		return float64(g.storageConfig(n).Prefixes) * g.Rules.StorageRuntime.GetsPerPrefix * float64(g.upReplicas(n))
 	}
 	k, _ := g.Rules.Kind(n.Kind)
 	s, _ := g.Rules.Size(n.Size)
@@ -334,6 +339,7 @@ func (g *Game) solve() Snapshot {
 	apps := make([]*appRun, n)
 	dbs := make([]*dbRun, n)
 	caches := make([]*cacheRun, n)
+	storages := make([]*storageRun, n)
 	g.cacheRuns = caches
 	// Attack traffic asks for what real users ask for, and never retries.
 	if g.clientModel() {
@@ -378,6 +384,10 @@ func (g *Game) solve() Snapshot {
 			caches[i] = &run
 			g.cacheCaps[nd] = run.stats.Capacity
 			c = run.stats.Capacity
+		}
+		if g.storageModel(nd) {
+			run := g.runStorage(i, load[i])
+			storages[i] = &run
 		}
 		offered[i] = load[i].sum()
 		if g.dbModel(nd) {
@@ -577,6 +587,9 @@ func (g *Game) solve() Snapshot {
 				own = run.lat
 				frac *= 1 - run.refused
 			}
+			if run := storages[i]; run != nil {
+				own = run.lat
+			}
 			maxU = math.Max(maxU, u)
 		}
 		if nd.RateLimited {
@@ -625,6 +638,10 @@ func (g *Game) solve() Snapshot {
 		}
 		if nd.Kind != KindInternet {
 			stats[i].CostPerHour = g.costPerHour(nd)
+		}
+		if run := storages[i]; run != nil {
+			// Object storage is priced by use, not by replica (v10).
+			stats[i].Storage, stats[i].CostPerHour = &run.stats, run.cost
 		}
 	}
 

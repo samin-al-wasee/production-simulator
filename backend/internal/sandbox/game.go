@@ -68,6 +68,8 @@ type Node struct {
 	// of its hot keys loaded.
 	Cache  *CacheConfig `json:"cache,omitempty"`
 	Warmth float64      `json:"warmth,omitempty"`
+	// Storage is object storage's configuration once set (v10).
+	Storage *StorageConfig `json:"storage,omitempty"`
 }
 
 // Edge sends traffic from one node to another. Conn is its client side
@@ -96,10 +98,11 @@ type Command struct {
 	App     *AppConfig     `json:"app,omitempty"`
 	Client  *ClientConfig  `json:"client,omitempty"`
 	// Listener configures a node; Connection the edge From → To (v7).
-	Listener   *Listener    `json:"listener,omitempty"`
-	Connection *Connection  `json:"connection,omitempty"`
-	DB         *DBConfig    `json:"db,omitempty"`
-	Cache      *CacheConfig `json:"cache,omitempty"`
+	Listener   *Listener      `json:"listener,omitempty"`
+	Connection *Connection    `json:"connection,omitempty"`
+	DB         *DBConfig      `json:"db,omitempty"`
+	Cache      *CacheConfig   `json:"cache,omitempty"`
+	Storage    *StorageConfig `json:"storage,omitempty"`
 }
 
 // LoggedCommand is a command applied before a given tick was simulated.
@@ -414,6 +417,9 @@ func (g *Game) placeable(id string) (*Node, Kind, error) {
 	}
 	if n.Kind == KindTraffic {
 		return nil, Kind{}, invalid("a traffic component has no size or replicas")
+	}
+	if g.storageModel(n) {
+		return nil, Kind{}, invalid("object storage is a managed service: it scales by prefixes, not sizes or replicas")
 	}
 	k, _ := g.Rules.Kind(n.Kind)
 	return n, k, nil

@@ -176,6 +176,9 @@ type Ruleset struct {
 	// Cache is a new cache's configuration from v9.
 	Cache        *CacheConfig `json:"cache,omitempty"`
 	CacheRuntime CacheRuntime `json:"cacheRuntime,omitzero"`
+	// Storage is new object storage's configuration from v10.
+	Storage        *StorageConfig `json:"storage,omitempty"`
+	StorageRuntime StorageRuntime `json:"storageRuntime,omitzero"`
 }
 
 // RulesetV1 is the first Sandbox ruleset.
@@ -258,13 +261,15 @@ func Rulesets(version string) (*Ruleset, error) {
 		return RulesetV8(), nil
 	case "sandbox/v9":
 		return RulesetV9(), nil
+	case "sandbox/v10":
+		return RulesetV10(), nil
 	}
 	return nil, fmt.Errorf("unknown ruleset %q", version)
 }
 
 // Latest returns the ruleset new games are played with.
 func Latest() *Ruleset {
-	return RulesetV9()
+	return RulesetV10()
 }
 
 // Kind returns a kind by name.

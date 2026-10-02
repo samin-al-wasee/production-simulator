@@ -1,7 +1,7 @@
 # ForgeLab Architecture
 
 **Document status:** v2.0 (re-scoped by [ADR-0014](decisions/0014-sandbox-only-platform.md))
-**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic), [ADR-0017](decisions/0017-application-instance-model.md) (application instance), [ADR-0018](decisions/0018-traffic-components.md) (traffic components), [ADR-0019](decisions/0019-connections-and-service-calls.md) (connections and service calls), [ADR-0020](decisions/0020-database-model.md) (database), [ADR-0021](decisions/0021-cache-model.md) (cache)
+**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic), [ADR-0017](decisions/0017-application-instance-model.md) (application instance), [ADR-0018](decisions/0018-traffic-components.md) (traffic components), [ADR-0019](decisions/0019-connections-and-service-calls.md) (connections and service calls), [ADR-0020](decisions/0020-database-model.md) (database), [ADR-0021](decisions/0021-cache-model.md) (cache), [ADR-0022](decisions/0022-object-storage-model.md) (object storage)
 
 ForgeLab is the **Production Sandbox**: a city-builder for software production. A new game is an **empty world** and starting cash (from `sandbox/v6`; earlier rulesets also start with an Internet traffic source). The player places components, wires them together, and keeps the system healthy and profitable as users arrive, traffic swings, and incidents happen. Everything is a deterministic model computed in the Go core; nothing runs on the host.
 
@@ -125,6 +125,14 @@ From `sandbox/v9` a cache is a modelled store ([ADR-0021](decisions/0021-cache-m
 * **Hit ratio** `= min(fits^skew × fresh, warmth)`: `fits = min(1, memory ÷ working set)`; `skew` LRU 0.5, LFU 0.4, none 1; `fresh = 1 − exp(−TTL × reads/s ÷ hot keys)`; `warmth` starts at 0 for a new or restarted cache and rises as misses load keys.
 * **Capacity:** CPU (0.02 ms per operation) or network (value size per operation); latency 0.2 ms over the utilization factor. Callers' pools above max connections are refused.
 * Misses read through to the database; a full cache evicts a key per miss.
+
+## Object storage model
+
+From `sandbox/v10` object storage is a managed service ([ADR-0022](decisions/0022-object-storage-model.md)), configured with `storage` (class, prefixes, object size), with no size or replicas.
+
+* **Rate:** 5,500 GETs/s per prefix; the rest is throttled and fails.
+* **Latency:** first byte by class (standard 20 ms, infrequent 30 ms, archive 2,000 ms) + `object size ÷ 80 Mbps`, over the utilization factor.
+* **Cost per hour:** stored GB (`1 GB + 2 MB × users`) at the class's GB-month price ÷ 730, GETs at its price per 1,000, retrieval per GB for colder classes, and egress at $0.09 per GB.
 
 ## Traffic model
 
@@ -260,6 +268,7 @@ The economy is generic: revenue per successful request, cost per component-hour.
 | `sandbox/v3` | v2 plus goals and unlocks. |
 | `sandbox/v4` | v3 plus a configurable Internet: traffic groups, endpoints, regions, retries, and load tests. The CDN's hit ratio becomes 45% of cacheable reads. |
 | `sandbox/v5` | v4 plus the application instance model: capacity from CPU, slots, connections, and network under the routes' costs; middleware; queueing, timeouts, rejection, out-of-memory crashes, and health. |
+| `sandbox/v10` | v9 plus object storage as a managed service: prefixes and throttling, first byte and transfer, usage pricing with egress. |
 | `sandbox/v9` | v8 plus the cache model: memory against the working set, eviction policy, TTL against traffic, warm-up after a start, CPU and network limits, max connections. |
 | `sandbox/v8` | v7 plus the database model: query profiles, buffer cache over growing data, IOPS, locks, max connections against pools, replication lag. |
 | `sandbox/v7` | v6 plus connections on every edge (listeners, client sides with pools, timeouts, and retries, the contract), calls between services sync or async, per-endpoint load, pool bottlenecks, and per-connection stats; microservice templates. |

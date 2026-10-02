@@ -676,3 +676,49 @@ test("a cache warms up, and its TTL decides how often it hits", async ({ page })
   await expect(page.locator(".sb-toast")).toHaveCount(0);
   expect(errors, "browser errors").toEqual([]);
 });
+
+test("object storage is priced by use and scales by prefixes", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+  page.on("console", (m) => {
+    if (m.type() === "error" && !m.text().includes("status of 422")) errors.push(`console: ${m.text()}`);
+  });
+
+  const api = page.request;
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 8 } })).json();
+  const game = `/api/forgelab/sandbox/games/${created.id}`;
+  const command = async (c: object) => {
+    const res = await api.post(`${game}/commands`, { data: c });
+    expect(res.ok(), await res.text()).toBe(true);
+    return (await res.json()) as { node?: string };
+  };
+  const src = (await command({ type: "place", kind: "traffic", x: 0, y: 0 })).node!;
+  const app = (await command({ type: "place", kind: "app-instance", x: 300, y: 0 })).node!;
+  const db = (await command({ type: "place", kind: "db-primary", x: 600, y: -100 })).node!;
+  const st = (await command({ type: "place", kind: "object-storage", x: 600, y: 100 })).node!;
+  for (const [from, to] of [[src, app], [app, db], [app, st]]) await command({ type: "connect", from, to });
+  await api.post(`${game}/step`, { data: { ticks: 2 } });
+
+  await page.goto("/sandbox");
+  await page.evaluate((id) => localStorage.setItem("forgelab.sandbox.game", id), created.id);
+  await page.reload();
+  await node(page, st).click();
+  const inside = page.getByLabel(`Inside ${st}`);
+  await expect(inside.locator(".react-flow__node", { hasText: "First byte" })).toContainText("20 ms");
+  await page.keyboard.press("Escape");
+
+  // Managed: no size or replicas, a bill by part, and a slower archive class.
+  const inspector = page.locator(".sb-inspector");
+  await expect(inspector.locator(".sb-replicas")).toHaveCount(0);
+  await expect(inspector.locator("tr", { hasText: "… egress" })).toBeVisible();
+  await inspector.getByRole("button", { name: "Configure storage" }).click();
+  const dialog = page.getByRole("dialog", { name: "Object storage" });
+  await dialog.getByLabel("Class").selectOption("archive");
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(inspector.locator(".sb-internet tr", { hasText: "Latency" })).toContainText("first byte 2000");
+  await expect(inspector.locator("tr", { hasText: "… retrieval" })).toBeVisible();
+
+  await expect(page.locator(".sb-toast")).toHaveCount(0);
+  expect(errors, "browser errors").toEqual([]);
+});

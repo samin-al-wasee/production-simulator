@@ -15,6 +15,7 @@ import { InternetPanel } from "./SandboxInternet";
 import { ListenerSection } from "./SandboxConn";
 import { CachePanel } from "./SandboxCache";
 import { DbPanel } from "./SandboxDb";
+import { StoragePanel } from "./SandboxStorage";
 import { TrafficPanel } from "./SandboxTraffic";
 
 export const KIND_DRAG_TYPE = "application/x-forgelab-kind";
@@ -99,8 +100,10 @@ export function SandboxInspector({
   const stats = game.flow.nodes.find((s) => s.id === node.id);
   const size = rules.sizes.find((s) => s.name === node.size);
   const internet = node.kind === "internet";
-  // A traffic component is a source too: nothing to size, scale, or serve.
+  // A traffic component is a source too: nothing to size, scale, or serve;
+  // managed object storage (v10) has no sizes or replicas either.
   const source = internet || node.kind === "traffic";
+  const managed = node.kind === "object-storage" && !!stats?.storage;
   const replicaCost = (kind?.buildCost ?? 0) * (size?.costFactor ?? 1);
   const downstream = game.edges.filter((e) => e.from === node.id).map((e) => e.to);
   // Mirrors the engine's rule so the button is only offered when it can work;
@@ -180,18 +183,19 @@ export function SandboxInspector({
       {internet && <InternetPanel game={game} rules={rules} onConfigure={onConfigure} />}
       <ListenerSection key={node.id} rules={rules} node={node} onConfigure={onConfigure} />
       {(node.kind === "db-primary" || node.kind === "db-replica") && stats?.db && <DbPanel game={game} rules={rules} node={node} onConfigure={onConfigure} />}
+      {node.kind === "object-storage" && stats?.storage && <StoragePanel game={game} rules={rules} node={node} onConfigure={onConfigure} />}
       {node.kind === "cache" && stats?.cache && <CachePanel game={game} rules={rules} node={node} onConfigure={onConfigure} />}
       {node.kind === "traffic" && <TrafficPanel game={game} rules={rules} node={node} onConfigure={onConfigure} />}
       {node.kind === "app-instance" && <AppPanel game={game} rules={rules} node={node} stats={stats} onConfigure={onConfigure} />}
 
-      {node.kind === "traffic" && (
+      {(node.kind === "traffic" || managed) && (
         <div className="sb-actions">
           <button className="secondary danger" onClick={() => onCommand({ type: "remove", node: node.id })}>
             Remove
           </button>
         </div>
       )}
-      {!source && (
+      {!source && !managed && (
         <div className="sb-actions">
           <label>
             Size
