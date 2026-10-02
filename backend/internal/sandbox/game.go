@@ -75,6 +75,10 @@ type Node struct {
 	Queue       *QueueConfig  `json:"queue,omitempty"`
 	Worker      *WorkerConfig `json:"worker,omitempty"`
 	DeadLetters float64       `json:"deadLetters,omitempty"`
+	// Stream configures an event stream once set (v12); Lags are the
+	// events each consumer group has not read yet.
+	Stream *StreamConfig      `json:"stream,omitempty"`
+	Lags   map[string]float64 `json:"lags,omitempty"`
 }
 
 // Edge sends traffic from one node to another. Conn is its client side
@@ -110,6 +114,7 @@ type Command struct {
 	Storage    *StorageConfig `json:"storage,omitempty"`
 	Queue      *QueueConfig   `json:"queue,omitempty"`
 	Worker     *WorkerConfig  `json:"worker,omitempty"`
+	Stream     *StreamConfig  `json:"stream,omitempty"`
 }
 
 // LoggedCommand is a command applied before a given tick was simulated.

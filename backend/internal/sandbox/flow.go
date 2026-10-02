@@ -28,6 +28,8 @@ type NodeStats struct {
 	// Storage is object storage's (v10); Queue a message queue's (v11).
 	Storage *StorageStats `json:"storage,omitempty"`
 	Queue   *QueueStats   `json:"queue,omitempty"`
+	// Stream is an event stream's (v12).
+	Stream *StreamStats `json:"stream,omitempty"`
 }
 
 // Flow is the result of routing one tick's traffic through the topology.
@@ -68,6 +70,10 @@ func (g *Game) capacity(n *Node) float64 {
 	}
 	if g.storageModel(n) {
 		return float64(g.storageConfig(n).Prefixes) * g.Rules.StorageRuntime.GetsPerPrefix * float64(g.upReplicas(n))
+	}
+	if g.streamModel(n) {
+		c, _, _ := g.streamCapacity(n)
+		return c
 	}
 	k, _ := g.Rules.Kind(n.Kind)
 	s, _ := g.Rules.Size(n.Size)
@@ -342,6 +348,8 @@ func (g *Game) solve() Snapshot {
 	caches := make([]*cacheRun, n)
 	storages := make([]*storageRun, n)
 	queues := make([]*QueueStats, n)
+	streams := make([]*StreamStats, n)
+	lagsNext := map[string]map[string]float64{}
 	g.cacheRuns = caches
 	// Attack traffic asks for what real users ask for, and never retries.
 	if g.clientModel() {
@@ -439,6 +447,25 @@ func (g *Game) solve() Snapshot {
 			} else {
 				plans[i][cl] = plans[i][0]
 			}
+		}
+		if g.streamModel(nd) {
+			// Every consumer group reads every event it can keep up with.
+			accepted, out, st, lags := g.consume(i, offered[i])
+			served[i] = accepted
+			streams[i], lagsNext[nd.ID] = st, lags
+			a := share(i)
+			for j, v := range out {
+				load[j][clsWrite] += v
+				attack[j] += v * a
+				if g.callModel() {
+					g.edgeStat(i, j).RPS += v
+					if g.Nodes[j].Kind == KindApp {
+						g.epLoad[j][EventsEndpoint] += v
+					}
+				}
+			}
+			plans[i] = [nClass]plan{{local: 1}, {local: 1}, {local: 1}}
+			continue
 		}
 		if nd.Kind == KindQueue {
 			k, _ := r.Kind(nd.Kind)
@@ -671,6 +698,9 @@ func (g *Game) solve() Snapshot {
 			// Object storage is priced by use, not by replica (v10).
 			stats[i].Storage, stats[i].CostPerHour = &run.stats, run.cost
 		}
+		if st := streams[i]; st != nil {
+			stats[i].Stream = st
+		}
 		if q := queues[i]; q != nil {
 			switch fail := q.Rejected / math.Max(q.Published, 1e-300); {
 			case nd.Down:
@@ -761,6 +791,9 @@ func (g *Game) solve() Snapshot {
 		f.Edges = g.edgeStats(load, s, t)
 	}
 	snap := Snapshot{Flow: f, backlog: backlog, attemptFail: fail, clientFail: clientFail, edgeFail: g.edgeFailNext, epPath: map[string]map[string]float64{}, path: map[string]vec{}}
+	if g.Rules.Stream != nil {
+		snap.lags = lagsNext
+	}
 	if g.Rules.Queue != nil {
 		// Each queue learns how often its workers failed this tick.
 		snap.queueFail, snap.deadLetters = map[string]float64{}, map[string]float64{}

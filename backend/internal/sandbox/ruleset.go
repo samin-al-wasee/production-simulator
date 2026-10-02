@@ -182,6 +182,9 @@ type Ruleset struct {
 	// Queue and Worker configure new queues and workers from v11.
 	Queue  *QueueConfig  `json:"queue,omitempty"`
 	Worker *WorkerConfig `json:"worker,omitempty"`
+	// Stream configures new event streams from v12.
+	Stream        *StreamConfig `json:"stream,omitempty"`
+	StreamRuntime StreamRuntime `json:"streamRuntime,omitzero"`
 }
 
 // RulesetV1 is the first Sandbox ruleset.
@@ -268,13 +271,15 @@ func Rulesets(version string) (*Ruleset, error) {
 		return RulesetV10(), nil
 	case "sandbox/v11":
 		return RulesetV11(), nil
+	case "sandbox/v12":
+		return RulesetV12(), nil
 	}
 	return nil, fmt.Errorf("unknown ruleset %q", version)
 }
 
 // Latest returns the ruleset new games are played with.
 func Latest() *Ruleset {
-	return RulesetV11()
+	return RulesetV12()
 }
 
 // Kind returns a kind by name.

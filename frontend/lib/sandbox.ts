@@ -28,7 +28,12 @@ export interface Size {
 }
 
 export type Processing = "sync" | "async";
-export const DEPS = ["cache", "db-read", "db-write", "queue", "storage"] as const;
+export const DEPS = ["cache", "db-read", "db-write", "queue", "storage", "stream"] as const;
+
+// depsFor are the dependencies a ruleset offers: streams from v12.
+export function depsFor(rules: { stream?: unknown }): readonly string[] {
+  return rules.stream ? DEPS : DEPS.filter((d) => d !== "stream");
+}
 
 export interface AppRoute {
   endpoint: string;
@@ -197,6 +202,35 @@ export interface QueueStats {
   maxBacklog: number;
   delaySeconds: number;
   workerFailure: number;
+}
+
+// StreamConfig and StreamStats are an event stream's model (v12).
+export interface StreamConfig {
+  partitions: number;
+  retentionHours: number;
+  messageKb: number;
+  keySkew: number;
+}
+
+export interface GroupStats {
+  consumer: string;
+  consumed: number;
+  members: number;
+  active: number;
+  lag: number;
+  lagSeconds: number;
+  lost: number;
+}
+
+export interface StreamStats {
+  health: Health;
+  bottleneck: string;
+  capacity: number;
+  produced: number;
+  throttled: number;
+  hotShare: number;
+  storedMb: number;
+  groups: GroupStats[] | null;
 }
 
 export interface EdgeStats {
@@ -423,6 +457,7 @@ export interface Ruleset {
   storageRuntime?: { classes: StorageClass[]; getsPerPrefix: number };
   queue?: QueueConfig;
   worker?: WorkerConfig;
+  stream?: StreamConfig;
 }
 
 export interface SandboxNode {
@@ -448,6 +483,8 @@ export interface SandboxNode {
   queue?: QueueConfig;
   worker?: WorkerConfig;
   deadLetters?: number;
+  stream?: StreamConfig;
+  lags?: Record<string, number>;
 }
 
 export interface Edge {
@@ -474,6 +511,7 @@ export interface NodeStats {
   cache?: CacheStats;
   storage?: StorageStats;
   queue?: QueueStats;
+  stream?: StreamStats;
 }
 
 export interface Meters {
@@ -572,7 +610,7 @@ export type Command =
   | { type: "scale"; node: string; replicas: number }
   | { type: "move"; node: string; x: number; y: number }
   | { type: "respond"; action: "restart" | "failover" | "rate-limit" | "lift-rate-limit"; node: string }
-  | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig; client?: ClientConfig; listener?: Listener; db?: DBConfig; cache?: CacheConfig; storage?: StorageConfig; queue?: QueueConfig; worker?: WorkerConfig }
+  | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig; client?: ClientConfig; listener?: Listener; db?: DBConfig; cache?: CacheConfig; storage?: StorageConfig; queue?: QueueConfig; worker?: WorkerConfig; stream?: StreamConfig }
   | { type: "configure"; from: string; to: string; connection: Connection };
 
 export const SPEEDS = [0, 1, 2, 4, 8] as const;

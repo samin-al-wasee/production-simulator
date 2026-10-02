@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  DEPS,
+  depsFor,
   formatCompact,
   hasBlankNumber,
   healthLevel,
@@ -183,12 +183,22 @@ export function WorkerPanel({
         />
       )}
       <button onClick={() => setOpen(true)}>Configure worker</button>
-      {open && <WorkerDialog config={cfg} onApply={(worker) => onConfigure({ type: "configure", node: node.id, worker })} onClose={() => setOpen(false)} />}
+      {open && <WorkerDialog rules={rules} config={cfg} onApply={(worker) => onConfigure({ type: "configure", node: node.id, worker })} onClose={() => setOpen(false)} />}
     </div>
   );
 }
 
-function WorkerDialog({ config, onApply, onClose }: { config: WorkerConfig; onApply: (c: WorkerConfig) => Promise<string | null>; onClose: () => void }) {
+function WorkerDialog({
+  rules,
+  config,
+  onApply,
+  onClose,
+}: {
+  rules: Ruleset;
+  config: WorkerConfig;
+  onApply: (c: WorkerConfig) => Promise<string | null>;
+  onClose: () => void;
+}) {
   const dialog = useDialog();
   const [c, setC] = useState<WorkerConfig>(() => structuredClone(config));
   const [errors, setErrors] = useState<string[]>([]);
@@ -217,7 +227,7 @@ function WorkerDialog({ config, onApply, onClose }: { config: WorkerConfig; onAp
         <Num label="Handler errors %" value={toPercent(h.errorRate ?? 0)} step={0.1} max={100} onChange={(v) => setH({ errorRate: v / 100 })} />
       </div>
       <div className="sb-row">
-        {DEPS.filter((d) => d !== "queue").map((d) => (
+        {depsFor(rules).filter((d) => d !== "queue").map((d) => (
           <Check
             key={d}
             label={d}

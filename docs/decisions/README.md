@@ -29,6 +29,7 @@ This directory records ForgeLab's architecture decisions. Rules live in `AGENTS.
 | [0021](0021-cache-model.md) | Accepted | The cache as a modelled store (Phase 11) |
 | [0022](0022-object-storage-model.md) | Accepted | Object storage as a priced, rate-limited service (Phase 11) |
 | [0023](0023-queue-and-worker-model.md) | Accepted | Message queues with redelivery, and workers as consumers (Phase 11) |
+| [0024](0024-event-streams.md) | Accepted | Event streams and event-driven architecture (Phase 11) |
 
 ## Conventions
 

@@ -1,7 +1,7 @@
 # ForgeLab Architecture
 
 **Document status:** v2.0 (re-scoped by [ADR-0014](decisions/0014-sandbox-only-platform.md))
-**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic), [ADR-0017](decisions/0017-application-instance-model.md) (application instance), [ADR-0018](decisions/0018-traffic-components.md) (traffic components), [ADR-0019](decisions/0019-connections-and-service-calls.md) (connections and service calls), [ADR-0020](decisions/0020-database-model.md) (database), [ADR-0021](decisions/0021-cache-model.md) (cache), [ADR-0022](decisions/0022-object-storage-model.md) (object storage), [ADR-0023](decisions/0023-queue-and-worker-model.md) (queues and workers)
+**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic), [ADR-0017](decisions/0017-application-instance-model.md) (application instance), [ADR-0018](decisions/0018-traffic-components.md) (traffic components), [ADR-0019](decisions/0019-connections-and-service-calls.md) (connections and service calls), [ADR-0020](decisions/0020-database-model.md) (database), [ADR-0021](decisions/0021-cache-model.md) (cache), [ADR-0022](decisions/0022-object-storage-model.md) (object storage), [ADR-0023](decisions/0023-queue-and-worker-model.md) (queues and workers), [ADR-0024](decisions/0024-event-streams.md) (event streams)
 
 ForgeLab is the **Production Sandbox**: a city-builder for software production. A new game is an **empty world** and starting cash (from `sandbox/v6`; earlier rulesets also start with an Internet traffic source). The player places components, wires them together, and keeps the system healthy and profitable as users arrive, traffic swings, and incidents happen. Everything is a deterministic model computed in the Go core; nothing runs on the host.
 
@@ -141,6 +141,15 @@ From `sandbox/v11` ([ADR-0023](decisions/0023-queue-and-worker-model.md)):
 * **Queues** (`queue`: engine, max backlog, visibility timeout, max deliveries) deliver at least once. With `f` the workers' failure share on the previous tick and `D` max deliveries, each message takes `1 + f + … + f^(D−1)` deliveries, and `f^D` are dead-lettered into the queue's dead-letter count. Publishers succeed when the queue accepts; a full backlog rejects. Delay is `backlog ÷ delivery rate`.
 * **Workers** (`worker`: concurrency and a handler route) run the application model with one route `POST /messages`: slots = concurrency, one process per vCPU, timeout = the queue's visibility timeout. A message processed past it, or failed by the handler or a dependency, counts as a failed delivery.
 
+## Event stream model
+
+From `sandbox/v12` an **event stream** (one topic of a Kafka-like log, [ADR-0024](decisions/0024-event-streams.md)) is a component configured with `stream` (partitions, retention, event size, key skew).
+
+* Routes and handlers **publish** with the `stream` dependency.
+* **Throughput** `= min(10 MB/s ÷ event size ÷ max(1 ÷ partitions, skew), replicas × network ÷ event size)`; the rest is throttled.
+* Every connected worker or application is a **consumer group** that reads **every** event; members beyond the partitions sit idle. Applications receive `POST /events`.
+* What a group cannot read accumulates as **lag**; beyond the retention it is **lost**.
+
 ## Traffic model
 
 Up to `sandbox/v5` the Internet is one node on the canvas. Its configuration (`TrafficConfig`, set with the `configure` command, [ADR-0016](decisions/0016-configurable-internet-traffic.md)) describes who sends traffic, what they request, and from where. Rulesets v1 to v3 have no configuration and use their fixed shares (80% reads, 10% storage).
@@ -275,6 +284,7 @@ The economy is generic: revenue per successful request, cost per component-hour.
 | `sandbox/v3` | v2 plus goals and unlocks. |
 | `sandbox/v4` | v3 plus a configurable Internet: traffic groups, endpoints, regions, retries, and load tests. The CDN's hit ratio becomes 45% of cacheable reads. |
 | `sandbox/v5` | v4 plus the application instance model: capacity from CPU, slots, connections, and network under the routes' costs; middleware; queueing, timeouts, rejection, out-of-memory crashes, and health. |
+| `sandbox/v12` | v11 plus event streams: partitions, key skew, brokers, consumer groups with fan-out, lag, retention and loss; the `stream` dependency. |
 | `sandbox/v11` | v10 plus at-least-once queues (redelivery, visibility timeout, dead letters, delay) and workers running the application model with a handler. |
 | `sandbox/v10` | v9 plus object storage as a managed service: prefixes and throttling, first byte and transfer, usage pricing with egress. |
 | `sandbox/v9` | v8 plus the cache model: memory against the working set, eviction policy, TTL against traffic, warm-up after a start, CPU and network limits, max connections. |
