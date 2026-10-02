@@ -36,6 +36,7 @@ import { CacheView } from "./SandboxCache";
 import { DbView } from "./SandboxDb";
 import { QueueView } from "./SandboxQueue";
 import { StorageView } from "./SandboxStorage";
+import { StreamView } from "./SandboxStream";
 import { InternetView } from "./SandboxInternet";
 import { TrafficView } from "./SandboxTraffic";
 import { SandboxGoals } from "./SandboxGoals";
@@ -360,7 +361,7 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
             }}
             onNodeClick={(_, n) => {
               setEdgeSel(null);
-              if (["internet", "traffic", "app-instance"].includes(n.data.kind) || n.data.stats?.db || n.data.stats?.cache || n.data.stats?.storage || n.data.stats?.queue) setInside(n.id);
+              if (["internet", "traffic", "app-instance"].includes(n.data.kind) || n.data.stats?.db || n.data.stats?.cache || n.data.stats?.storage || n.data.stats?.queue || n.data.stats?.stream) setInside(n.id);
             }}
             onEdgeClick={(_, e) => {
               setNodes((prev) => prev.map((p) => ({ ...p, selected: false })));
@@ -381,6 +382,7 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
           {opened && game.flow.nodes.find((s) => s.id === opened.id)?.cache && <CacheView game={game} node={opened} onBack={back} />}
           {opened && game.flow.nodes.find((s) => s.id === opened.id)?.storage && <StorageView game={game} node={opened} onBack={back} />}
           {opened && game.flow.nodes.find((s) => s.id === opened.id)?.queue && <QueueView game={game} node={opened} onBack={back} />}
+          {opened && game.flow.nodes.find((s) => s.id === opened.id)?.stream && <StreamView game={game} node={opened} onBack={back} />}
           {opened?.kind === "traffic" && <TrafficView game={game} rules={rules} node={opened} onBack={back} />}
           {inside === "internet" && traffic && <InternetView config={traffic} game={game} routed={routedStorage(game, rules)} onBack={back} />}
           {newApp && <NewAppDialog rules={rules} onPlace={placeApp} onClose={() => setNewApp(null)} />}

@@ -40,7 +40,7 @@ const CatchAll = "*"
 
 const maxRoutes = 20
 
-var deps = map[string]bool{DepCache: true, DepDBRead: true, DepDBWrite: true, DepQueue: true, DepStorage: true}
+var deps = map[string]bool{DepCache: true, DepDBRead: true, DepDBWrite: true, DepQueue: true, DepStorage: true, DepStream: true}
 
 // AppConfig is one application instance's configuration: a backend web or
 // API service. It applies to each replica, and is replaced whole by a
@@ -327,6 +327,8 @@ func (g *Game) depTargets(i int, dep string) ([]route, int) {
 		return g.split(g.targets(i, KindDBPrimary)), clsWrite
 	case DepQueue:
 		return g.split(g.targets(i, KindQueue)), clsWrite
+	case DepStream:
+		return g.split(g.targets(i, KindStream)), clsWrite
 	}
 	return g.split(g.targets(i, KindStorage)), clsRead
 }
@@ -769,7 +771,7 @@ func (r *Ruleset) ValidateApp(c AppConfig) []string {
 		used := map[string]bool{}
 		for _, d := range rt.Deps {
 			switch {
-			case !deps[d]:
+			case !deps[d] || d == DepStream && r.Stream == nil:
 				bad("%s: unknown dependency %q", label, d)
 			case used[d]:
 				bad("%s: dependency %q is listed twice", label, d)

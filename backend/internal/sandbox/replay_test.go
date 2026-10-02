@@ -14,7 +14,7 @@ var updateGolden = flag.Bool("update", false, "rewrite testdata/replay.golden")
 
 // frozen are the rulesets whose games must replay exactly as recorded. A
 // new ruleset is added here once it is final; changing a frozen one fails.
-var frozen = []func() *Ruleset{RulesetV1, RulesetV2, RulesetV3, RulesetV4, RulesetV5, RulesetV6, RulesetV7, RulesetV8, RulesetV9, RulesetV10, RulesetV11}
+var frozen = []func() *Ruleset{RulesetV1, RulesetV2, RulesetV3, RulesetV4, RulesetV5, RulesetV6, RulesetV7, RulesetV8, RulesetV9, RulesetV10, RulesetV11, RulesetV12}
 
 // TestRulesetsReplayAsRecorded plays the same design for four simulated days
 // under every frozen ruleset and compares each tick's state with the hash

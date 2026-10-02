@@ -778,3 +778,55 @@ test("a queue redelivers what its worker fails and dead-letters the rest", async
   await expect(page.locator(".sb-toast")).toHaveCount(0);
   expect(errors, "browser errors").toEqual([]);
 });
+
+test("an event stream fans out to every consumer group", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+  page.on("console", (m) => {
+    if (m.type() === "error" && !m.text().includes("status of 422")) errors.push(`console: ${m.text()}`);
+  });
+
+  const api = page.request;
+  const rules = await (await api.get("/api/forgelab/sandbox/ruleset")).json();
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 12, freeBuild: true } })).json();
+  const game = `/api/forgelab/sandbox/games/${created.id}`;
+  const command = async (c: object) => {
+    const res = await api.post(`${game}/commands`, { data: c });
+    expect(res.ok(), await res.text()).toBe(true);
+    return (await res.json()) as { node?: string };
+  };
+  const events = rules.appTypes.find((t: { name: string }) => t.name === "Order events");
+  const src = (await command({ type: "place", kind: "traffic", x: 0, y: 0 })).node!;
+  const orders = (await command({ type: "place", kind: "app-instance", x: 300, y: 0, app: { ...rules.app, name: "Orders API", routes: events.routes } })).node!;
+  const db = (await command({ type: "place", kind: "db-primary", x: 600, y: -150 })).node!;
+  const stream = (await command({ type: "place", kind: "event-stream", x: 600, y: 50 })).node!;
+  const worker = (await command({ type: "place", kind: "worker", x: 900, y: 0 })).node!;
+  const analytics = (await command({ type: "place", kind: "app-instance", x: 900, y: 200, app: { ...rules.app, name: "Analytics API", routes: events.routes } })).node!;
+  for (const [from, to] of [[src, orders], [orders, db], [orders, stream], [stream, worker], [worker, db], [stream, analytics], [analytics, db]]) {
+    await command({ type: "connect", from, to });
+  }
+  await command({ type: "scale", node: worker, replicas: 2 });
+  await api.post(`${game}/step`, { data: { ticks: 2 } });
+
+  await page.goto("/sandbox");
+  await page.evaluate((id) => localStorage.setItem("forgelab.sandbox.game", id), created.id);
+  await page.reload();
+  await node(page, stream).click();
+  const inside = page.getByLabel(`Inside ${stream}`);
+  await expect(inside.locator(".react-flow__node", { hasText: worker })).toContainText("2/2 active");
+  await expect(inside.locator(".react-flow__node", { hasText: analytics })).toContainText("lag");
+  await page.keyboard.press("Escape");
+
+  // One partition: only one member of the worker group can read.
+  const inspector = page.locator(".sb-inspector");
+  await expect(inspector.locator(".sb-breakdown tr")).toHaveCount(2);
+  await inspector.getByRole("button", { name: "Configure stream" }).click();
+  const dialog = page.getByRole("dialog", { name: "Event stream" });
+  await dialog.getByLabel("Partitions").fill("1");
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(inspector.locator(".sb-breakdown tr", { hasText: worker })).toHaveAttribute("title", "1 of 2 members active");
+
+  await expect(page.locator(".sb-toast")).toHaveCount(0);
+  expect(errors, "browser errors").toEqual([]);
+});

@@ -47,6 +47,7 @@ type Snapshot struct {
 	warmth      map[string]float64
 	queueFail   map[string]float64
 	deadLetters map[string]float64
+	lags        map[string]map[string]float64
 	path        map[string]vec
 	outOfMemory []string
 }
@@ -156,6 +157,9 @@ func (g *Game) Step() Snapshot {
 	}
 	for id, w := range snap.warmth {
 		g.Node(id).Warmth = w
+	}
+	for id, l := range snap.lags {
+		g.Node(id).Lags = l
 	}
 	if g.Rules.Queue != nil {
 		g.queueFail = snap.queueFail

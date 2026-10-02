@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  DEPS,
+  depsFor,
   appConfig,
   formatCompact,
   hasBlankNumber,
@@ -42,6 +42,7 @@ const DEP_KINDS: Record<string, string[][]> = {
   "db-write": [["queue"], ["db-primary"]],
   queue: [["queue"]],
   storage: [["object-storage"]],
+  stream: [["event-stream"]],
 };
 
 // trafficInputs are the traffic components sending to an application, with
@@ -134,7 +135,7 @@ export function AppView({
     (config.routes.find((r) => r.endpoint === endpoint) ?? config.routes.find((r) => r.endpoint === "*"))?.deps ?? [];
   for (const r of routes) g.link(last, `rt:${r.endpoint}`, share(r.rps));
 
-  const used = DEPS.filter((d) => routes.some((r) => depsOf(r.endpoint).includes(d)));
+  const used = depsFor(rules).filter((d) => routes.some((r) => depsOf(r.endpoint).includes(d)));
   const targets = (dep: string) => {
     const out = game.edges.filter((e) => e.from === node.id).map((e) => game.nodes.find((x) => x.id === e.to));
     for (const kinds of DEP_KINDS[dep]) {
@@ -591,7 +592,7 @@ function AppDialog({
               <Num label="Typical share %" value={toPercent(r.share ?? 0)} step={0.1} max={100} onChange={(v) => setRoute(i, { share: v / 100 })} />
             </div>
             <div className="sb-row">
-              {DEPS.map((d) => (
+              {depsFor(rules).map((d) => (
                 <Check
                   key={d}
                   label={d}
