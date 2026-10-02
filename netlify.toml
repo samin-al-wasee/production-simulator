@@ -1,0 +1,10 @@
+# Netlify build for the dashboard. Set FORGELAB_API_URL (the Render API's URL,
+# e.g. https://forgelab-api.onrender.com) in the site's environment: rewrites
+# read it at build time, so redeploy after changing it.
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"

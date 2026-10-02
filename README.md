@@ -42,6 +42,7 @@ Games survive a page reload; **Save** writes a replayable save to `.forgelab/san
 | Lint, unit tests, secret scan | `make check` |
 | Browser tests | `make test-e2e` |
 | Deploy the API (Render or any container host) | `backend/Dockerfile` built from the repository root; `render.yaml` is a Render blueprint ([ADR-0026](docs/decisions/0026-container-deployment.md)) |
+| Deploy the dashboard (Netlify) | `netlify.toml` builds `frontend/`; set `FORGELAB_API_URL` to the API's URL in the site environment (read at build time) |
 | Every target | `make help` |
 
 ---
