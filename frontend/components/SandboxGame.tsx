@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   canConnect,
   clientConfig,
+  seen,
   formatMoney,
   freeSpot,
   internetConfig,
@@ -181,6 +182,7 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
             // Only kinds something can send to take connections.
             target: rules.kinds.some((k) => k.connectsTo?.includes(n.kind)),
             stats: game.flow.nodes.find((s) => s.id === n.id),
+            seen: n.kind === "traffic" ? !rules.telemetry || !!game.meters.monitored : seen(rules, game.flow.nodes.find((s) => s.id === n.id)),
           },
         };
       });
@@ -207,8 +209,10 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
         const saturated = (to?.utilization ?? 0) >= 1 || (to?.capacity === 0 && (to?.offered ?? 0) > 0);
         // A connection that breaks its contract says why on the edge; one
         // whose calls fail is marked (v7 reports every connection).
-        const es = game.flow.edges?.find((x) => x.from === e.from && x.to === e.to);
-        const problem = es?.problem ?? from?.traffic?.problem;
+        // From v14 a connection is seen through a monitored end.
+        const visible = seen(rules, from) || seen(rules, to);
+        const es = visible ? game.flow.edges?.find((x) => x.from === e.from && x.to === e.to) : undefined;
+        const problem = es?.problem ?? (visible ? from?.traffic?.problem : undefined);
         const failing = !!es && es.rps > 0 && es.errors / es.rps > 0.01;
         const id = `${e.from}->${e.to}`;
         return {
@@ -221,7 +225,7 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
           interactionWidth: 16,
         };
       }),
-    [game, edgeSel],
+    [game, edgeSel, rules],
   );
 
   const send = useCallback(
@@ -317,6 +321,7 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
     <div className="sandbox">
       <SandboxHud
         game={game}
+        rules={rules}
         onSpeed={(s) => control(() => sandboxApi.speed(game.id, s))}
         onSkip={(t) => control(() => sandboxApi.step(game.id, t))}
       />
@@ -362,6 +367,8 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
             }}
             onNodeClick={(_, n) => {
               setEdgeSel(null);
+              // An inside view is the component's live numbers: monitored only (v14).
+              if (!n.data.seen) return;
               if (["internet", "traffic", "app-instance"].includes(n.data.kind) || n.data.stats?.db || n.data.stats?.cache || n.data.stats?.storage || n.data.stats?.queue || n.data.stats?.stream || n.data.stats?.edge) setInside(n.id);
             }}
             onEdgeClick={(_, e) => {

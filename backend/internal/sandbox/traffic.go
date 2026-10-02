@@ -267,6 +267,9 @@ func (g *Game) breakdown(t *Traffic) {
 // configure replaces the Internet's traffic configuration and restarts its
 // pattern clock.
 func (g *Game) configure(c Command) error {
+	if n := g.Node(c.Node); n != nil && g.telemetryModel() && c.Telemetry != nil {
+		return g.configureTelemetry(n, c.Telemetry)
+	}
 	if n := g.Node(c.Node); n != nil && n.Kind == KindApp {
 		return g.configureApp(n, c.App)
 	}

@@ -26,6 +26,9 @@ type Meters struct {
 	// LoadTest marks a tick of player-configured traffic: it earns nothing,
 	// and users, satisfaction, popularity, and goals hold still.
 	LoadTest bool `json:"loadTest,omitempty"`
+	// Monitored marks a tick whose technical meters the player can see: a
+	// component traffic reaches first reports metrics to a store (v14).
+	Monitored bool `json:"monitored,omitempty"`
 
 	RevenuePerHour float64 `json:"revenuePerHour"`
 	CostPerHour    float64 `json:"costPerHour"`
@@ -131,6 +134,7 @@ func (g *Game) meters(f Flow) Meters {
 		Users: g.Users, ActiveUsers: g.Users * g.Rules.ActiveShare, Engagement: g.engagement(),
 		P95LatencyMs: f.P95LatencyMs, ErrorRate: f.ErrorRate, Health: health,
 		Satisfaction: g.Satisfaction, Popularity: g.Popularity, Complexity: cx, Tier: tier, LoadTest: g.loadTest(),
+		Monitored:      g.telemetryModel() && g.monitored(f.Nodes),
 		RevenuePerHour: revenue, CostPerHour: cost, Cash: g.Cash,
 	}
 }

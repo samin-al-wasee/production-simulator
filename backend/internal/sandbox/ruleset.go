@@ -190,6 +190,9 @@ type Ruleset struct {
 	Gateway     *GatewayConfig `json:"gateway,omitempty"`
 	CDN         *CDNConfig     `json:"cdn,omitempty"`
 	EdgeRuntime EdgeRuntime    `json:"edgeRuntime,omitzero"`
+	// Telemetry is a new component's telemetry from v14: all off.
+	Telemetry        *Telemetry       `json:"telemetry,omitempty"`
+	TelemetryRuntime TelemetryRuntime `json:"telemetryRuntime,omitzero"`
 }
 
 // RulesetV1 is the first Sandbox ruleset.
@@ -280,13 +283,15 @@ func Rulesets(version string) (*Ruleset, error) {
 		return RulesetV12(), nil
 	case "sandbox/v13":
 		return RulesetV13(), nil
+	case "sandbox/v14":
+		return RulesetV14(), nil
 	}
 	return nil, fmt.Errorf("unknown ruleset %q", version)
 }
 
 // Latest returns the ruleset new games are played with.
 func Latest() *Ruleset {
-	return RulesetV13()
+	return RulesetV14()
 }
 
 // Kind returns a kind by name.

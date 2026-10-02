@@ -104,6 +104,19 @@ test("build, run, scale, delete, and resume a game", async ({ page }) => {
   await wire(page, "app-instance-1", "object-storage-1");
   await expect(page.locator(".react-flow__edge")).toHaveCount(3);
 
+  // From v14 nothing is seen until it is monitored: the system's meters
+  // are dark. A metrics store and the app's metrics light them up.
+  await expect(page.locator(".sb-tile", { hasText: "Errors" })).toContainText("—");
+  await page.locator(".sb-kind", { hasText: "Metrics store" }).click();
+  await node(page, "app-instance-1").click();
+  const inspector = page.locator(".sb-inspector");
+  await expect(inspector).toContainText("Not monitored");
+  await inspector.getByLabel("Metrics", { exact: true }).check();
+  await inspector.getByRole("button", { name: "Apply telemetry" }).click();
+  await expect(inspector).not.toContainText("Not monitored");
+  await expect(inspector.locator(".sb-telemetry")).toContainText("100% kept");
+  await page.keyboard.press("Escape");
+
   // A database sends no traffic, so it offers nothing to connect from.
   await expect(node(page, "db-primary-1").locator(".react-flow__handle.source")).toHaveCount(0);
 
@@ -319,7 +332,7 @@ test("an application instance shows why it is slow and can be reconfigured", asy
   });
 
   const api = page.request;
-  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 3 } })).json();
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 3, ruleset: "sandbox/v13" } })).json();
   const game = `/api/forgelab/sandbox/games/${created.id}`;
   const command = async (c: object) => {
     const res = await api.post(`${game}/commands`, { data: c });
@@ -388,7 +401,7 @@ test("traffic components connect under a contract and add up", async ({ page }) 
 
   // Two traffic components → one app → primary and storage.
   const api = page.request;
-  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 5 } })).json();
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 5, ruleset: "sandbox/v13" } })).json();
   const game = `/api/forgelab/sandbox/games/${created.id}`;
   const command = async (c: object) => {
     const res = await api.post(`${game}/commands`, { data: c });
@@ -516,7 +529,7 @@ test("services call each other over configured connections", async ({ page }) =>
   // built from the templates through the API.
   const api = page.request;
   const rules = await (await api.get("/api/forgelab/sandbox/ruleset")).json();
-  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 9 } })).json();
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 9, ruleset: "sandbox/v13" } })).json();
   const game = `/api/forgelab/sandbox/games/${created.id}`;
   const command = async (c: object) => {
     const res = await api.post(`${game}/commands`, { data: c });
@@ -584,7 +597,7 @@ test("a database shows where its time goes and can be reconfigured", async ({ pa
   });
 
   const api = page.request;
-  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 4 } })).json();
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 4, ruleset: "sandbox/v13" } })).json();
   const game = `/api/forgelab/sandbox/games/${created.id}`;
   const command = async (c: object) => {
     const res = await api.post(`${game}/commands`, { data: c });
@@ -638,7 +651,7 @@ test("a cache warms up, and its TTL decides how often it hits", async ({ page })
 
   // A free-build game: the cache is unlocked from the start.
   const api = page.request;
-  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 6, freeBuild: true } })).json();
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 6, freeBuild: true, ruleset: "sandbox/v13" } })).json();
   const game = `/api/forgelab/sandbox/games/${created.id}`;
   const command = async (c: object) => {
     const res = await api.post(`${game}/commands`, { data: c });
@@ -685,7 +698,7 @@ test("object storage is priced by use and scales by prefixes", async ({ page }) 
   });
 
   const api = page.request;
-  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 8 } })).json();
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 8, ruleset: "sandbox/v13" } })).json();
   const game = `/api/forgelab/sandbox/games/${created.id}`;
   const command = async (c: object) => {
     const res = await api.post(`${game}/commands`, { data: c });
@@ -731,7 +744,7 @@ test("a queue redelivers what its worker fails and dead-letters the rest", async
   });
 
   const api = page.request;
-  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 10, freeBuild: true } })).json();
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 10, freeBuild: true, ruleset: "sandbox/v13" } })).json();
   const game = `/api/forgelab/sandbox/games/${created.id}`;
   const command = async (c: object) => {
     const res = await api.post(`${game}/commands`, { data: c });
@@ -788,7 +801,7 @@ test("an event stream fans out to every consumer group", async ({ page }) => {
 
   const api = page.request;
   const rules = await (await api.get("/api/forgelab/sandbox/ruleset")).json();
-  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 12, freeBuild: true } })).json();
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 12, freeBuild: true, ruleset: "sandbox/v13" } })).json();
   const game = `/api/forgelab/sandbox/games/${created.id}`;
   const command = async (c: object) => {
     const res = await api.post(`${game}/commands`, { data: c });
@@ -839,7 +852,7 @@ test("traffic reaches apps through a CDN and a load balancer", async ({ page }) 
   });
 
   const api = page.request;
-  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 14, freeBuild: true } })).json();
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 14, freeBuild: true, ruleset: "sandbox/v13" } })).json();
   const game = `/api/forgelab/sandbox/games/${created.id}`;
   const command = async (c: object) => {
     const res = await api.post(`${game}/commands`, { data: c });
@@ -886,6 +899,60 @@ test("traffic reaches apps through a CDN and a load balancer", async ({ page }) 
   await expect(dialog).toBeHidden();
   await expect(inspector.locator(".sb-internet .meta")).toContainText("round-robin");
   await expect(inspector.locator(".sb-breakdown tr").first()).toContainText("50%");
+
+  await expect(page.locator(".sb-toast")).toHaveCount(0);
+  expect(errors, "browser errors").toEqual([]);
+});
+
+test("nothing is seen until it is monitored, and monitoring has a cost", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+  page.on("console", (m) => {
+    if (m.type() === "error" && !m.text().includes("status of 422")) errors.push(`console: ${m.text()}`);
+  });
+
+  const api = page.request;
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 16, freeBuild: true } })).json();
+  const game = `/api/forgelab/sandbox/games/${created.id}`;
+  const command = async (c: object) => {
+    const res = await api.post(`${game}/commands`, { data: c });
+    expect(res.ok(), await res.text()).toBe(true);
+    return (await res.json()) as { node?: string };
+  };
+  const src = (await command({ type: "place", kind: "traffic", x: 0, y: 0 })).node!;
+  const app = (await command({ type: "place", kind: "app-instance", x: 300, y: 0 })).node!;
+  const db = (await command({ type: "place", kind: "db-primary", x: 600, y: -100 })).node!;
+  const st = (await command({ type: "place", kind: "object-storage", x: 600, y: 100 })).node!;
+  const logs = (await command({ type: "place", kind: "log-store", x: 300, y: 300 })).node!;
+  await command({ type: "place", kind: "metrics-store", x: 0, y: 300 });
+  for (const [from, to] of [[src, app], [app, db], [app, st]]) await command({ type: "connect", from, to });
+  await api.post(`${game}/step`, { data: { ticks: 2 } });
+
+  await page.goto("/sandbox");
+  await page.evaluate((id) => localStorage.setItem("forgelab.sandbox.game", id), created.id);
+  await page.reload();
+  await expect(page.locator(".sb-tile", { hasText: "RPS" })).toContainText("—");
+  await expect(node(page, db)).toContainText("not monitored");
+
+  // An unmonitored database: its configuration, no numbers, no inside view.
+  const inspector = page.locator(".sb-inspector");
+  await node(page, db).click();
+  await expect(page.locator(".sb-inner")).toHaveCount(0);
+  await expect(inspector).toContainText("Not monitored");
+  await expect(inspector.getByRole("button", { name: "Configure database" })).toBeVisible();
+  await expect(inspector.locator("tr", { hasText: "Buffer hit ratio" })).toHaveCount(0);
+
+  // Monitor the front app with metrics and info logs: the meters light up,
+  // and the log store takes a line per request.
+  await node(page, app).click();
+  await inspector.getByLabel("Metrics", { exact: true }).check();
+  await inspector.getByLabel("Log level").selectOption("info");
+  await inspector.getByRole("button", { name: "Apply telemetry" }).click();
+  await expect(page.locator(".sb-tile", { hasText: "RPS" })).not.toContainText("—");
+  await expect(inspector.locator(".sb-telemetry")).toContainText("info");
+  await page.keyboard.press("Escape");
+  await node(page, logs).click();
+  await expect(inspector.locator("tr", { hasText: "Ingest" })).toContainText("lines/s");
 
   await expect(page.locator(".sb-toast")).toHaveCount(0);
   expect(errors, "browser errors").toEqual([]);

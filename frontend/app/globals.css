@@ -968,3 +968,16 @@ button.link {
   display: block;
   margin: 8px 0 12px;
 }
+
+.sb-tile.dark .sb-tile-value {
+  color: var(--muted);
+}
+
+.sb-node-meta.muted {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.sb-node.lvl-unknown {
+  border-color: var(--border);
+}

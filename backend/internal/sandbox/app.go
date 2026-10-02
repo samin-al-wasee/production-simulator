@@ -410,6 +410,10 @@ func (g *Game) runApp(i int, load vec) appRun {
 				}
 				g.callWall(i, &rr)
 			}
+			if g.telemetryModel() {
+				// Reporting costs the instance CPU per request (v14).
+				rr.cpu += g.overheadCPUMs(n, len(rr.calls))
+			}
 			rr.conn = rr.wall/1000 + idle
 			run.routes = append(run.routes, rr)
 		}

@@ -6,7 +6,7 @@ Legend: ⬜ planned · 🔨 in progress · ✅ done · 🗄️ retired
 
 ForgeLab is the **Production Sandbox** ([ADR-0014](docs/decisions/0014-sandbox-only-platform.md)). Phases 0 to 9 built a real-infrastructure lab (Live mode); most of it was retired and is kept on the `archive/live-lab` branch. What survived is noted below.
 
-## Phase 11 — Deep component simulation *🔨 in progress*
+## Phase 11 — Deep component simulation *✅ done*
 
 > Each component becomes progressively realistic, one at a time, so players learn production engineering by experimenting: configuration inside the component, behavior in the Go core, metrics out. The canvas stays simple: one node per infrastructure concept. ADR-0016.
 >
@@ -30,11 +30,11 @@ ForgeLab is the **Production Sandbox** ([ADR-0014](docs/decisions/0014-sandbox-o
 - [x] **11.9 Event stream and event-driven architecture** (ruleset `sandbox/v12`, ADR-0024): a new event stream component with topics, partitions, retention, and consumer groups; routes and workers publish events, services and workers subscribe; partition throughput and per-group lag; ordering per partition; fan-out to many consumers; form and inside view.
 - [x] **11.10 Edge: load balancer, API gateway, CDN** (ruleset `sandbox/v13`, ADR-0025): back in the catalog with their contracts. Load balancer: algorithm (round robin, least connections, weighted), health checks that pull failing targets, TLS termination, connection limits, sticky sessions; it can also front internal services. API gateway: routes by path to different services, authentication, rate limits per client type, request size limits. CDN: edge cache for cacheable endpoints, TTL, hit ratio from the endpoint mix, origin offload, purge. Traffic connects to any of them; forms and inside views.
 
-## Phase 12 — Observability *⬜ planned*
+## Phase 12 — Observability *🔨 in progress*
 
 > Seeing inside the system is something the player builds and pays for, as in production. Uninstrumented components show only whether they are up; detail appears where the player configured it, at the resolution and sampling they chose, through telemetry backends that have capacity and cost. ADR-0027.
 
-- [ ] **12.1 Telemetry is configured, not given** (ruleset `sandbox/v14`, ADR-0027): a metrics store, a log store, and a tracing backend as components, with ingest capacity, retention, and cost; per-component instrumentation (metrics on or off and resolution, log level and sampling, trace sampling) that costs CPU on the component and ingest at the backend; dropped telemetry when a backend saturates. The dashboard shows business numbers always and technical metrics only where instrumented; older rulesets keep showing everything.
+- [x] **12.1 Telemetry is configured, not given** (ruleset `sandbox/v14`, ADR-0027): a metrics store, a log store, and a tracing backend as components, with ingest capacity, retention, and cost; per-component instrumentation (metrics on or off and resolution, log level and sampling, trace sampling) that costs CPU on the component and ingest at the backend; dropped telemetry when a backend saturates. The dashboard shows business numbers always and technical metrics only where instrumented; older rulesets keep showing everything.
 - [ ] **12.2 Explaining failures**: every failed and slow request attributed to a reason and a place (refused, not found, rejected, timed out, dependency failed, handler error, out of memory, rate limited) and aggregated from the model; a metrics explorer per component and connection over history; a trace view (span waterfall) of each route across services from the model's latencies; log records as aggregated, labelled events (`504 upstream timeout from db-primary-1 × 37/s`). Each needs the matching telemetry from 12.1.
 - [ ] **12.3 Alerts, SLOs, and incidents**: alert rules on any collected metric with thresholds and durations, firing and resolved history; SLOs per route or service with error budgets and burn rate; an incident timeline that lines up events, alerts, and the player's commands.
 

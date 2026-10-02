@@ -32,6 +32,10 @@ type NodeStats struct {
 	// gateway's, or CDN's (v13).
 	Stream *StreamStats   `json:"stream,omitempty"`
 	Edge   *EdgeNodeStats `json:"edge,omitempty"`
+	// Obs is what the player can see of a component, and Backend what a
+	// telemetry backend took in (v14).
+	Obs     *ObsStats     `json:"obs,omitempty"`
+	Backend *BackendStats `json:"backend,omitempty"`
 }
 
 // Flow is the result of routing one tick's traffic through the topology.
@@ -803,6 +807,9 @@ func (g *Game) solve() Snapshot {
 			unique[clsRead] += cl.unique
 			attempts[clsRead] += cl.attempts
 		}
+	}
+	if g.telemetryModel() {
+		g.observe(stats)
 	}
 	f := Flow{RPS: rps, AttackRPS: attackRPS, SuccessRPS: success, MeanLatencyMs: mean, MaxUtilization: finite(maxU), Nodes: stats}
 	if rps > 0 {
