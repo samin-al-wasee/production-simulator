@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- App templates (Phase 11): placing an application instance offers an application type (e-commerce, flight booking, ride sharing, social feed, video streaming: routes with costs, dependencies, and typical shares) on a stack (Django, FastAPI, Express, Rails, Go), or a manual configuration. `place` can carry the instance's `AppConfig`, validated before anything is paid. Routes gain a typical `share`, which a connecting traffic component adopts. The templates are v6 ruleset data the engine never reads.
 - Phase 11: traffic components (ADR-0018), in ruleset `sandbox/v6`. New games use v6, and v1 to v5 replay bit for bit.
   - **Empty start:** a v6 game has no node. The Internet becomes **Traffic**, a free component the player places any number of times.
   - **One population each:** `configure` on a traffic component sets a single client type, region, protocol, scheme, port, keep-alive, client timeout, retries, and source (market or load test), plus a weighted endpoint mix. The market's volume is split by client-type and region share; components of one segment split it.

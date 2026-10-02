@@ -219,24 +219,33 @@ func (g *Game) clientMix(i int) ([]mixEntry, vec) {
 }
 
 // routeEndpoints is one endpoint per route of an application, catch-all
-// aside, in equal shares kept to hundredths of a percent so the form shows
-// them exactly; the first takes the remainder.
+// aside, in the routes' typical shares (equal when none is set). Shares are
+// kept to hundredths of a percent so the form shows them exactly; the first
+// takes the remainder.
 func routeEndpoints(a *AppConfig) []Weight {
-	var names []string
+	var out []Weight
+	total := 0.0
 	for _, r := range a.Routes {
-		if r.Endpoint != CatchAll && len(names) < maxEndpoints {
-			names = append(names, r.Endpoint)
+		if r.Endpoint != CatchAll && len(out) < maxEndpoints {
+			out = append(out, Weight{r.Endpoint, r.Share})
+			total += r.Share
 		}
 	}
-	if len(names) == 0 {
-		names = []string{"GET /"}
+	if len(out) == 0 {
+		return []Weight{{"GET /", 1}}
 	}
-	base := math.Floor(1e4/float64(len(names))) / 1e4
-	out := make([]Weight, len(names))
-	for k, name := range names {
-		out[k] = Weight{name, base}
+	rest := 0.0
+	for k := range out {
+		w := 1 / float64(len(out))
+		if total > 0 {
+			w = out[k].Share / total
+		}
+		out[k].Share = math.Floor(w*1e4) / 1e4
+		if k > 0 {
+			rest += out[k].Share
+		}
 	}
-	out[0].Share = 1 - base*float64(len(names)-1)
+	out[0].Share = 1 - rest
 	return out
 }
 
@@ -468,6 +477,9 @@ func RulesetV6() *Ruleset {
 		// It asks for nothing until it is connected and adopts the app's routes.
 		Endpoints: []Weight{},
 	}
+	r.AppStacks, r.AppTypes = appStacks(r.App), appTypes()
+	// A new instance is the e-commerce API on the default stack.
+	r.App.Routes = r.AppTypes[0].Routes
 	for i, gl := range r.Goals {
 		if gl.ID == "scale-out" {
 			r.Goals[i].Description = "Serve from two or more app replicas."

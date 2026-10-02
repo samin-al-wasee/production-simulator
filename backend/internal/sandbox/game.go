@@ -3,6 +3,7 @@ package sandbox
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // Game statuses.
@@ -78,7 +79,8 @@ type Command struct {
 	Replicas int     `json:"replicas,omitempty"`
 	X        float64 `json:"x,omitempty"`
 	Y        float64 `json:"y,omitempty"`
-	// Traffic or App is the new configuration for a configure command.
+	// Traffic or App is the new configuration for a configure command; App
+	// may also come with a place command for an application instance.
 	Traffic *TrafficConfig `json:"traffic,omitempty"`
 	App     *AppConfig     `json:"app,omitempty"`
 	Client  *ClientConfig  `json:"client,omitempty"`
@@ -243,11 +245,21 @@ func (g *Game) place(c Command) (string, error) {
 	if !ok {
 		return "", invalid("unknown size %q", size)
 	}
+	// An application instance may be placed with its configuration, which
+	// is checked before anything is paid.
+	if c.App != nil {
+		if k.Name != KindApp || g.Rules.App == nil {
+			return "", invalid("only an application instance can be placed with a configuration, in ruleset v5 and later")
+		}
+		if problems := g.Rules.ValidateApp(*c.App); len(problems) > 0 {
+			return "", invalid("%s", strings.Join(problems, "; "))
+		}
+	}
 	if err := g.spend(k.BuildCost*s.CostFactor, k.Label); err != nil {
 		return "", err
 	}
 	g.nextID[k.Name]++
-	n := &Node{ID: fmt.Sprintf("%s-%d", k.Name, g.nextID[k.Name]), Kind: k.Name, Size: size, Replicas: 1, X: c.X, Y: c.Y}
+	n := &Node{ID: fmt.Sprintf("%s-%d", k.Name, g.nextID[k.Name]), Kind: k.Name, Size: size, Replicas: 1, X: c.X, Y: c.Y, App: c.App}
 	if g.appModel(n) {
 		n.StartedAt = g.Tick
 	}

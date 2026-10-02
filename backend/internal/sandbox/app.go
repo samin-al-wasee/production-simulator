@@ -88,6 +88,9 @@ type AppRoute struct {
 	// ErrorRate is the share of requests the handler itself fails.
 	ErrorRate float64  `json:"errorRate,omitempty"`
 	Deps      []string `json:"deps,omitempty"`
+	// Share is the part of a typical client's requests this endpoint gets
+	// when a traffic component adopts the routes (v6); none means equal.
+	Share float64 `json:"share,omitempty"`
 }
 
 // Middleware is a stage in the catalog, with its cost per request.
@@ -672,6 +675,9 @@ func (r *Ruleset) ValidateApp(c AppConfig) []string {
 		}
 		if !(rt.ErrorRate >= 0 && rt.ErrorRate <= 1) {
 			bad("%s: error rate must be between 0%% and 100%%", label)
+		}
+		if !(rt.Share >= 0 && rt.Share <= 1) {
+			bad("%s: typical share must be between 0%% and 100%%", label)
 		}
 		used := map[string]bool{}
 		for _, d := range rt.Deps {

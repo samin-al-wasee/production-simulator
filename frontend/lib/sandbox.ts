@@ -38,6 +38,7 @@ export interface AppRoute {
   responseKb: number;
   errorRate?: number;
   deps?: string[];
+  share?: number;
 }
 
 export interface AppConfig {
@@ -76,6 +77,20 @@ export interface Framework {
   processing: Processing;
   workers: number;
   maxConcurrency: number;
+}
+
+// AppStack is how a new application serves (a complete configuration whose
+// routes the chosen AppType replaces); AppType is what it serves.
+export interface AppStack {
+  name: string;
+  description: string;
+  app: AppConfig;
+}
+
+export interface AppType {
+  name: string;
+  description: string;
+  routes: AppRoute[];
 }
 
 export type Health = "starting" | "healthy" | "degraded" | "unhealthy" | "stopped";
@@ -223,6 +238,8 @@ export interface Ruleset {
   app?: AppConfig;
   middleware?: Middleware[];
   frameworks?: Framework[];
+  appStacks?: AppStack[];
+  appTypes?: AppType[];
   appRuntime?: { workerMemoryMb: number };
   client?: ClientConfig;
   clientTypes?: Weight[];
@@ -355,7 +372,7 @@ export interface GameState {
 }
 
 export type Command =
-  | { type: "place"; kind: string; size?: string; x: number; y: number }
+  | { type: "place"; kind: string; size?: string; x: number; y: number; app?: AppConfig }
   | { type: "remove"; node: string }
   | { type: "connect" | "disconnect"; from: string; to: string }
   | { type: "resize"; node: string; size: string }

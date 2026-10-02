@@ -24,12 +24,13 @@ import {
   newest,
   routedStorage,
   sandboxApi,
+  type AppConfig,
   type Command,
   type GameState,
   type Ruleset,
 } from "@/lib/sandbox";
 import { SandboxEvents } from "./SandboxEvents";
-import { AppView } from "./SandboxApp";
+import { AppView, NewAppDialog } from "./SandboxApp";
 import { InternetView } from "./SandboxInternet";
 import { TrafficView } from "./SandboxTraffic";
 import { SandboxGoals } from "./SandboxGoals";
@@ -87,6 +88,8 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
   const [game, setGame] = useState<GameState>(initial);
   const [toast, setToast] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Where an application instance waits to be placed while its template is chosen.
+  const [newApp, setNewApp] = useState<{ x: number; y: number } | null>(null);
   // The component whose inside the canvas shows instead of the system.
   const [inside, setInside] = useState<string | null>(null);
   const back = useCallback(() => setInside(null), []);
@@ -233,6 +236,14 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
     [game.id, onState],
   );
 
+  const select = useCallback(
+    (id: string) => {
+      pendingSelect.current = id;
+      setNodes((prev) => prev.map((p) => ({ ...p, selected: p.id === id })));
+    },
+    [setNodes],
+  );
+
   const place = useCallback(
     async (kind: string, position?: { x: number; y: number }) => {
       let pos = position;
@@ -241,12 +252,32 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
         const centre = screenToFlowPosition({ x: (r?.left ?? 0) + (r?.width ?? 0) / 2, y: (r?.top ?? 0) + (r?.height ?? 0) / 2 });
         pos = freeSpot(centre, game.nodes);
       }
-      const id = await send({ type: "place", kind, x: Math.round(pos.x), y: Math.round(pos.y) });
-      if (!id) return;
-      pendingSelect.current = id;
-      setNodes((prev) => prev.map((p) => ({ ...p, selected: p.id === id })));
+      const at = { x: Math.round(pos.x), y: Math.round(pos.y) };
+      // An application instance starts from a template or a hand-made
+      // configuration, chosen before it is placed.
+      if (kind === "app-instance" && rules.appStacks?.length) {
+        setNewApp(at);
+        return;
+      }
+      const id = await send({ type: "place", kind, ...at });
+      if (id) select(id);
     },
-    [screenToFlowPosition, send, setNodes, game.nodes],
+    [screenToFlowPosition, send, game.nodes, rules.appStacks, select],
+  );
+
+  const placeApp = useCallback(
+    async (app: AppConfig) => {
+      if (!newApp) return null;
+      try {
+        const res = await sandboxApi.command(game.id, { type: "place", kind: "app-instance", ...newApp, app });
+        onState(res.state);
+        if (res.node) select(res.node);
+        return null;
+      } catch (err) {
+        return err instanceof Error ? err.message : String(err);
+      }
+    },
+    [game.id, newApp, onState, select],
   );
 
   const isValidConnection: IsValidConnection = useCallback(
@@ -326,6 +357,7 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
           {opened?.kind === "app-instance" && <AppView game={game} rules={rules} node={opened} onBack={back} />}
           {opened?.kind === "traffic" && <TrafficView game={game} rules={rules} node={opened} onBack={back} />}
           {inside === "internet" && traffic && <InternetView config={traffic} game={game} routed={routedStorage(game, rules)} onBack={back} />}
+          {newApp && <NewAppDialog rules={rules} onPlace={placeApp} onClose={() => setNewApp(null)} />}
           {toast && (
             <div className="sb-toast" role="alert">
               {toast}
