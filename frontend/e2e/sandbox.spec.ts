@@ -830,3 +830,63 @@ test("an event stream fans out to every consumer group", async ({ page }) => {
   await expect(page.locator(".sb-toast")).toHaveCount(0);
   expect(errors, "browser errors").toEqual([]);
 });
+
+test("traffic reaches apps through a CDN and a load balancer", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+  page.on("console", (m) => {
+    if (m.type() === "error" && !m.text().includes("status of 422")) errors.push(`console: ${m.text()}`);
+  });
+
+  const api = page.request;
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 14, freeBuild: true } })).json();
+  const game = `/api/forgelab/sandbox/games/${created.id}`;
+  const command = async (c: object) => {
+    const res = await api.post(`${game}/commands`, { data: c });
+    expect(res.ok(), await res.text()).toBe(true);
+    return (await res.json()) as { node?: string };
+  };
+  const cdn = (await command({ type: "place", kind: "cdn", x: 200, y: 0 })).node!;
+  const lb = (await command({ type: "place", kind: "load-balancer", x: 450, y: 0 })).node!;
+  const a1 = (await command({ type: "place", kind: "app-instance", x: 700, y: -150 })).node!;
+  const a2 = (await command({ type: "place", kind: "app-instance", x: 700, y: 150 })).node!;
+  const db = (await command({ type: "place", kind: "db-primary", x: 1000, y: -100 })).node!;
+  const st = (await command({ type: "place", kind: "object-storage", x: 1000, y: 100 })).node!;
+  for (const [from, to] of [[cdn, lb], [lb, a1], [lb, a2], [a1, db], [a2, db], [a1, st], [a2, st]]) await command({ type: "connect", from, to });
+  const src = (await command({ type: "place", kind: "traffic", x: 0, y: 0 })).node!;
+  await command({ type: "connect", from: src, to: cdn });
+  await api.post(`${game}/step`, { data: { ticks: 2 } });
+
+  await page.goto("/sandbox");
+  await page.evaluate((id) => localStorage.setItem("forgelab.sandbox.game", id), created.id);
+  await page.reload();
+  const inspector = page.locator(".sb-inspector");
+
+  // The traffic took the CDN's listener and the routes of the app behind.
+  await node(page, src).click();
+  await page.keyboard.press("Escape");
+  await inspector.getByRole("button", { name: "Configure traffic" }).click();
+  const traffic = page.getByRole("dialog", { name: "Traffic component" });
+  await expect(traffic.getByLabel("Port")).toHaveValue("443");
+  await expect(traffic.getByLabel("Endpoint 1 path")).toHaveValue("/products");
+  await traffic.getByRole("button", { name: "Cancel" }).click();
+
+  // The CDN answers reads at the edge; the balancer spreads the rest.
+  await node(page, cdn).click();
+  await expect(page.getByLabel(`Inside ${cdn}`).locator(".react-flow__node", { hasText: "Edge hits" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(inspector.locator("tr", { hasText: "Hit ratio" })).toBeVisible();
+  await node(page, lb).click();
+  await page.keyboard.press("Escape");
+  await expect(inspector.locator(".sb-breakdown tr")).toHaveCount(2);
+  await inspector.getByRole("button", { name: "Configure load balancer" }).click();
+  const dialog = page.getByRole("dialog", { name: "Load balancer" });
+  await dialog.getByLabel("Algorithm").selectOption("round-robin");
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(inspector.locator(".sb-internet .meta")).toContainText("round-robin");
+  await expect(inspector.locator(".sb-breakdown tr").first()).toContainText("50%");
+
+  await expect(page.locator(".sb-toast")).toHaveCount(0);
+  expect(errors, "browser errors").toEqual([]);
+});

@@ -59,8 +59,8 @@ export function TrafficPanel({
       )}
       {c.endpoints.length === 0 && (
         <p className="sb-hint">
-          Connect it to an application instance: it takes on that app&apos;s protocol, port, scheme, keep-alive, and one endpoint per
-          route, which you can then change.
+          Connect it to an application instance{rules.lb ? " (or a load balancer, gateway, or CDN in front of one)" : ""}: it takes
+          on that component&apos;s protocol, port, and scheme, and one endpoint per route of the app, which you can then change.
         </p>
       )}
       {t && (

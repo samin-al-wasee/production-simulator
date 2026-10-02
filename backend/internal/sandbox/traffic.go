@@ -273,6 +273,9 @@ func (g *Game) configure(c Command) error {
 	if n := g.Node(c.Node); n != nil && n.Kind == KindTraffic {
 		return g.configureClient(n, c.Client)
 	}
+	if n := g.Node(c.Node); n != nil && g.edgeModel(n) && (c.LB != nil || c.Gateway != nil || c.CDN != nil) {
+		return g.configureEdge(n, c)
+	}
 	if n := g.Node(c.Node); n != nil && g.streamModel(n) && c.Stream != nil {
 		return g.configureStream(n, c.Stream)
 	}

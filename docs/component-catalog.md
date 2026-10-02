@@ -18,6 +18,7 @@ The Production Sandbox game (ADR-0013). See [`components/sandbox/`](../component
 | Sandbox Ruleset | Versioned data: placeable component kinds, capacities, costs, complexity weights, tuning (`sandbox/v1`; `sandbox/v2` adds the Event Deck and rebalances the economy; `sandbox/v3` adds goals and unlocks; `sandbox/v4` adds the Internet's traffic configuration; `sandbox/v5` adds the application instance model; `sandbox/v6` replaces the Internet with traffic components) | Sandbox Engine | implemented · Phase 10 (`components/sandbox/sandbox-engine/`) |
 | Traffic Model | The Internet's configuration (ADR-0016): market or load-test volume with a pattern, traffic groups, endpoint mix, regions, and client retries; a per-tick traffic breakdown | Sandbox Engine, Sandbox Ruleset | implemented · Phase 11 (`components/sandbox/sandbox-engine/`) |
 | Traffic Components | Traffic as placeable components (ADR-0018): one client population each (client type, region, protocol, scheme, port, keep-alive, timeout, retries, endpoint mix, market or load test); the traffic-to-application contract; aggregated meters | Sandbox Engine, Sandbox Ruleset | implemented · Phase 11 (`components/sandbox/sandbox-engine/`) |
+| Edge Model | Load balancer (round robin or least connections, health checks), API gateway (path routes to services, auth, rate limit), CDN (cacheable endpoints, TTL hit ratio, usage pricing) with listeners and per-endpoint forwarding (ADR-0025) | Flow Solver, Connections | implemented · Phase 11 (`components/sandbox/sandbox-engine/`) |
 | Event Stream Model | Event streams (ADR-0024): partitions and key skew, brokers, the `stream` publish dependency, consumer groups that each read every event, lag, retention and loss | Flow Solver, Application Model | implemented · Phase 11 (`components/sandbox/sandbox-engine/`) |
 | Queue & Worker Model | Queues with at-least-once delivery, visibility timeout, max deliveries, a dead-letter count, and delay; workers as consumers running the application model with a handler (ADR-0023) | Flow Solver, Application Model | implemented · Phase 11 (`components/sandbox/sandbox-engine/`) |
 | Object Storage Model | Managed object storage (ADR-0022): prefixes with a request rate and throttling, latency from first byte and transfer, storage classes, usage pricing for storage, requests, retrieval, and egress | Flow Solver | implemented · Phase 11 (`components/sandbox/sandbox-engine/`) |
@@ -51,7 +52,7 @@ These are what a player places in a game, plus the Internet, which every game ha
 
 #### In-game component kinds (ruleset `sandbox/v6`)
 
-A v6 game starts with no node at all. Its catalog is v5's without the Internet, the CDN, the load balancer, and the API gateway, which return once they have a traffic contract, plus:
+A v6 game starts with no node at all. Its catalog is v5's without the Internet, the CDN, the load balancer, and the API gateway, which return with their contracts in v13 (ADR-0025), plus:
 
 | Kind | Role in the model | Capacity (ops/s) | Cost / h |
 |---|---|---|---|

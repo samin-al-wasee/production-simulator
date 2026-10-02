@@ -138,7 +138,8 @@ func (g *Game) clientLoads() []clientLoad {
 			amp += math.Pow(g.clientFail[n.ID], float64(k))
 		}
 		cl.attempts = cl.unique * amp
-		if to := g.targets(i, KindApp); len(to) == 0 {
+		k, _ := r.Kind(KindTraffic)
+		if to := g.targets(i, k.ConnectsTo...); len(to) == 0 {
 			cl.problem = "not connected"
 		} else {
 			cl.to = to[0]
@@ -149,19 +150,26 @@ func (g *Game) clientLoads() []clientLoad {
 	return out
 }
 
-// contract is why a traffic component's requests cannot reach an
-// application, or "" when both sides agree.
-func (g *Game) contract(c *ClientConfig, app *Node) string {
-	a := g.appConfig(app)
+// contract is why a traffic component's requests cannot reach the
+// component it connects to, or "" when both sides agree.
+func (g *Game) contract(c *ClientConfig, to *Node) string {
+	l, ok := g.listener(to)
+	if !ok {
+		return ""
+	}
+	who, what := "the app", "an app"
+	if to.Kind != KindApp {
+		who, what = to.ID, to.ID
+	}
 	switch {
-	case c.Protocol != a.Protocol:
-		return fmt.Sprintf("protocol error: %s clients, %s server", c.Protocol, a.Protocol)
-	case c.Port != a.Port:
-		return fmt.Sprintf("connection refused: port %d, the app listens on %d", c.Port, a.Port)
-	case c.Scheme == SchemeHTTPS && !a.TLS:
-		return "TLS handshake failed: https to an app without TLS"
-	case c.Scheme == SchemeHTTP && a.TLS:
-		return "TLS required: http to an app that only accepts https"
+	case c.Protocol != l.Protocol:
+		return fmt.Sprintf("protocol error: %s clients, %s server", c.Protocol, l.Protocol)
+	case c.Port != l.Port:
+		return fmt.Sprintf("connection refused: port %d, %s listens on %d", c.Port, who, l.Port)
+	case c.Scheme == SchemeHTTPS && !l.TLS:
+		return fmt.Sprintf("TLS handshake failed: https to %s without TLS", what)
+	case c.Scheme == SchemeHTTP && l.TLS:
+		return fmt.Sprintf("TLS required: http to %s that only accepts https", what)
 	}
 	return ""
 }
@@ -254,17 +262,52 @@ func routeEndpoints(a *AppConfig) []Weight {
 // protocol, port, scheme, and keep-alive, and one endpoint per route. Who the
 // clients are, their timeout, retries, and source stay theirs, and the player
 // can change any of it afterwards.
-func (g *Game) adopt(n, app *Node) {
-	a := g.appConfig(app)
+func (g *Game) adopt(n, to *Node) {
+	l, ok := g.listener(to)
+	if !ok {
+		return
+	}
 	c := *g.clientConfig(n)
-	c.Protocol, c.Port, c.KeepAlive = a.Protocol, a.Port, a.KeepAlive
+	c.Protocol, c.Port, c.KeepAlive = l.Protocol, l.Port, true
 	c.Scheme = SchemeHTTP
-	if a.TLS {
+	if l.TLS {
 		c.Scheme = SchemeHTTPS
 	}
-	c.Endpoints = routeEndpoints(a)
+	// An application's routes, or those of the first application behind an
+	// edge component (v13); with none yet, it keeps what it asks for.
+	if app := g.behind(to); app != nil {
+		a := g.appConfig(app)
+		c.KeepAlive = a.KeepAlive || to.Kind != KindApp
+		c.Endpoints = routeEndpoints(a)
+	}
 	n.Client = &c
 	delete(g.clientFail, n.ID)
+}
+
+// behind is the application a request entering node n reaches first,
+// through edge components, in edge order.
+func (g *Game) behind(n *Node) *Node {
+	seen := map[string]bool{}
+	queue := []*Node{n}
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		if cur.Kind == KindApp {
+			return cur
+		}
+		if seen[cur.ID] {
+			continue
+		}
+		seen[cur.ID] = true
+		for _, e := range g.Edges {
+			if e.From == cur.ID {
+				if t := g.Node(e.To); t != nil && (t.Kind == KindApp || g.edgeModel(t)) {
+					queue = append(queue, t)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // release returns a traffic component that lost its connection to asking
@@ -324,6 +367,9 @@ func (g *Game) finishClient(cl clientLoad, apps []*appRun) (float64, float64, Cl
 		return 0, 0, st
 	}
 	run := apps[cl.to]
+	if run == nil {
+		return g.finishClientEdge(cl, st)
+	}
 	cfg := g.appConfig(g.Nodes[cl.to])
 	timeout := math.Min(cl.cfg.TimeoutMs, cfg.TimeoutMs)
 	ok, lat := 0.0, 0.0
@@ -502,4 +548,27 @@ func RulesetV6() *Ruleset {
 		}
 	}
 	return r
+}
+
+// finishClientEdge is finishClient for traffic connected to an edge node
+// (v13): each endpoint's outcome through it, within the client's timeout.
+func (g *Game) finishClientEdge(cl clientLoad, st ClientStats) (float64, float64, ClientStats) {
+	ok, lat := 0.0, 0.0
+	for _, e := range cl.cfg.Endpoints {
+		p, ms := g.epOutcome(cl.to, e.Name)
+		if ms > 0 {
+			late := math.Exp(-cl.cfg.TimeoutMs / ms)
+			st.Timeouts += cl.attempts * e.Share * p * late
+			p *= 1 - late
+		}
+		st.Errors += cl.attempts * e.Share * math.Max(0, 1-p)
+		ok += e.Share * p
+		lat += e.Share * p * ms
+	}
+	st.Errors = math.Max(0, st.Errors-st.Timeouts)
+	if ok > 0 {
+		lat /= ok
+	}
+	st.LatencyMs = lat
+	return ok, lat, st
 }

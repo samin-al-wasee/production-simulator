@@ -185,6 +185,11 @@ type Ruleset struct {
 	// Stream configures new event streams from v12.
 	Stream        *StreamConfig `json:"stream,omitempty"`
 	StreamRuntime StreamRuntime `json:"streamRuntime,omitzero"`
+	// LB, Gateway, and CDN configure new edge components from v13.
+	LB          *LBConfig      `json:"lb,omitempty"`
+	Gateway     *GatewayConfig `json:"gateway,omitempty"`
+	CDN         *CDNConfig     `json:"cdn,omitempty"`
+	EdgeRuntime EdgeRuntime    `json:"edgeRuntime,omitzero"`
 }
 
 // RulesetV1 is the first Sandbox ruleset.
@@ -273,13 +278,15 @@ func Rulesets(version string) (*Ruleset, error) {
 		return RulesetV11(), nil
 	case "sandbox/v12":
 		return RulesetV12(), nil
+	case "sandbox/v13":
+		return RulesetV13(), nil
 	}
 	return nil, fmt.Errorf("unknown ruleset %q", version)
 }
 
 // Latest returns the ruleset new games are played with.
 func Latest() *Ruleset {
-	return RulesetV12()
+	return RulesetV13()
 }
 
 // Kind returns a kind by name.
