@@ -28,7 +28,7 @@ ForgeLab/
 ├── templates/               Postmortem template
 ├── .devcontainer/           Development container
 ├── .claude/                 Claude Code commands (dev-loop) and skills (caveman)
-└── .github/                 Issue and PR templates
+└── .github/                 Issue and PR templates, CI workflows
 ```
 
 ## Folder ownership
@@ -45,7 +45,7 @@ ForgeLab/
 | `templates/` | `postmortem/` | Templates |
 | `.devcontainer/` | `devcontainer.json`, `Dockerfile`, setup scripts | Development container definition |
 | `.claude/` | `commands/dev-loop.md`; `skills/caveman/SKILL.md` (terse chat replies on request) | Claude Code project commands and skills |
-| `.github/` | Issue templates, PR template | GitHub automation |
+| `.github/` | Issue templates, PR template, CI workflows | GitHub automation |
 
 Generated, git-ignored local state lives in `.forgelab/`: learning progress (`progress.json`) and saved Sandbox games (`sandbox/`).
 
