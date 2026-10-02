@@ -565,11 +565,65 @@ test("services call each other over configured connections", async ({ page }) =>
 
   // Moving the database's listener makes the connection follow it again.
   await node(page, db).click();
+  await page.keyboard.press("Escape");
   await inspector.getByRole("button", { name: "change" }).click();
   await inspector.getByLabel("Listener port").fill("5433");
   await inspector.getByRole("button", { name: "Apply" }).click();
   await expect(inspector).toContainText("Listens on SQL · port 5433");
   await expect(page.locator(".react-flow__edge-text", { hasText: refused })).toHaveCount(0);
+
+  await expect(page.locator(".sb-toast")).toHaveCount(0);
+  expect(errors, "browser errors").toEqual([]);
+});
+
+test("a database shows where its time goes and can be reconfigured", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+  page.on("console", (m) => {
+    if (m.type() === "error" && !m.text().includes("status of 422")) errors.push(`console: ${m.text()}`);
+  });
+
+  const api = page.request;
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 4 } })).json();
+  const game = `/api/forgelab/sandbox/games/${created.id}`;
+  const command = async (c: object) => {
+    const res = await api.post(`${game}/commands`, { data: c });
+    expect(res.ok(), await res.text()).toBe(true);
+    return (await res.json()) as { node?: string };
+  };
+  const src = (await command({ type: "place", kind: "traffic", x: 0, y: 0 })).node!;
+  const app = (await command({ type: "place", kind: "app-instance", x: 300, y: 0 })).node!;
+  const db = (await command({ type: "place", kind: "db-primary", x: 600, y: -100 })).node!;
+  const st = (await command({ type: "place", kind: "object-storage", x: 600, y: 100 })).node!;
+  for (const [from, to] of [[src, app], [app, db], [app, st]]) await command({ type: "connect", from, to });
+  await command({ type: "scale", node: app, replicas: 3 });
+  await api.post(`${game}/step`, { data: { ticks: 2 } });
+
+  await page.goto("/sandbox");
+  await page.evaluate((id) => localStorage.setItem("forgelab.sandbox.game", id), created.id);
+  await page.reload();
+  await node(page, db).click();
+
+  // Inside: connections, queue, CPU, buffer cache, disk, and response.
+  const inside = page.getByLabel(`Inside ${db}`);
+  await expect(inside.locator(".react-flow__node", { hasText: "Buffer cache" })).toContainText("100% hits");
+  await expect(inside.locator(".react-flow__node", { hasText: "Connections" })).toContainText("60 / 100 open");
+  await page.keyboard.press("Escape");
+
+  // The inspector shows the engine's values; fewer connections than the
+  // callers' pools open refuses the rest.
+  const inspector = page.locator(".sb-inspector");
+  await expect(inspector.locator("tr", { hasText: "Bottleneck" })).toContainText("CPU");
+  await inspector.getByRole("button", { name: "Configure database" }).click();
+  const dialog = page.getByRole("dialog", { name: "Database" });
+  await dialog.getByLabel("Max connections").fill("0");
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("max connections must be between 1 and 10000");
+  await dialog.getByLabel("Max connections").fill("30");
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(inspector.locator("tr", { hasText: "Connections" })).toContainText("60 / 30");
+  await expect(inspector.locator("tr", { hasText: "Refused" })).toBeVisible();
 
   await expect(page.locator(".sb-toast")).toHaveCount(0);
   expect(errors, "browser errors").toEqual([]);

@@ -22,6 +22,8 @@ type NodeStats struct {
 	App *AppStats `json:"app,omitempty"`
 	// Traffic is what a traffic component sent and how it fared (v6).
 	Traffic *ClientStats `json:"traffic,omitempty"`
+	// DB is a database's runtime state (v8).
+	DB *DBStats `json:"db,omitempty"`
 }
 
 // Flow is the result of routing one tick's traffic through the topology.
@@ -52,6 +54,9 @@ func (g *Game) capacity(n *Node) float64 {
 		return math.Inf(1)
 	}
 	if c, ok := g.appCaps[n]; ok {
+		return c
+	}
+	if c, ok := g.dbCaps[n]; ok {
 		return c
 	}
 	k, _ := g.Rules.Kind(n.Kind)
@@ -266,9 +271,13 @@ func (g *Game) solve() Snapshot {
 	// An application's capacity depends on its configuration, replicas, and
 	// last tick's dependency latency, none of which change during a solve.
 	g.appCaps = map[*Node]float64{}
+	g.dbCaps = map[*Node]float64{}
 	for i, nd := range g.Nodes {
 		if g.appModel(nd) {
 			g.appCaps[nd] = g.appCapacity(i)
+		}
+		if g.dbModel(nd) {
+			g.dbCaps[nd] = g.dbCapacity(i)
 		}
 	}
 	rps := g.rps()
@@ -310,6 +319,7 @@ func (g *Game) solve() Snapshot {
 	backlog := make([]float64, n)
 	plans := make([][nClass]plan, n)
 	apps := make([]*appRun, n)
+	dbs := make([]*dbRun, n)
 	// Attack traffic asks for what real users ask for, and never retries.
 	if g.clientModel() {
 		for _, cl := range g.clients {
@@ -349,6 +359,14 @@ func (g *Game) solve() Snapshot {
 		nd := g.Nodes[i]
 		c := g.capacity(nd)
 		offered[i] = load[i].sum()
+		if g.dbModel(nd) {
+			run := g.runDB(i, load[i])
+			dbs[i] = &run
+			served[i] = run.served
+			backlog[i] = run.backlog
+			plans[i] = [nClass]plan{{local: 1}, {local: 1}, {local: 1}}
+			continue
+		}
 		if g.appModel(nd) {
 			run := g.runApp(i, load[i])
 			apps[i] = &run
@@ -475,6 +493,22 @@ func (g *Game) solve() Snapshot {
 	for o := len(order) - 1; o >= 0; o-- {
 		i := order[o]
 		nd := g.Nodes[i]
+		if run := dbs[i]; run != nil {
+			for cl := range nClass {
+				s[i][cl], t[i][cl] = run.ok, run.lat[cl]
+			}
+			st := run.stats
+			u := 0.0
+			if st.Capacity > 0 {
+				u = offered[i] / st.Capacity
+			} else if offered[i] > 0 {
+				u = math.Inf(1)
+			}
+			stats[i] = NodeStats{ID: nd.ID, Offered: offered[i], Served: run.served, Dropped: offered[i] - run.served, Attack: attack[i],
+				Capacity: st.Capacity, Utilization: finite(u), LatencyMs: st.ReadMs, CostPerHour: g.costPerHour(nd), DB: &run.stats}
+			maxU = math.Max(maxU, u)
+			continue
+		}
 		if k, ok := clientAt[i]; ok {
 			cs := ClientStats{}
 			clientOK[k], clientLat[k], cs = g.finishClient(g.clients[k], apps)
@@ -637,6 +671,15 @@ func (g *Game) solve() Snapshot {
 		f.Edges = g.edgeStats(load, s, t)
 	}
 	snap := Snapshot{Flow: f, backlog: backlog, attemptFail: fail, clientFail: clientFail, edgeFail: g.edgeFailNext, epPath: map[string]map[string]float64{}, path: map[string]vec{}}
+	if g.Rules.DB != nil {
+		snap.load, snap.writes = map[string]vec{}, map[string]float64{}
+		for i, nd := range g.Nodes {
+			snap.load[nd.ID] = load[i]
+			if run := dbs[i]; run != nil && nd.Kind == KindDBPrimary && offered[i] > 0 {
+				snap.writes[nd.ID] = load[i][clsWrite] * run.served / offered[i]
+			}
+		}
+	}
 	for i, run := range g.runs {
 		if run != nil && run.out != nil {
 			ms := map[string]float64{}

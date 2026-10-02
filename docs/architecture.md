@@ -1,7 +1,7 @@
 # ForgeLab Architecture
 
 **Document status:** v2.0 (re-scoped by [ADR-0014](decisions/0014-sandbox-only-platform.md))
-**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic), [ADR-0017](decisions/0017-application-instance-model.md) (application instance), [ADR-0018](decisions/0018-traffic-components.md) (traffic components), [ADR-0019](decisions/0019-connections-and-service-calls.md) (connections and service calls)
+**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic), [ADR-0017](decisions/0017-application-instance-model.md) (application instance), [ADR-0018](decisions/0018-traffic-components.md) (traffic components), [ADR-0019](decisions/0019-connections-and-service-calls.md) (connections and service calls), [ADR-0020](decisions/0020-database-model.md) (database)
 
 ForgeLab is the **Production Sandbox**: a city-builder for software production. A new game is an **empty world** and starting cash (from `sandbox/v6`; earlier rulesets also start with an Internet traffic source). The player places components, wires them together, and keeps the system healthy and profitable as users arrive, traffic swings, and incidents happen. Everything is a deterministic model computed in the Go core; nothing runs on the host.
 
@@ -105,6 +105,17 @@ From `sandbox/v7` every edge is a connection ([ADR-0019](decisions/0019-connecti
 * **A call's outcome:** latency `t + 0.5 ms` hop; success `p × (1 − exp(−timeout ÷ latency))`; with `r` retries `1 − (1 − p)^(r+1)`, sending `1 + f + … + f^r` attempts (`f` from the previous tick). An async call costs the caller only the hop and never fails it.
 * **Pools:** a call holds a connection for its latency, so each connection limits its caller to `pool × replicas ÷ connection seconds per request` (bottleneck `pool:<target>`).
 * **Reported:** `flow.edges` gives, per connection, attempts, retries, failures, latency, and the contract problem.
+
+## Database model
+
+From `sandbox/v8` a database primary or read replica is a modelled data store ([ADR-0020](decisions/0020-database-model.md)), configured with `db` and sized like an application, plus IOPS (small 1,000, medium 3,000, large 8,000).
+
+* **Data** `= 200 MB + 50 KB × users`, working set 20%; **hit ratio** `= min(1, 75% of memory ÷ working set)`.
+* **A query:** pages (plus one per MB of data when unindexed); CPU `cpu + 0.005 ms × pages`; disk reads `pages × (1 − hit)`, and a write logs once and writes its pages; service `CPU + disk × 0.5 ms`.
+* **Capacity:** the smallest of CPU (`vCPU × 1000 ÷ CPU per query`), IOPS (`IOPS ÷ disk per query`), and on a primary locks (`hot rows × 1000 ÷ lock ms` writes/s), at the tick's mix. Latency adds the queue wait and, for writes, the lock wait.
+* **Connections:** the callers' pools from every replica; above max connections that share is refused.
+* **Replicas** apply their primaries' writes (half a write's CPU, its disk writes) before reads; what they cannot apply accumulates as lag.
+* **Reported:** `db` with health, bottleneck, CPU, IOPS, hit ratio, data, connections, refused, reads and writes with latency, waits, and a replica's applied writes and lag.
 
 ## Traffic model
 
@@ -240,6 +251,7 @@ The economy is generic: revenue per successful request, cost per component-hour.
 | `sandbox/v3` | v2 plus goals and unlocks. |
 | `sandbox/v4` | v3 plus a configurable Internet: traffic groups, endpoints, regions, retries, and load tests. The CDN's hit ratio becomes 45% of cacheable reads. |
 | `sandbox/v5` | v4 plus the application instance model: capacity from CPU, slots, connections, and network under the routes' costs; middleware; queueing, timeouts, rejection, out-of-memory crashes, and health. |
+| `sandbox/v8` | v7 plus the database model: query profiles, buffer cache over growing data, IOPS, locks, max connections against pools, replication lag. |
 | `sandbox/v7` | v6 plus connections on every edge (listeners, client sides with pools, timeouts, and retries, the contract), calls between services sync or async, per-endpoint load, pool bottlenecks, and per-connection stats; microservice templates. |
 | `sandbox/v6` | v5 with traffic components instead of the Internet: an empty start, one population per component, the traffic-to-application contract, per-application endpoint mixes, and targeted traffic events. The CDN, load balancer, and API gateway wait for their own contracts; *Scale out* becomes two or more app replicas serving. New games use it; an older version can be chosen when a game is created, and the dashboard opens it with its own ruleset. |
 

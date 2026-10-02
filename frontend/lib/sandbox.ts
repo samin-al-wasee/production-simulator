@@ -24,6 +24,7 @@ export interface Size {
   vcpu?: number;
   memoryGb?: number;
   networkMbps?: number;
+  iops?: number;
 }
 
 export type Processing = "sync" | "async";
@@ -61,6 +62,47 @@ export interface Connection extends Listener {
   pool: number;
   timeoutMs: number;
   retries?: number;
+}
+
+// QueryProfile, DBConfig, and DBStats are a database's model (v8).
+export interface QueryProfile {
+  cpuMs: number;
+  pages: number;
+  indexed: boolean;
+}
+
+export interface DBConfig {
+  engine: string;
+  maxConnections: number;
+  read: QueryProfile;
+  write: QueryProfile;
+  hotRows: number;
+  lockMs: number;
+}
+
+export interface DBStats {
+  health: Health;
+  bottleneck: string;
+  capacity: number;
+  cpuUsed: number;
+  cpuTotal: number;
+  iopsUsed: number;
+  iopsTotal: number;
+  hitRatio: number;
+  dataMb: number;
+  workingSetMb: number;
+  bufferPoolMb: number;
+  connections: number;
+  maxConnections: number;
+  refused: number;
+  reads: number;
+  writes: number;
+  readMs: number;
+  writeMs: number;
+  waitMs: number;
+  lockWaitMs: number;
+  applying?: number;
+  lagSeconds?: number;
 }
 
 export interface EdgeStats {
@@ -281,6 +323,7 @@ export interface Ruleset {
   listeners?: Record<string, Listener>;
   connDefaults?: Connection;
   networkHopMs?: number;
+  db?: DBConfig;
 }
 
 export interface SandboxNode {
@@ -299,6 +342,7 @@ export interface SandboxNode {
   app?: AppConfig;
   client?: ClientConfig;
   listener?: Listener;
+  db?: DBConfig;
 }
 
 export interface Edge {
@@ -321,6 +365,7 @@ export interface NodeStats {
   costPerHour: number;
   app?: AppStats;
   traffic?: ClientStats;
+  db?: DBStats;
 }
 
 export interface Meters {
@@ -418,7 +463,7 @@ export type Command =
   | { type: "scale"; node: string; replicas: number }
   | { type: "move"; node: string; x: number; y: number }
   | { type: "respond"; action: "restart" | "failover" | "rate-limit" | "lift-rate-limit"; node: string }
-  | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig; client?: ClientConfig; listener?: Listener }
+  | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig; client?: ClientConfig; listener?: Listener; db?: DBConfig }
   | { type: "configure"; from: string; to: string; connection: Connection };
 
 export const SPEEDS = [0, 1, 2, 4, 8] as const;
