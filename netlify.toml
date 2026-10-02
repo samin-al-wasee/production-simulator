@@ -8,3 +8,8 @@
 
 [build.environment]
   NODE_VERSION = "22"
+
+# Server-renders the dynamic routes and runs the /api/forgelab rewrites;
+# without it Netlify serves .next as static files and every page 404s.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
