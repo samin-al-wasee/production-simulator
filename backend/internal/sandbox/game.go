@@ -64,6 +64,10 @@ type Node struct {
 	// DB is a database's configuration once set (v8). A read replica's
 	// Backlog is the writes it has not applied yet.
 	DB *DBConfig `json:"db,omitempty"`
+	// Cache is a cache's configuration once set (v9), and Warmth the share
+	// of its hot keys loaded.
+	Cache  *CacheConfig `json:"cache,omitempty"`
+	Warmth float64      `json:"warmth,omitempty"`
 }
 
 // Edge sends traffic from one node to another. Conn is its client side
@@ -92,9 +96,10 @@ type Command struct {
 	App     *AppConfig     `json:"app,omitempty"`
 	Client  *ClientConfig  `json:"client,omitempty"`
 	// Listener configures a node; Connection the edge From → To (v7).
-	Listener   *Listener   `json:"listener,omitempty"`
-	Connection *Connection `json:"connection,omitempty"`
-	DB         *DBConfig   `json:"db,omitempty"`
+	Listener   *Listener    `json:"listener,omitempty"`
+	Connection *Connection  `json:"connection,omitempty"`
+	DB         *DBConfig    `json:"db,omitempty"`
+	Cache      *CacheConfig `json:"cache,omitempty"`
 }
 
 // LoggedCommand is a command applied before a given tick was simulated.
@@ -105,13 +110,15 @@ type LoggedCommand struct {
 
 // Game is one Sandbox world. It is not safe for concurrent use.
 type Game struct {
-	Rules  *Ruleset
-	Seed   int64
-	Tick   int
-	Status string
-	Nodes  []*Node
-	Edges  []Edge
-	Log    []LoggedCommand
+	Rules *Ruleset
+	Seed  int64
+	// FreeBuild unlocks every kind from the start; goals are still tracked.
+	FreeBuild bool
+	Tick      int
+	Status    string
+	Nodes     []*Node
+	Edges     []Edge
+	Log       []LoggedCommand
 
 	Cash         float64
 	Users        float64
@@ -156,6 +163,9 @@ type Game struct {
 	dbCaps     map[*Node]float64
 	lastLoad   map[string]vec
 	lastWrites map[string]float64
+	// v9: each cache's capacity and run this solve.
+	cacheCaps map[*Node]float64
+	cacheRuns []*cacheRun
 
 	Last    Snapshot
 	History []Meters
@@ -261,7 +271,7 @@ func (g *Game) place(c Command) (string, error) {
 	if !ok || k.Name == KindInternet {
 		return "", invalid("cannot place kind %q", c.Kind)
 	}
-	if k.UnlockedBy != "" && !g.Reached(k.UnlockedBy) {
+	if k.UnlockedBy != "" && !g.Reached(k.UnlockedBy) && !g.FreeBuild {
 		gl, _ := g.Rules.Goal(k.UnlockedBy)
 		return "", invalid("%s is locked until the goal %q", k.Label, gl.Title)
 	}

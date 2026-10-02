@@ -13,6 +13,7 @@ import {
 import { AppPanel } from "./SandboxApp";
 import { InternetPanel } from "./SandboxInternet";
 import { ListenerSection } from "./SandboxConn";
+import { CachePanel } from "./SandboxCache";
 import { DbPanel } from "./SandboxDb";
 import { TrafficPanel } from "./SandboxTraffic";
 
@@ -179,6 +180,7 @@ export function SandboxInspector({
       {internet && <InternetPanel game={game} rules={rules} onConfigure={onConfigure} />}
       <ListenerSection key={node.id} rules={rules} node={node} onConfigure={onConfigure} />
       {(node.kind === "db-primary" || node.kind === "db-replica") && stats?.db && <DbPanel game={game} rules={rules} node={node} onConfigure={onConfigure} />}
+      {node.kind === "cache" && stats?.cache && <CachePanel game={game} rules={rules} node={node} onConfigure={onConfigure} />}
       {node.kind === "traffic" && <TrafficPanel game={game} rules={rules} node={node} onConfigure={onConfigure} />}
       {node.kind === "app-instance" && <AppPanel game={game} rules={rules} node={node} stats={stats} onConfigure={onConfigure} />}
 

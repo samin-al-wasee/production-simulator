@@ -32,6 +32,7 @@ import {
 import { SandboxEvents } from "./SandboxEvents";
 import { AppView, NewAppDialog } from "./SandboxApp";
 import { EdgePanel } from "./SandboxConn";
+import { CacheView } from "./SandboxCache";
 import { DbView } from "./SandboxDb";
 import { InternetView } from "./SandboxInternet";
 import { TrafficView } from "./SandboxTraffic";
@@ -357,7 +358,7 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
             }}
             onNodeClick={(_, n) => {
               setEdgeSel(null);
-              if (["internet", "traffic", "app-instance"].includes(n.data.kind) || n.data.stats?.db) setInside(n.id);
+              if (["internet", "traffic", "app-instance"].includes(n.data.kind) || n.data.stats?.db || n.data.stats?.cache) setInside(n.id);
             }}
             onEdgeClick={(_, e) => {
               setNodes((prev) => prev.map((p) => ({ ...p, selected: false })));
@@ -375,6 +376,7 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
           </ReactFlow>
           {opened?.kind === "app-instance" && <AppView game={game} rules={rules} node={opened} onBack={back} />}
           {opened && game.flow.nodes.find((s) => s.id === opened.id)?.db && <DbView game={game} node={opened} onBack={back} />}
+          {opened && game.flow.nodes.find((s) => s.id === opened.id)?.cache && <CacheView game={game} node={opened} onBack={back} />}
           {opened?.kind === "traffic" && <TrafficView game={game} rules={rules} node={opened} onBack={back} />}
           {inside === "internet" && traffic && <InternetView config={traffic} game={game} routed={routedStorage(game, rules)} onBack={back} />}
           {newApp && <NewAppDialog rules={rules} onPlace={placeApp} onClose={() => setNewApp(null)} />}
@@ -397,7 +399,8 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
       </div>
       <div className="sb-footer">
         <span className="legend">
-          {game.id} · seed {game.seed} · ruleset {game.ruleset} · tick {game.tick}
+          {game.id} · seed {game.seed} · ruleset {game.ruleset}
+          {game.freeBuild ? " · free build" : ""} · tick {game.tick}
         </span>
         <button
           className="secondary"
@@ -423,6 +426,7 @@ export function SandboxGame() {
   const [game, setGame] = useState<GameState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [freeBuild, setFreeBuild] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -450,7 +454,7 @@ export function SandboxGame() {
   async function newGame() {
     try {
       const previous = game?.id;
-      const g = await sandboxApi.create();
+      const g = await sandboxApi.create(game ? !!game.freeBuild : freeBuild);
       if (g.ruleset !== rules?.version) setRules(await sandboxApi.ruleset(g.ruleset));
       remember(g.id);
       setGame(g);
@@ -477,6 +481,10 @@ export function SandboxGame() {
           you want to reach and the components that serve them, wire them up, and keep the system healthy and profitable as traffic
           grows, surges, and breaks things.
         </p>
+        <label className="sb-free">
+          <input type="checkbox" checked={freeBuild} onChange={(e) => setFreeBuild(e.target.checked)} /> Free build: every component
+          unlocked from the start (goals are still tracked)
+        </label>
         <button onClick={newGame}>New game</button>
       </div>
     );

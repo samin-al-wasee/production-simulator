@@ -26,6 +26,7 @@ This directory records ForgeLab's architecture decisions. Rules live in `AGENTS.
 | [0018](0018-traffic-components.md) | Accepted | Traffic components and the traffic-to-application contract (Phase 11) |
 | [0019](0019-connections-and-service-calls.md) | Accepted | Connections and inter-service communication (Phase 11) |
 | [0020](0020-database-model.md) | Accepted | The database as a modelled data store (Phase 11) |
+| [0021](0021-cache-model.md) | Accepted | The cache as a modelled store (Phase 11) |
 
 ## Conventions
 

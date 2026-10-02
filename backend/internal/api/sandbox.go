@@ -47,6 +47,7 @@ type SandboxState struct {
 	Simulated bool             `json:"simulated"`
 	Ruleset   string           `json:"ruleset"`
 	Seed      int64            `json:"seed"`
+	FreeBuild bool             `json:"freeBuild,omitempty"`
 	Status    string           `json:"status"`
 	Speed     int              `json:"speed"`
 	Revision  int              `json:"revision"`
@@ -76,7 +77,7 @@ func (sg *sandboxGame) state() SandboxState {
 		events[i].Hits = append([]sandbox.Hit(nil), e.Hits...)
 	}
 	return SandboxState{
-		ID: sg.id, Simulated: true, Ruleset: g.Rules.Version, Seed: g.Seed,
+		ID: sg.id, Simulated: true, Ruleset: g.Rules.Version, Seed: g.Seed, FreeBuild: g.FreeBuild,
 		Status: g.Status, Speed: sg.speed, Revision: sg.rev, Tick: g.Tick,
 		Meters: g.Last.Meters, Nodes: nodes, Edges: append([]sandbox.Edge{}, g.Edges...),
 		Flow: g.Last.Flow, History: append([]sandbox.Meters{}, g.History...), Events: events,
@@ -240,9 +241,11 @@ func (s *Server) handleSandboxList(w http.ResponseWriter, _ *http.Request) {
 // body carries one.
 func (s *Server) handleSandboxCreate(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Seed    *int64        `json:"seed"`
-		Ruleset string        `json:"ruleset"`
-		Save    *sandbox.Save `json:"save"`
+		Seed *int64 `json:"seed"`
+		// FreeBuild unlocks every kind from the start.
+		FreeBuild bool          `json:"freeBuild"`
+		Ruleset   string        `json:"ruleset"`
+		Save      *sandbox.Save `json:"save"`
 	}
 	if r.ContentLength != 0 {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -272,6 +275,7 @@ func (s *Server) handleSandboxCreate(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		g = sandbox.New(rules, seed)
+		g.FreeBuild = req.FreeBuild
 	}
 
 	s.mu.Lock()
