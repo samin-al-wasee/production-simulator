@@ -33,6 +33,7 @@ import {
 import { SandboxEvents } from "./SandboxEvents";
 import { AppView, NewAppDialog } from "./SandboxApp";
 import { EdgePanel } from "./SandboxConn";
+import { ObservePanel } from "./SandboxObserve";
 import { CacheView } from "./SandboxCache";
 import { DbView } from "./SandboxDb";
 import { QueueView } from "./SandboxQueue";
@@ -96,6 +97,9 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
   const [game, setGame] = useState<GameState>(initial);
   const [toast, setToast] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Whether the Observe panel covers the canvas (v14).
+  const [observing, setObserving] = useState(false);
+  const stopObserving = useCallback(() => setObserving(false), []);
   // The connection the inspector shows, as "from->to".
   const [edgeSel, setEdgeSel] = useState<string | null>(null);
   const selectedEdge = game.edges.find((e) => `${e.from}->${e.to}` === edgeSel);
@@ -322,6 +326,7 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
       <SandboxHud
         game={game}
         rules={rules}
+        onObserve={() => setObserving(true)}
         onSpeed={(s) => control(() => sandboxApi.speed(game.id, s))}
         onSkip={(t) => control(() => sandboxApi.step(game.id, t))}
       />
@@ -394,6 +399,7 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
           {opened && game.flow.nodes.find((s) => s.id === opened.id)?.edge && <EdgeView game={game} node={opened} onBack={back} />}
           {opened?.kind === "traffic" && <TrafficView game={game} rules={rules} node={opened} onBack={back} />}
           {inside === "internet" && traffic && <InternetView config={traffic} game={game} routed={routedStorage(game, rules)} onBack={back} />}
+          {observing && <ObservePanel game={game} onClose={stopObserving} />}
           {newApp && <NewAppDialog rules={rules} onPlace={placeApp} onClose={() => setNewApp(null)} />}
           {toast && (
             <div className="sb-toast" role="alert">

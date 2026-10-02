@@ -888,6 +888,10 @@ func (g *Game) solve() Snapshot {
 			snap.outOfMemory = append(snap.outOfMemory, nd.ID)
 		}
 	}
+	if g.telemetryModel() {
+		// What happened, explained (Phase 12.2); it changes nothing.
+		snap.report = g.buildReport(stats, t)
+	}
 	return snap
 }
 

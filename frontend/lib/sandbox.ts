@@ -302,6 +302,55 @@ export interface BackendStats {
 
 export const BACKENDS = ["metrics-store", "log-store", "trace-backend"];
 
+// Report explains the last tick (v14): causes of failure, traces, logs.
+export interface Cause {
+  reason: string;
+  place: string;
+  detail?: string;
+  rps: number;
+  async?: boolean;
+  seen: boolean;
+}
+
+export interface Span {
+  name: string;
+  place: string;
+  startMs: number;
+  durationMs: number;
+  ok: number;
+  async?: boolean;
+  children?: Span[];
+}
+
+export interface Trace {
+  source: string;
+  endpoint: string;
+  rate: number;
+  seen: boolean;
+  root: Span;
+}
+
+export interface LogRecord {
+  level: string;
+  place: string;
+  message: string;
+  rate: number;
+}
+
+export interface Report {
+  causes: Cause[] | null;
+  traces: Trace[] | null;
+  logs: LogRecord[] | null;
+}
+
+export interface NodeSample {
+  tick: number;
+  rps: number;
+  errors: number;
+  latencyMs: number;
+  utilization: number;
+}
+
 // seen reports whether the player can see a component's live numbers: always
 // before v14; from v14 only while its metrics reach a store. Telemetry
 // backends report on themselves.
@@ -665,6 +714,8 @@ export interface SandboxEvent {
 }
 
 export interface GameState {
+  report?: Report;
+  nodeHistory?: Record<string, NodeSample[]>;
   id: string;
   simulated: true;
   ruleset: string;

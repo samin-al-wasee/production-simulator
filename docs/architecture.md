@@ -1,7 +1,7 @@
 # ForgeLab Architecture
 
 **Document status:** v2.0 (re-scoped by [ADR-0014](decisions/0014-sandbox-only-platform.md))
-**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic), [ADR-0017](decisions/0017-application-instance-model.md) (application instance), [ADR-0018](decisions/0018-traffic-components.md) (traffic components), [ADR-0019](decisions/0019-connections-and-service-calls.md) (connections and service calls), [ADR-0020](decisions/0020-database-model.md) (database), [ADR-0021](decisions/0021-cache-model.md) (cache), [ADR-0022](decisions/0022-object-storage-model.md) (object storage), [ADR-0023](decisions/0023-queue-and-worker-model.md) (queues and workers), [ADR-0024](decisions/0024-event-streams.md) (event streams), [ADR-0025](decisions/0025-edge-components.md) (edge), [ADR-0027](decisions/0027-configured-telemetry.md) (telemetry)
+**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic), [ADR-0017](decisions/0017-application-instance-model.md) (application instance), [ADR-0018](decisions/0018-traffic-components.md) (traffic components), [ADR-0019](decisions/0019-connections-and-service-calls.md) (connections and service calls), [ADR-0020](decisions/0020-database-model.md) (database), [ADR-0021](decisions/0021-cache-model.md) (cache), [ADR-0022](decisions/0022-object-storage-model.md) (object storage), [ADR-0023](decisions/0023-queue-and-worker-model.md) (queues and workers), [ADR-0024](decisions/0024-event-streams.md) (event streams), [ADR-0025](decisions/0025-edge-components.md) (edge), [ADR-0027](decisions/0027-configured-telemetry.md) (telemetry), [ADR-0028](decisions/0028-explaining-failures.md) (explaining failures)
 
 ForgeLab is the **Production Sandbox**: a city-builder for software production. A new game is an **empty world** and starting cash (from `sandbox/v6`; earlier rulesets also start with an Internet traffic source). The player places components, wires them together, and keeps the system healthy and profitable as users arrive, traffic swings, and incidents happen. Everything is a deterministic model computed in the Go core; nothing runs on the host.
 
@@ -166,6 +166,15 @@ From `sandbox/v14` seeing the system is configured and paid for ([ADR-0027](deci
 * **Backends:** metrics store (20,000 samples/s small), log store (3,000 lines/s), trace backend (5,000 spans/s), priced per replica-hour and per GB ingested; instrumented components ship to them, split by capacity, and what they cannot take is dropped.
 * **Instrumentation** per component (`telemetry`), off by default: metrics (`series × replicas ÷ resolution`), log level and sampling (error: failures; warn: + 5% of the rest; info: 1 per request; debug: 6), trace sampling (`sampled requests × (1 + outgoing connections)` spans). Lines and spans cost applications and workers 0.02 and 0.05 CPU-ms each.
 * **Seen:** business meters always; a component's numbers while its metrics reach a store (`obs`); the system's RPS, p95, errors, and health while a component traffic reaches first is monitored (`meters.monitored`). Rulesets before v14 show everything.
+
+## Explaining failures
+
+From `sandbox/v14` every tick has a **report** ([ADR-0028](decisions/0028-explaining-failures.md)), derived after the solve and outside the replayed state:
+
+* **Causes:** failures per second by reason and place (rejected, timed out, handler error, not found, missing dependency, dependency failed, down, too many connections, overloaded, throttled, rate limited, queue full, a broken contract, not connected, third-party outage; dead letters and lost events apart). Seen where the place logs errors to a log store.
+* **Metrics history:** a sample per tick for each monitored component.
+* **Traces:** per traffic component and endpoint, spans through every hop at the model's mean latencies, nesting service calls; seen when the front component samples traces into a trace backend.
+* **Logs:** aggregated lines at each component's level (errors from causes, slow-route warnings, info per route, debug per connection), kept by a log store.
 
 ## Traffic model
 

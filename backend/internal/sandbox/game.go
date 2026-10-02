@@ -196,9 +196,11 @@ type Game struct {
 	queueFail map[string]float64
 	// v13: each edge node's forwarding, outcomes per endpoint, and stats
 	// this solve.
-	fwds     []map[string]fwd
-	epOut    []map[string][2]float64
-	edgeRuns []*EdgeNodeStats
+	// nodeHistory is each monitored component's metrics (v14).
+	nodeHistory map[string][]NodeSample
+	fwds        []map[string]fwd
+	epOut       []map[string][2]float64
+	edgeRuns    []*EdgeNodeStats
 
 	Last    Snapshot
 	History []Meters

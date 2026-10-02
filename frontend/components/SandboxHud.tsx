@@ -42,11 +42,13 @@ export function SandboxHud({
   rules,
   onSpeed,
   onSkip,
+  onObserve,
 }: {
   game: GameState;
   rules: Ruleset;
   onSpeed: (speed: number) => void;
   onSkip: (ticks: number) => void;
+  onObserve?: () => void;
 }) {
   const m = game.meters;
   // From v14 the technical meters need monitoring; business numbers do not.
@@ -84,6 +86,7 @@ export function SandboxHud({
           <button className="secondary" onClick={() => onSkip(288)} disabled={game.status !== "running"}>
             +1 day
           </button>
+          {rules.telemetry && onObserve && <button onClick={onObserve}>Observe</button>}
         </div>
       </div>
       <div className="sb-tiles">

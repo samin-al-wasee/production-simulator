@@ -45,6 +45,7 @@ type Snapshot struct {
 	clientFail  map[string]float64
 	edgeFail    map[string]float64
 	epPath      map[string]map[string]float64
+	report      *Report
 	load        map[string]vec
 	writes      map[string]float64
 	warmth      map[string]float64
@@ -203,6 +204,9 @@ func (g *Game) Step() Snapshot {
 	}
 
 	snap.Meters = g.meters(f)
+	if g.telemetryModel() {
+		g.recordHistory(f.Nodes)
+	}
 	g.track(snap.Meters.Health)
 	g.Tick++
 	g.phases()
