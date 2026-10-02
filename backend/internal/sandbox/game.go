@@ -61,6 +61,9 @@ type Node struct {
 	Client *ClientConfig `json:"client,omitempty"`
 	// Listener overrides the kind's listener once configured (v7).
 	Listener *Listener `json:"listener,omitempty"`
+	// DB is a database's configuration once set (v8). A read replica's
+	// Backlog is the writes it has not applied yet.
+	DB *DBConfig `json:"db,omitempty"`
 }
 
 // Edge sends traffic from one node to another. Conn is its client side
@@ -91,6 +94,7 @@ type Command struct {
 	// Listener configures a node; Connection the edge From → To (v7).
 	Listener   *Listener   `json:"listener,omitempty"`
 	Connection *Connection `json:"connection,omitempty"`
+	DB         *DBConfig   `json:"db,omitempty"`
 }
 
 // LoggedCommand is a command applied before a given tick was simulated.
@@ -147,6 +151,11 @@ type Game struct {
 	runs         []*appRun
 	problem      map[[2]int]string
 	edgeRun      map[string]*EdgeStats
+	// v8: each database's capacity this solve, and last tick's load at
+	// every node and writes at every primary.
+	dbCaps     map[*Node]float64
+	lastLoad   map[string]vec
+	lastWrites map[string]float64
 
 	Last    Snapshot
 	History []Meters

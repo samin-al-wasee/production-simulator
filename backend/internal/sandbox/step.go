@@ -42,6 +42,8 @@ type Snapshot struct {
 	clientFail  map[string]float64
 	edgeFail    map[string]float64
 	epPath      map[string]map[string]float64
+	load        map[string]vec
+	writes      map[string]float64
 	path        map[string]vec
 	outOfMemory []string
 }
@@ -145,6 +147,9 @@ func (g *Game) Step() Snapshot {
 	g.clientFail = snap.clientFail
 	if g.callModel() {
 		g.edgeFail, g.lastEp = snap.edgeFail, snap.epPath
+	}
+	if g.Rules.DB != nil {
+		g.lastLoad, g.lastWrites = snap.load, snap.writes
 	}
 	g.lastPath = snap.path
 	// An instance out of memory crashes, restarts, and starts again.

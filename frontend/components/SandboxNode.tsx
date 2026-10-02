@@ -25,7 +25,7 @@ export function SandboxNode({ id, data, selected }: NodeProps<SandboxFlowNode>) 
   const internet = data.kind === "internet" || data.kind === "traffic";
   const problem = s?.traffic?.problem;
   const util = s?.utilization ?? 0;
-  const health = s?.app?.health;
+  const health = s?.app?.health ?? s?.db?.health;
   // A traffic component is coloured by how its requests fare.
   const failing = !!s?.traffic && s.traffic.success < s.traffic.rps * 0.99;
   const cls = data.down || data.downReplicas > 0 || problem ? "bad" : health ? healthLevel(health) : s?.traffic ? (failing ? "warn" : "ok") : level(util);
