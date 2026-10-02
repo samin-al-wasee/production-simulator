@@ -3,6 +3,9 @@ services:
   - type: web
     name: forgelab-api
     runtime: docker
+    plan: free
+    # Deploy only after the GitHub CI checks on the commit pass.
+    autoDeployTrigger: checksPass
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .
     healthCheckPath: /healthz
