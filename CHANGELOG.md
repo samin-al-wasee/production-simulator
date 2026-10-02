@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phase 11.4: connections and inter-service communication (ADR-0019), in ruleset `sandbox/v7`. New games use v7; v1 to v6 replay bit for bit, now pinned by `testdata/replay.golden`.
+  - **Listeners and connections:** every component that takes connections listens on a protocol, port, and TLS (SQL, RESP, S3, AMQP, or the app's own); every edge gets a client side with a pool, timeout, and retries, adopted on connect and following its target. A mismatch refuses its calls with the reason on the edge.
+  - **Service calls:** routes call other services' endpoints by name, synchronously or asynchronously; applications connect to applications. Load is carried per endpoint, so each service sees exactly what its callers call, and success and latency flow back.
+  - **Outcomes:** a network hop, the connection's timeout, and retries that recover failures and amplify load; a pool smaller than the calls in flight is a bottleneck (`pool:<target>`).
+  - **Reported:** per-connection attempts, retries, failures, latency, and problem (`flow.edges`).
+  - **Templates:** Storefront, Catalog, Orders, Payments, and Notifications application types.
+  - **Dashboard:** a connection inspector with **Configure connection**, listeners on data components, apps titled by service name, failing edges in red, connections in the app's inside view, and calls in the app form.
 - App templates (Phase 11): placing an application instance offers an application type (e-commerce, flight booking, ride sharing, social feed, video streaming: routes with costs, dependencies, and typical shares) on a stack (Django, FastAPI, Express, Rails, Go), or a manual configuration. `place` can carry the instance's `AppConfig`, validated before anything is paid. Routes gain a typical `share`, which a connecting traffic component adopts. The templates are v6 ruleset data the engine never reads.
 - Phase 11: traffic components (ADR-0018), in ruleset `sandbox/v6`. New games use v6, and v1 to v5 replay bit for bit.
   - **Empty start:** a v6 game has no node. The Internet becomes **Traffic**, a free component the player places any number of times.

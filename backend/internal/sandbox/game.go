@@ -59,12 +59,16 @@ type Node struct {
 	// Client is a traffic component's configuration once set (v6); its
 	// pattern also runs from TrafficSince.
 	Client *ClientConfig `json:"client,omitempty"`
+	// Listener overrides the kind's listener once configured (v7).
+	Listener *Listener `json:"listener,omitempty"`
 }
 
-// Edge sends traffic from one node to another.
+// Edge sends traffic from one node to another. Conn is its client side
+// from v7, for every target that listens.
 type Edge struct {
-	From string `json:"from"`
-	To   string `json:"to"`
+	From string      `json:"from"`
+	To   string      `json:"to"`
+	Conn *Connection `json:"conn,omitempty"`
 }
 
 // Command is one player action. Which fields apply depends on Type.
@@ -84,6 +88,9 @@ type Command struct {
 	Traffic *TrafficConfig `json:"traffic,omitempty"`
 	App     *AppConfig     `json:"app,omitempty"`
 	Client  *ClientConfig  `json:"client,omitempty"`
+	// Listener configures a node; Connection the edge From → To (v7).
+	Listener   *Listener   `json:"listener,omitempty"`
+	Connection *Connection `json:"connection,omitempty"`
 }
 
 // LoggedCommand is a command applied before a given tick was simulated.
@@ -129,6 +136,17 @@ type Game struct {
 	// and clientFail each one's attempt failure rate last tick (v6).
 	clients    []clientLoad
 	clientFail map[string]float64
+	// v7: edgeFail is each connection's attempt failure rate last tick,
+	// lastEp each application's latency per endpoint last tick, and the
+	// rest belong to the current solve: per-endpoint load at each
+	// application, each application's run, and the edges' problems.
+	edgeFail     map[string]float64
+	edgeFailNext map[string]float64
+	lastEp       map[string]map[string]float64
+	epLoad       []map[string]float64
+	runs         []*appRun
+	problem      map[[2]int]string
+	edgeRun      map[string]*EdgeStats
 
 	Last    Snapshot
 	History []Meters
@@ -143,6 +161,7 @@ func New(rules *Ruleset, seed int64) *Game {
 		Status:       StatusRunning,
 		Nodes:        []*Node{{ID: InternetID, Kind: KindInternet, Size: "small", Replicas: 1}},
 		clientFail:   map[string]float64{},
+		edgeFail:     map[string]float64{},
 		Cash:         rules.StartingCash,
 		Users:        rules.StartingUsers,
 		Satisfaction: 50,
@@ -327,6 +346,9 @@ func (g *Game) connect(from, to string) error {
 	g.Edges = append(g.Edges, Edge{From: from, To: to})
 	if f.Kind == KindTraffic && t.Kind == KindApp && g.clientModel() {
 		g.adopt(f, t)
+	}
+	if f.Kind != KindTraffic && g.callModel() {
+		g.adoptConn(&g.Edges[len(g.Edges)-1], t)
 	}
 	return nil
 }

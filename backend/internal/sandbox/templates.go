@@ -100,3 +100,35 @@ func appTypes() []AppType {
 			}},
 	}
 }
+
+// microservices are application types that split the e-commerce API into
+// services calling each other by name (v7): a storefront in front of a
+// catalog, orders, and payments. The chooser names each "<type> API", which
+// is the name the calls use.
+func microservices() []AppType {
+	call := func(r AppRoute, calls ...Call) AppRoute { r.Calls = calls; return r }
+	return []AppType{
+		{Name: "Storefront", Description: "A backend for the frontend: no data of its own, it calls the Catalog, Orders, and Payments services.",
+			Routes: []AppRoute{
+				call(appRoute("GET /products", 10, 5, 1, 1, 20, 0.45), Call{Service: "Catalog API", Endpoint: "GET /products"}),
+				call(appRoute("GET /products/:id", 10, 5, 1, 1, 5, 0.3), Call{Service: "Catalog API", Endpoint: "GET /products/:id"}),
+				call(appRoute("POST /checkout", 20, 10, 2, 4, 2, 0.15),
+					Call{Service: "Orders API", Endpoint: "POST /orders"}, Call{Service: "Payments API", Endpoint: "POST /charge"}),
+				appRoute("POST /login", 30, 25, 1, 1, 1, 0.1, DepCache),
+			}},
+		{Name: "Catalog", Description: "Products and their details, read through a cache.",
+			Routes: []AppRoute{
+				appRoute("GET /products", 20, 15, 2, 1, 20, 0.6, DepCache),
+				appRoute("GET /products/:id", 15, 12, 1, 1, 5, 0.4, DepCache),
+			}},
+		{Name: "Orders", Description: "Order writes to its own database, then an async call to notify the customer.",
+			Routes: []AppRoute{
+				call(appRoute("POST /orders", 40, 30, 3, 4, 2, 0.7, DepDBWrite), Call{Service: "Notifications API", Endpoint: "POST /notify", Async: true}),
+				appRoute("GET /orders/:id", 15, 10, 1, 1, 3, 0.3, DepDBRead),
+			}},
+		{Name: "Payments", Description: "Slow charges against an outside processor, recorded in its own database.",
+			Routes: []AppRoute{appRoute("POST /charge", 300, 20, 2, 2, 1, 1, DepDBWrite)}},
+		{Name: "Notifications", Description: "Sends emails and pushes; nothing waits for it.",
+			Routes: []AppRoute{appRoute("POST /notify", 50, 10, 1, 2, 1, 1)}},
+	}
+}

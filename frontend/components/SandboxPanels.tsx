@@ -12,6 +12,7 @@ import {
 } from "@/lib/sandbox";
 import { AppPanel } from "./SandboxApp";
 import { InternetPanel } from "./SandboxInternet";
+import { ListenerSection } from "./SandboxConn";
 import { TrafficPanel } from "./SandboxTraffic";
 
 export const KIND_DRAG_TYPE = "application/x-forgelab-kind";
@@ -175,6 +176,7 @@ export function SandboxInspector({
       )}
 
       {internet && <InternetPanel game={game} rules={rules} onConfigure={onConfigure} />}
+      <ListenerSection key={node.id} rules={rules} node={node} onConfigure={onConfigure} />
       {node.kind === "traffic" && <TrafficPanel game={game} rules={rules} node={node} onConfigure={onConfigure} />}
       {node.kind === "app-instance" && <AppPanel game={game} rules={rules} node={node} stats={stats} onConfigure={onConfigure} />}
 

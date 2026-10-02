@@ -955,3 +955,11 @@ button.link {
   text-decoration: underline;
   cursor: pointer;
 }
+
+.react-flow__edge.sb-edge-selected path {
+  stroke-width: 3;
+}
+
+.sb-listener {
+  margin: 8px 0;
+}

@@ -11,6 +11,7 @@ import {
   toPercent,
   type AppConfig,
   type AppRoute,
+  type Call,
   type Command,
   type GameState,
   type NodeStats,
@@ -27,6 +28,9 @@ const BOTTLENECK: Record<string, string> = {
   "network-in": "inbound network",
   "network-out": "outbound network",
 };
+
+// bottleneckLabel names a bottleneck; a connection pool is named by its target.
+export const bottleneckLabel = (b: string) => (b.startsWith("pool:") ? `connection pool to ${b.slice(5)}` : (BOTTLENECK[b] ?? b));
 
 // The canvas kinds a route's dependency reaches, in order of preference: a
 // cache call falls back to the database, a write goes to a queue when one is
@@ -139,11 +143,42 @@ export function AppView({
     }
     return [];
   };
-  g.column(used.map((d) => {
-    const to = targets(d);
-    return { id: `d:${d}`, title: d, sub: to.length ? `→ ${to.join(", ")}` : "not connected: calls fail", cls: to.length ? undefined : "bad" };
-  }));
-  for (const r of routes) for (const d of depsOf(r.endpoint)) g.link(`rt:${r.endpoint}`, `d:${d}`, share(r.rps));
+  const routeOf = (endpoint: string) => config.routes.find((r) => r.endpoint === endpoint) ?? config.routes.find((r) => r.endpoint === "*");
+  if (rules.listeners) {
+    // From v7 every connection reports what it carried: one node per
+    // target, linked from the routes whose dependencies or calls reach it.
+    const out = game.edges.filter((e) => e.from === node.id);
+    g.column(out.map((e) => {
+      const es = game.flow.edges?.find((x) => x.from === e.from && x.to === e.to);
+      const to = game.nodes.find((x) => x.id === e.to);
+      const failing = !!es && es.rps > 0 && es.errors / es.rps > 0.01;
+      const name = to?.kind === "app-instance" ? appConfig(game, rules, to)?.name : undefined;
+      return {
+        id: `t:${e.to}`,
+        title: name ? `${e.to} (${name})` : e.to,
+        sub: es?.problem ?? `${n(es?.rps)}/s · ${(es?.latencyMs ?? 0).toFixed(0)} ms${failing ? ` · ${n(es!.errors)}/s failed` : ""}${e.conn ? ` · ${e.conn.protocol}` : ""}`,
+        cls: es?.problem || failing ? "bad" : undefined,
+      };
+    }));
+    for (const r of routes) {
+      const rt = routeOf(r.endpoint);
+      const reach = new Set<string>();
+      for (const d of rt?.deps ?? []) targets(d).forEach((id) => reach.add(id));
+      for (const cl of rt?.calls ?? []) {
+        for (const e of out) {
+          const to = game.nodes.find((x) => x.id === e.to);
+          if (to?.kind === "app-instance" && appConfig(game, rules, to)?.name === cl.service) reach.add(e.to);
+        }
+      }
+      for (const id of reach) g.link(`rt:${r.endpoint}`, `t:${id}`, share(r.rps));
+    }
+  } else {
+    g.column(used.map((d) => {
+      const to = targets(d);
+      return { id: `d:${d}`, title: d, sub: to.length ? `→ ${to.join(", ")}` : "not connected: calls fail", cls: to.length ? undefined : "bad" };
+    }));
+    for (const r of routes) for (const d of depsOf(r.endpoint)) g.link(`rt:${r.endpoint}`, `d:${d}`, share(r.rps));
+  }
 
   g.column([{
     id: "out",
@@ -159,7 +194,7 @@ export function AppView({
       hint={
         <>
           {config.name} · {config.framework} · ×{node.replicas}
-          {a && <> · <span className={healthLevel(a.health)}>{a.health}</span>, bottleneck {BOTTLENECK[a.bottleneck] ?? a.bottleneck}</>} · values over all replicas
+          {a && <> · <span className={healthLevel(a.health)}>{a.health}</span>, bottleneck {bottleneckLabel(a.bottleneck)}</>} · values over all replicas
         </>
       }
       graph={g}
@@ -192,7 +227,7 @@ export function AppPanel({
   const rows: [string, string, string?][] = a
     ? [
         ["Health", a.health, healthLevel(a.health)],
-        ["Bottleneck", BOTTLENECK[a.bottleneck] ?? a.bottleneck],
+        ["Bottleneck", bottleneckLabel(a.bottleneck)],
         ["CPU", `${a.cpuUsed.toFixed(2)} / ${a.cpuTotal} vCPU`],
         ["Memory", `${formatCompact(a.memoryMb)} / ${formatCompact(a.memoryTotalMb)} MB`, a.outOfMemory ? "bad" : undefined],
         ["In flight", formatCompact(a.active)],
@@ -532,6 +567,7 @@ function AppDialog({
         <p className="sb-hint">
           What each endpoint costs and calls. The <code>*</code> route handles endpoints without their own. A call to a
           component that is not connected fails the request; a cache call falls back to the database.
+          {rules.listeners && " A call to a service names it (its app name) and an endpoint; it reaches the connected instances with that name. An async call is sent and not waited for."}
         </p>
         {c.routes.map((r, i) => (
           <div className="sb-group" key={i}>
@@ -564,6 +600,30 @@ function AppDialog({
                 />
               ))}
             </div>
+            {rules.listeners && (
+              <div className="sb-calls">
+                {(r.calls ?? []).map((cl, k) => {
+                  const setCall = (p: Partial<Call>) => setRoute(i, { calls: (r.calls ?? []).map((x, j) => (j === k ? { ...x, ...p } : x)) });
+                  return (
+                    <div className="sb-row" key={k}>
+                      <Text label={`Route ${i + 1} call ${k + 1} service`} value={cl.service} onChange={(service) => setCall({ service })} />
+                      <Text label={`Route ${i + 1} call ${k + 1} endpoint`} value={cl.endpoint} onChange={(endpoint) => setCall({ endpoint })} />
+                      <Check label="async" checked={!!cl.async} onChange={(async) => setCall({ async })} />
+                      <button className="secondary danger" onClick={() => setRoute(i, { calls: (r.calls ?? []).filter((_, j) => j !== k) })}>
+                        remove call
+                      </button>
+                    </div>
+                  );
+                })}
+                <button
+                  className="secondary"
+                  disabled={(r.calls ?? []).length >= 8}
+                  onClick={() => setRoute(i, { calls: [...(r.calls ?? []), { service: "Orders API", endpoint: "POST /orders" }] })}
+                >
+                  Add call to a service
+                </button>
+              </div>
+            )}
           </div>
         ))}
         <button

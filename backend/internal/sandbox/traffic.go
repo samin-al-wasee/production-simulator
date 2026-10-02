@@ -273,6 +273,12 @@ func (g *Game) configure(c Command) error {
 	if n := g.Node(c.Node); n != nil && n.Kind == KindTraffic {
 		return g.configureClient(n, c.Client)
 	}
+	if g.callModel() && c.Connection != nil {
+		return g.configureConn(c.From, c.To, c.Connection)
+	}
+	if n := g.Node(c.Node); n != nil && g.callModel() && c.Listener != nil {
+		return g.configureListener(n, c.Listener)
+	}
 	if c.Node != InternetID {
 		return invalid("only the Internet and application instances can be configured")
 	}

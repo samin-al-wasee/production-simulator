@@ -39,6 +39,38 @@ export interface AppRoute {
   errorRate?: number;
   deps?: string[];
   share?: number;
+  calls?: Call[];
+}
+
+// Call is a route's request to another service's endpoint (v7).
+export interface Call {
+  service: string;
+  endpoint: string;
+  async?: boolean;
+}
+
+// Listener is what a component accepts connections on; Connection is the
+// client side of an edge (v7).
+export interface Listener {
+  protocol: string;
+  port: number;
+  tls: boolean;
+}
+
+export interface Connection extends Listener {
+  pool: number;
+  timeoutMs: number;
+  retries?: number;
+}
+
+export interface EdgeStats {
+  from: string;
+  to: string;
+  rps: number;
+  errors: number;
+  retryRps?: number;
+  latencyMs: number;
+  problem?: string;
 }
 
 export interface AppConfig {
@@ -245,6 +277,10 @@ export interface Ruleset {
   clientTypes?: Weight[];
   regionShares?: Weight[];
   protocols?: string[];
+  wireProtocols?: string[];
+  listeners?: Record<string, Listener>;
+  connDefaults?: Connection;
+  networkHopMs?: number;
 }
 
 export interface SandboxNode {
@@ -262,11 +298,13 @@ export interface SandboxNode {
   trafficSince?: number;
   app?: AppConfig;
   client?: ClientConfig;
+  listener?: Listener;
 }
 
 export interface Edge {
   from: string;
   to: string;
+  conn?: Connection;
 }
 
 export interface NodeStats {
@@ -365,6 +403,7 @@ export interface GameState {
     p95LatencyMs: number;
     nodes: NodeStats[];
     traffic?: Traffic;
+    edges?: EdgeStats[];
   };
   history: Meters[] | null;
   events: SandboxEvent[] | null;
@@ -379,7 +418,8 @@ export type Command =
   | { type: "scale"; node: string; replicas: number }
   | { type: "move"; node: string; x: number; y: number }
   | { type: "respond"; action: "restart" | "failover" | "rate-limit" | "lift-rate-limit"; node: string }
-  | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig; client?: ClientConfig };
+  | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig; client?: ClientConfig; listener?: Listener }
+  | { type: "configure"; from: string; to: string; connection: Connection };
 
 export const SPEEDS = [0, 1, 2, 4, 8] as const;
 

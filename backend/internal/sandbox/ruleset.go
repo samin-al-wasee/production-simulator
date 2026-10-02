@@ -158,6 +158,14 @@ type Ruleset struct {
 	RegionShares []Weight      `json:"regionShares,omitempty"`
 	// Protocols are the wire protocols both sides of a connection share.
 	Protocols []string `json:"protocols,omitempty"`
+
+	// From v7: every protocol a connection may speak, the listener of each
+	// kind that takes connections, a new connection's client side, and the
+	// latency a call adds by crossing the network.
+	WireProtocols []string            `json:"wireProtocols,omitempty"`
+	Listeners     map[string]Listener `json:"listeners,omitempty"`
+	ConnDefaults  Connection          `json:"connDefaults,omitzero"`
+	NetworkHopMs  float64             `json:"networkHopMs,omitempty"`
 }
 
 // RulesetV1 is the first Sandbox ruleset.
@@ -234,13 +242,15 @@ func Rulesets(version string) (*Ruleset, error) {
 		return RulesetV5(), nil
 	case "sandbox/v6":
 		return RulesetV6(), nil
+	case "sandbox/v7":
+		return RulesetV7(), nil
 	}
 	return nil, fmt.Errorf("unknown ruleset %q", version)
 }
 
 // Latest returns the ruleset new games are played with.
 func Latest() *Ruleset {
-	return RulesetV6()
+	return RulesetV7()
 }
 
 // Kind returns a kind by name.

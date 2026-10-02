@@ -91,6 +91,8 @@ type AppRoute struct {
 	// Share is the part of a typical client's requests this endpoint gets
 	// when a traffic component adopts the routes (v6); none means equal.
 	Share float64 `json:"share,omitempty"`
+	// Calls are requests to other services' endpoints (v7).
+	Calls []Call `json:"calls,omitempty"`
 }
 
 // Middleware is a stage in the catalog, with its cost per request.
@@ -191,6 +193,9 @@ type mixEntry struct {
 // application, so carry a per-endpoint vector through the solver once a
 // component between them routes or blocks by path.
 func (g *Game) endpointMix(i int) ([]mixEntry, vec) {
+	if g.callModel() {
+		return g.epMix(i)
+	}
 	if g.clientModel() {
 		return g.clientMix(i)
 	}
@@ -235,13 +240,25 @@ type routeRun struct {
 	// own is handler plus middleware time; wall adds last tick's
 	// dependency latency; cpu, conn, in, and out are per request.
 	own, wall, cpu, conn, in, out float64
-	deps                          [][]route
-	depCls                        []int
+	calls                         []callRun
+	// names are the endpoints this route handles; pool is, per call
+	// target, the seconds of an open connection one request holds (v7).
+	names []string
+	pool  map[int]float64
 	// notFound marks an endpoint with no route and no catch-all (v6).
 	notFound bool
 	// ok is the chance every dependency call succeeds, and depMs their mean
 	// latency, once the dependencies are solved.
 	ok, depMs float64
+}
+
+// callRun is one call a route makes: a dependency of a request class, or a
+// service's endpoint (v7), to its targets.
+type callRun struct {
+	to       []route
+	cls      int
+	endpoint string
+	async    bool
 }
 
 // appRun is what an application instance did with a tick's load.
@@ -255,8 +272,10 @@ type appRun struct {
 	waitMs   float64
 	queued   float64
 	stats    AppStats
-	// byRoute indexes routes by their endpoint.
+	// byRoute indexes routes by their endpoint; out is each endpoint's
+	// chance to succeed and latency once finished (v7).
 	byRoute map[string]int
+	out     map[string][2]float64
 }
 
 // servedShare is the share of arriving requests the instance served.
@@ -352,6 +371,9 @@ func (g *Game) runApp(i int, load vec) appRun {
 	}
 
 	run := appRun{byRoute: map[string]int{}}
+	if g.callModel() {
+		run.out = map[string][2]float64{}
+	}
 	byRoute := run.byRoute
 	mix, _ := g.endpointMix(i)
 	for _, m := range mix {
@@ -369,17 +391,26 @@ func (g *Game) runApp(i int, load vec) appRun {
 			rr.wall = rr.own
 			for _, d := range rte.Deps {
 				to, cls := g.depTargets(i, d)
-				rr.deps = append(rr.deps, to)
-				rr.depCls = append(rr.depCls, cls)
+				rr.calls = append(rr.calls, callRun{to: to, cls: cls})
+				if g.callModel() {
+					continue
+				}
 				for _, t := range to {
 					rr.wall += t.share * g.lastPath[g.Nodes[t.to].ID][cls]
 				}
+			}
+			if g.callModel() {
+				for _, cl := range rte.Calls {
+					rr.calls = append(rr.calls, callRun{to: g.split(g.services(i, cl.Service)), cls: endpointClass(cl.Endpoint), endpoint: cl.Endpoint, async: cl.Async})
+				}
+				g.callWall(i, &rr)
 			}
 			rr.conn = rr.wall/1000 + idle
 			run.routes = append(run.routes, rr)
 		}
 		run.routes[k].load[m.cls] += v
 		run.routes[k].rate += v
+		run.routes[k].names = append(run.routes[k].names, m.name)
 	}
 
 	lambda := 0.0
@@ -403,8 +434,7 @@ func (g *Game) runApp(i int, load vec) appRun {
 	run.stats.Bottleneck = "cpu"
 	run.capacity = math.Inf(1)
 	if lambda > 0 {
-		// Each limit is capacity ÷ use per request, at this tick's mix.
-		for _, l := range []struct {
+		limits := []struct {
 			name      string
 			cap, cost float64
 		}{
@@ -413,7 +443,30 @@ func (g *Game) runApp(i int, load vec) appRun {
 			{"connections", float64(cfg.MaxConnections) * up, conn},
 			{"network-in", size.NetworkMbps * up, in},
 			{"network-out", size.NetworkMbps * up, out},
-		} {
+		}
+		// Each connection pool holds a connection for every call in flight
+		// over it (v7).
+		pools := map[int]float64{}
+		var targets []int
+		for _, rr := range run.routes {
+			for x, sec := range rr.pool {
+				if _, ok := pools[x]; !ok {
+					targets = append(targets, x)
+				}
+				pools[x] += rr.rate * sec
+			}
+		}
+		slices.Sort(targets)
+		for _, x := range targets {
+			if e := g.edge(n.ID, g.Nodes[x].ID); e != nil && e.Conn != nil {
+				limits = append(limits, struct {
+					name      string
+					cap, cost float64
+				}{"pool:" + g.Nodes[x].ID, float64(e.Conn.Pool) * up, pools[x]})
+			}
+		}
+		// Each limit is capacity ÷ use per request, at this tick's mix.
+		for _, l := range limits {
 			if c := l.cap / (l.cost / lambda) * start; l.cost > 0 && c < run.capacity {
 				run.capacity, run.stats.Bottleneck = c, l.name
 			}
@@ -496,11 +549,17 @@ func (g *Game) finishApp(n *Node, run *appRun, s, t []vec) (vec, vec) {
 	for k := range run.routes {
 		rr := &run.routes[k]
 		ok, depMs := 1.0, 0.0
-		for d, to := range rr.deps {
+		for _, c := range rr.calls {
+			if g.callModel() {
+				ds, dt := g.finishCall(n, rr, c, s, t)
+				ok *= ds
+				depMs += dt
+				continue
+			}
 			ds, dt := 0.0, 0.0
-			for _, x := range to {
-				ds += x.share * s[x.to][rr.depCls[d]]
-				dt += x.share * s[x.to][rr.depCls[d]] * t[x.to][rr.depCls[d]]
+			for _, x := range c.to {
+				ds += x.share * s[x.to][c.cls]
+				dt += x.share * s[x.to][c.cls] * t[x.to][c.cls]
 			}
 			if ds > 0 {
 				dt /= ds
@@ -510,6 +569,11 @@ func (g *Game) finishApp(n *Node, run *appRun, s, t []vec) (vec, vec) {
 		}
 		rr.ok, rr.depMs = ok, depMs
 		p, late, ms := rr.outcome(served, run.waitMs, cfg.TimeoutMs)
+		if run.out != nil {
+			for _, name := range rr.names {
+				run.out[name] = [2]float64{p, ms}
+			}
+		}
 		rs := RouteStats{Endpoint: rr.route.Endpoint, RPS: rr.rate, Success: rr.rate * p,
 			Timeouts: rr.rate * served * late, Rejected: rr.rate * (1 - served), LatencyMs: ms, NotFound: rr.notFound}
 		rs.Errors = math.Max(0, rr.rate-rs.Success-rs.Timeouts-rs.Rejected)
@@ -585,6 +649,7 @@ func (g *Game) configureApp(n *Node, cfg *AppConfig) error {
 		return invalid("%s", strings.Join(problems, "; "))
 	}
 	n.App = cfg
+	g.follow(n)
 	// Its traffic components follow it (v6).
 	for _, e := range g.Edges {
 		if f := g.Node(e.From); e.To == n.ID && f.Kind == KindTraffic {
@@ -678,6 +743,20 @@ func (r *Ruleset) ValidateApp(c AppConfig) []string {
 		}
 		if !(rt.Share >= 0 && rt.Share <= 1) {
 			bad("%s: typical share must be between 0%% and 100%%", label)
+		}
+		if len(rt.Calls) > 0 && r.Listeners == nil {
+			bad("%s: calls to services need ruleset v7 or later", label)
+		}
+		if len(rt.Calls) > maxCalls {
+			bad("%s: at most %d calls", label, maxCalls)
+		}
+		for k, cl := range rt.Calls {
+			if name := strings.TrimSpace(cl.Service); name == "" || name != cl.Service || len(name) > maxNameLen {
+				bad("%s: call %d needs a service name of 1 to %d characters", label, k+1, maxNameLen)
+			}
+			if !validEndpoint(cl.Endpoint) {
+				bad("%s: call %d endpoint must be like \"GET /path\"", label, k+1)
+			}
 		}
 		used := map[string]bool{}
 		for _, d := range rt.Deps {
