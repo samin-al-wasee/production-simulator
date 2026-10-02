@@ -86,7 +86,14 @@ export function SandboxHud({
           <button className="secondary" onClick={() => onSkip(288)} disabled={game.status !== "running"}>
             +1 day
           </button>
-          {rules.telemetry && onObserve && <button onClick={onObserve}>Observe</button>}
+          {rules.telemetry && onObserve && (
+            <button onClick={onObserve}>
+              Observe
+              {(game.alerts ?? []).some((a) => a.state === "firing") && (
+                <span className="badge firing"> {(game.alerts ?? []).filter((a) => a.state === "firing").length} firing</span>
+              )}
+            </button>
+          )}
         </div>
       </div>
       <div className="sb-tiles">

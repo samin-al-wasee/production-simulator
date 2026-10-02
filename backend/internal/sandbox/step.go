@@ -215,6 +215,7 @@ func (g *Game) Step() Snapshot {
 	if len(g.History) > historyLimit {
 		g.History = g.History[len(g.History)-historyLimit:]
 	}
+	g.evaluateAlerts()
 	if g.loadTest() {
 		// A goal that must hold for several ticks starts over afterwards.
 		clear(g.streak)

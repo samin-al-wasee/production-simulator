@@ -1,7 +1,7 @@
 # ForgeLab Architecture
 
 **Document status:** v2.0 (re-scoped by [ADR-0014](decisions/0014-sandbox-only-platform.md))
-**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic), [ADR-0017](decisions/0017-application-instance-model.md) (application instance), [ADR-0018](decisions/0018-traffic-components.md) (traffic components), [ADR-0019](decisions/0019-connections-and-service-calls.md) (connections and service calls), [ADR-0020](decisions/0020-database-model.md) (database), [ADR-0021](decisions/0021-cache-model.md) (cache), [ADR-0022](decisions/0022-object-storage-model.md) (object storage), [ADR-0023](decisions/0023-queue-and-worker-model.md) (queues and workers), [ADR-0024](decisions/0024-event-streams.md) (event streams), [ADR-0025](decisions/0025-edge-components.md) (edge), [ADR-0027](decisions/0027-configured-telemetry.md) (telemetry), [ADR-0028](decisions/0028-explaining-failures.md) (explaining failures)
+**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic), [ADR-0017](decisions/0017-application-instance-model.md) (application instance), [ADR-0018](decisions/0018-traffic-components.md) (traffic components), [ADR-0019](decisions/0019-connections-and-service-calls.md) (connections and service calls), [ADR-0020](decisions/0020-database-model.md) (database), [ADR-0021](decisions/0021-cache-model.md) (cache), [ADR-0022](decisions/0022-object-storage-model.md) (object storage), [ADR-0023](decisions/0023-queue-and-worker-model.md) (queues and workers), [ADR-0024](decisions/0024-event-streams.md) (event streams), [ADR-0025](decisions/0025-edge-components.md) (edge), [ADR-0027](decisions/0027-configured-telemetry.md) (telemetry), [ADR-0028](decisions/0028-explaining-failures.md) (explaining failures), [ADR-0029](decisions/0029-alerts-slos-incidents.md) (alerts and SLOs)
 
 ForgeLab is the **Production Sandbox**: a city-builder for software production. A new game is an **empty world** and starting cash (from `sandbox/v6`; earlier rulesets also start with an Internet traffic source). The player places components, wires them together, and keeps the system healthy and profitable as users arrive, traffic swings, and incidents happen. Everything is a deterministic model computed in the Go core; nothing runs on the host.
 
@@ -175,6 +175,14 @@ From `sandbox/v14` every tick has a **report** ([ADR-0028](decisions/0028-explai
 * **Metrics history:** a sample per tick for each monitored component.
 * **Traces:** per traffic component and endpoint, spans through every hop at the model's mean latencies, nesting service calls; seen when the front component samples traces into a trace backend.
 * **Logs:** aggregated lines at each component's level (errors from causes, slow-route warnings, info per route, debug per connection), kept by a log store.
+
+## Alerts, SLOs, and incidents
+
+From `sandbox/v14` the `monitor` command sets the game's alert rules and SLOs ([ADR-0029](decisions/0029-alerts-slos-incidents.md)).
+
+* **Alert rules:** a component or the system, a metric, `>` or `<` a threshold, held for N ticks; each tick a rule is *no data* (not observed), *ok*, *pending*, or *firing*; firing and resolving are logged.
+* **SLOs:** availability target over a window of observed ticks: availability `1 − failed ÷ requests`, budget left `1 − failed ÷ ((1 − target) × requests)`, burn rate from the last hour.
+* **Timeline:** events, alerts, and the player's commands in tick order.
 
 ## Traffic model
 

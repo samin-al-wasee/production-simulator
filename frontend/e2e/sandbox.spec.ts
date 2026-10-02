@@ -1019,3 +1019,65 @@ test("observe explains failures with the telemetry that was configured", async (
   await expect(page.locator(".sb-toast")).toHaveCount(0);
   expect(errors, "browser errors").toEqual([]);
 });
+
+test("alerts fire on what is monitored, SLOs spend a budget, and a timeline lines it up", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+  page.on("console", (m) => {
+    if (m.type() === "error" && !m.text().includes("status of 422")) errors.push(`console: ${m.text()}`);
+  });
+
+  // An app failing 10% of its requests, its metrics kept by a store.
+  const api = page.request;
+  const rules = await (await api.get("/api/forgelab/sandbox/ruleset")).json();
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 20, freeBuild: true } })).json();
+  const game = `/api/forgelab/sandbox/games/${created.id}`;
+  const command = async (c: object) => {
+    const res = await api.post(`${game}/commands`, { data: c });
+    expect(res.ok(), await res.text()).toBe(true);
+    return (await res.json()) as { node?: string };
+  };
+  const routes = rules.app.routes.map((r: object) => ({ ...r, errorRate: 0.1 }));
+  const app = (await command({ type: "place", kind: "app-instance", x: 300, y: 0, app: { ...rules.app, routes } })).node!;
+  const db = (await command({ type: "place", kind: "db-primary", x: 600, y: -100 })).node!;
+  const st = (await command({ type: "place", kind: "object-storage", x: 600, y: 100 })).node!;
+  const src = (await command({ type: "place", kind: "traffic", x: 0, y: 0 })).node!;
+  await command({ type: "place", kind: "metrics-store", x: 300, y: 300 });
+  for (const [from, to] of [[src, app], [app, db], [app, st]]) await command({ type: "connect", from, to });
+  await command({ type: "configure", node: app, telemetry: { metrics: true, resolutionSeconds: 60, logLevel: "off", logSampling: 1, traceSampling: 0 } });
+  await api.post(`${game}/step`, { data: { ticks: 1 } });
+
+  await page.goto("/sandbox");
+  await page.evaluate((id) => localStorage.setItem("forgelab.sandbox.game", id), created.id);
+  await page.reload();
+  await page.getByRole("button", { name: "Observe" }).click();
+  const observe = page.getByLabel("Observe");
+
+  // A rule on the app's error rate, added through the form.
+  await observe.getByRole("tab", { name: "Alerts" }).click();
+  await observe.getByLabel("Alert name").fill("App errors");
+  await observe.getByLabel("Alert component").selectOption(app);
+  await observe.getByLabel("Threshold").fill("0.05");
+  await observe.getByLabel("For (ticks)").fill("1");
+  await observe.getByRole("button", { name: "Add rule" }).click();
+  await expect(observe.locator(".sb-alerts tr", { hasText: "App errors" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "+1h" }).click();
+  await expect(page.getByRole("button", { name: /Observe.*1 firing/ })).toBeVisible();
+
+  // Observe opens on the firing alert; an SLO shows its budget burning.
+  await page.getByRole("button", { name: /Observe/ }).click();
+  await expect(observe.locator(".sb-alerts tr", { hasText: "App errors" })).toContainText("firing");
+  await observe.getByRole("tab", { name: "SLOs" }).click();
+  await observe.getByLabel("SLO name").fill("Front");
+  await observe.getByLabel("SLO component").selectOption(app);
+  await observe.getByLabel("Window (ticks)").fill("24");
+  await observe.getByRole("button", { name: "Add SLO" }).click();
+  await expect(observe.locator(".sb-slos tr", { hasText: "Front" })).toContainText("burn ×");
+  await observe.getByRole("tab", { name: "Timeline" }).click();
+  await expect(observe.locator(".sb-timeline tr", { hasText: "App errors fired" })).toBeVisible();
+  await expect(observe.locator(".sb-timeline tr", { hasText: "monitor" }).first()).toBeVisible();
+
+  await expect(page.locator(".sb-toast")).toHaveCount(0);
+  expect(errors, "browser errors").toEqual([]);
+});
