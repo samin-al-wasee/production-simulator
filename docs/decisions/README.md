@@ -33,6 +33,7 @@ This directory records ForgeLab's architecture decisions. Rules live in `AGENTS.
 | [0025](0025-edge-components.md) | Accepted | Load balancer, API gateway, and CDN with contracts (Phase 11) |
 | [0026](0026-container-deployment.md) | Accepted | Deploying the API as a container (Render) |
 | [0027](0027-configured-telemetry.md) | Accepted | Telemetry is configured, not given (Phase 12) |
+| [0028](0028-explaining-failures.md) | Accepted | Explaining failures: causes, metrics history, traces, and logs (Phase 12) |
 
 ## Conventions
 

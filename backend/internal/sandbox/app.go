@@ -262,6 +262,8 @@ type callRun struct {
 	cls      int
 	endpoint string
 	async    bool
+	// what is the dependency or service called, for explanations.
+	what string
 }
 
 // appRun is what an application instance did with a tick's load.
@@ -396,7 +398,7 @@ func (g *Game) runApp(i int, load vec) appRun {
 			rr.wall = rr.own
 			for _, d := range rte.Deps {
 				to, cls := g.depTargets(i, d)
-				rr.calls = append(rr.calls, callRun{to: to, cls: cls})
+				rr.calls = append(rr.calls, callRun{to: to, cls: cls, what: d})
 				if g.callModel() {
 					continue
 				}
@@ -406,7 +408,7 @@ func (g *Game) runApp(i int, load vec) appRun {
 			}
 			if g.callModel() {
 				for _, cl := range rte.Calls {
-					rr.calls = append(rr.calls, callRun{to: g.split(g.services(i, cl.Service)), cls: endpointClass(cl.Endpoint), endpoint: cl.Endpoint, async: cl.Async})
+					rr.calls = append(rr.calls, callRun{to: g.split(g.services(i, cl.Service)), cls: endpointClass(cl.Endpoint), endpoint: cl.Endpoint, async: cl.Async, what: cl.Service})
 				}
 				g.callWall(i, &rr)
 			}

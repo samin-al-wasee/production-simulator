@@ -61,6 +61,10 @@ type SandboxState struct {
 	Events []sandbox.Event `json:"events"`
 	// Goals are the ruleset's goals with their progress.
 	Goals []sandbox.GoalStatus `json:"goals"`
+	// Report explains the last tick, and NodeHistory holds each monitored
+	// component's metrics (v14 and later).
+	Report      *sandbox.Report                 `json:"report,omitempty"`
+	NodeHistory map[string][]sandbox.NodeSample `json:"nodeHistory,omitempty"`
 }
 
 // state must be called with sg.mu held.
@@ -81,7 +85,7 @@ func (sg *sandboxGame) state() SandboxState {
 		Status: g.Status, Speed: sg.speed, Revision: sg.rev, Tick: g.Tick,
 		Meters: g.Last.Meters, Nodes: nodes, Edges: append([]sandbox.Edge{}, g.Edges...),
 		Flow: g.Last.Flow, History: append([]sandbox.Meters{}, g.History...), Events: events,
-		Goals: g.Goals(),
+		Goals: g.Goals(), Report: g.Report(), NodeHistory: g.NodeHistory(),
 	}
 }
 

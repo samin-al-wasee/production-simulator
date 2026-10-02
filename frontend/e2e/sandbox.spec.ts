@@ -957,3 +957,65 @@ test("nothing is seen until it is monitored, and monitoring has a cost", async (
   await expect(page.locator(".sb-toast")).toHaveCount(0);
   expect(errors, "browser errors").toEqual([]);
 });
+
+test("observe explains failures with the telemetry that was configured", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+  page.on("console", (m) => {
+    if (m.type() === "error") errors.push(`console: ${m.text()}`);
+  });
+
+  // A storefront calling an orders service that fails a fifth of its writes;
+  // metrics, error logs, and full tracing on both, with the three backends.
+  const api = page.request;
+  const rules = await (await api.get("/api/forgelab/sandbox/ruleset")).json();
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 18, freeBuild: true } })).json();
+  const game = `/api/forgelab/sandbox/games/${created.id}`;
+  const command = async (c: object) => {
+    const res = await api.post(`${game}/commands`, { data: c });
+    expect(res.ok(), await res.text()).toBe(true);
+    return (await res.json()) as { node?: string };
+  };
+  const route = (endpoint: string, extra: object) => ({ endpoint, baseMs: 20, cpuMs: 5, memoryMb: 1, requestKb: 1, responseKb: 1, ...extra });
+  const orders = (await command({
+    type: "place", kind: "app-instance", x: 600, y: 0,
+    app: { ...rules.app, name: "Orders API", routes: [route("POST /orders", { deps: ["db-write"], errorRate: 0.2 })] },
+  })).node!;
+  const front = (await command({
+    type: "place", kind: "app-instance", x: 300, y: 0,
+    app: { ...rules.app, name: "Front API", routes: [route("POST /checkout", { calls: [{ service: "Orders API", endpoint: "POST /orders" }] })] },
+  })).node!;
+  const db = (await command({ type: "place", kind: "db-primary", x: 900, y: 0 })).node!;
+  const src = (await command({ type: "place", kind: "traffic", x: 0, y: 0 })).node!;
+  for (const kind of ["metrics-store", "log-store", "trace-backend"]) await command({ type: "place", kind, x: 300, y: 300 });
+  for (const [from, to] of [[src, front], [front, orders], [orders, db]]) await command({ type: "connect", from, to });
+  for (const id of [front, orders]) {
+    await command({ type: "configure", node: id, telemetry: { metrics: true, resolutionSeconds: 60, logLevel: "info", logSampling: 1, traceSampling: 1 } });
+  }
+  await api.post(`${game}/step`, { data: { ticks: 3 } });
+
+  await page.goto("/sandbox");
+  await page.evaluate((id) => localStorage.setItem("forgelab.sandbox.game", id), created.id);
+  await page.reload();
+  await page.getByRole("button", { name: "Observe" }).click();
+  const observe = page.getByLabel("Observe");
+
+  // Failures: the handler at orders, and the front's calls to it.
+  await expect(observe.locator(".sb-causes tr", { hasText: "handler error" })).toContainText(orders);
+  await expect(observe.locator(".sb-causes tr", { hasText: "dependency failed" })).toContainText(`calls to ${orders} failed`);
+
+  // Metrics, a trace through both services, and the logs.
+  await observe.getByRole("tab", { name: "Metrics" }).click();
+  await expect(observe.locator(".sb-chart")).toHaveCount(4);
+  await observe.getByRole("tab", { name: "Traces" }).click();
+  await expect(observe.locator(".sb-span", { hasText: `${orders} POST /orders` })).toBeVisible();
+  await expect(observe.locator(".sb-span", { hasText: "handler" }).first()).toBeVisible();
+  await observe.getByRole("tab", { name: "Logs" }).click();
+  await observe.getByLabel("Level").selectOption("error");
+  await expect(observe.locator(".sb-logs tr").first()).toContainText("ERROR");
+  await page.keyboard.press("Escape");
+  await expect(observe).toHaveCount(0);
+
+  await expect(page.locator(".sb-toast")).toHaveCount(0);
+  expect(errors, "browser errors").toEqual([]);
+});
