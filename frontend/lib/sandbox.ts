@@ -343,6 +343,59 @@ export interface Report {
   logs: LogRecord[] | null;
 }
 
+// AlertRule, SLO, and their states are the player's monitoring (v14).
+export interface AlertRule {
+  name: string;
+  node?: string;
+  metric: string;
+  op: ">" | "<";
+  threshold: number;
+  forTicks: number;
+}
+
+export interface SLO {
+  name: string;
+  node?: string;
+  target: number;
+  windowTicks: number;
+}
+
+export interface Monitoring {
+  alerts: AlertRule[];
+  slos: SLO[];
+}
+
+export interface AlertState {
+  rule: string;
+  state: "ok" | "pending" | "firing" | "no data";
+  value: number;
+  since: number;
+}
+
+export interface AlertEvent {
+  rule: string;
+  fired: number;
+  resolved?: number;
+  value: number;
+}
+
+export interface SLOStatus {
+  name: string;
+  target: number;
+  requests: number;
+  failed: number;
+  availability: number;
+  budgetLeft: number;
+  burnRate: number;
+  observed: number;
+}
+
+export interface TimelineEntry {
+  tick: number;
+  kind: "event" | "alert" | "command";
+  text: string;
+}
+
 export interface NodeSample {
   tick: number;
   rps: number;
@@ -714,6 +767,11 @@ export interface SandboxEvent {
 }
 
 export interface GameState {
+  monitoring?: Monitoring;
+  alerts?: AlertState[];
+  alertLog?: AlertEvent[];
+  slos?: SLOStatus[];
+  timeline?: TimelineEntry[];
   report?: Report;
   nodeHistory?: Record<string, NodeSample[]>;
   id: string;
@@ -752,7 +810,8 @@ export type Command =
   | { type: "move"; node: string; x: number; y: number }
   | { type: "respond"; action: "restart" | "failover" | "rate-limit" | "lift-rate-limit"; node: string }
   | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig; client?: ClientConfig; listener?: Listener; db?: DBConfig; cache?: CacheConfig; storage?: StorageConfig; queue?: QueueConfig; worker?: WorkerConfig; stream?: StreamConfig; lb?: LBConfig; gateway?: GatewayConfig; cdn?: CDNConfig; telemetry?: Telemetry }
-  | { type: "configure"; from: string; to: string; connection: Connection };
+  | { type: "configure"; from: string; to: string; connection: Connection }
+  | { type: "monitor"; monitoring: Monitoring };
 
 export const SPEEDS = [0, 1, 2, 4, 8] as const;
 

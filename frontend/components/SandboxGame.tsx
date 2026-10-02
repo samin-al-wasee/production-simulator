@@ -399,7 +399,14 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
           {opened && game.flow.nodes.find((s) => s.id === opened.id)?.edge && <EdgeView game={game} node={opened} onBack={back} />}
           {opened?.kind === "traffic" && <TrafficView game={game} rules={rules} node={opened} onBack={back} />}
           {inside === "internet" && traffic && <InternetView config={traffic} game={game} routed={routedStorage(game, rules)} onBack={back} />}
-          {observing && <ObservePanel game={game} onClose={stopObserving} />}
+          {observing && (
+            <ObservePanel
+              game={game}
+              onClose={stopObserving}
+              initial={(game.alerts ?? []).some((a) => a.state === "firing") ? "alerts" : "failures"}
+              onMonitor={(monitoring) => configure({ type: "monitor", monitoring })}
+            />
+          )}
           {newApp && <NewAppDialog rules={rules} onPlace={placeApp} onClose={() => setNewApp(null)} />}
           {toast && (
             <div className="sb-toast" role="alert">

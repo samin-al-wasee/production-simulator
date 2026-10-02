@@ -113,9 +113,11 @@ type Command struct {
 	App     *AppConfig     `json:"app,omitempty"`
 	Client  *ClientConfig  `json:"client,omitempty"`
 	// Listener configures a node; Connection the edge From → To (v7).
-	Listener   *Listener      `json:"listener,omitempty"`
-	Connection *Connection    `json:"connection,omitempty"`
-	DB         *DBConfig      `json:"db,omitempty"`
+	Listener   *Listener   `json:"listener,omitempty"`
+	Connection *Connection `json:"connection,omitempty"`
+	DB         *DBConfig   `json:"db,omitempty"`
+	// Monitoring is the alert rules and SLOs for a monitor command (v14).
+	Monitoring *Monitoring    `json:"monitoring,omitempty"`
 	Cache      *CacheConfig   `json:"cache,omitempty"`
 	Storage    *StorageConfig `json:"storage,omitempty"`
 	Queue      *QueueConfig   `json:"queue,omitempty"`
@@ -196,6 +198,11 @@ type Game struct {
 	queueFail map[string]float64
 	// v13: each edge node's forwarding, outcomes per endpoint, and stats
 	// this solve.
+	// Monitoring is the player's alert rules and SLOs, alertStates where
+	// each rule stands, and AlertLog the alerts that fired (v14).
+	Monitoring  *Monitoring
+	alertStates map[string]*AlertState
+	AlertLog    []AlertEvent
 	// nodeHistory is each monitored component's metrics (v14).
 	nodeHistory map[string][]NodeSample
 	fwds        []map[string]fwd
@@ -282,6 +289,8 @@ func (g *Game) apply(c Command) (string, error) {
 		return "", g.respond(c)
 	case CmdConfigure:
 		return "", g.configure(c)
+	case CmdMonitor:
+		return "", g.monitor(c.Monitoring)
 	case CmdMove:
 		n := g.Node(c.Node)
 		if n == nil {

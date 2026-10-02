@@ -65,6 +65,14 @@ type SandboxState struct {
 	// component's metrics (v14 and later).
 	Report      *sandbox.Report                 `json:"report,omitempty"`
 	NodeHistory map[string][]sandbox.NodeSample `json:"nodeHistory,omitempty"`
+	// Monitoring is the alert rules and SLOs; Alerts where each rule
+	// stands, AlertLog what fired, SLOs each SLO measured, and Timeline
+	// events, alerts, and commands in order (v14).
+	Monitoring *sandbox.Monitoring     `json:"monitoring,omitempty"`
+	Alerts     []sandbox.AlertState    `json:"alerts,omitempty"`
+	AlertLog   []sandbox.AlertEvent    `json:"alertLog,omitempty"`
+	SLOs       []sandbox.SLOStatus     `json:"slos,omitempty"`
+	Timeline   []sandbox.TimelineEntry `json:"timeline,omitempty"`
 }
 
 // state must be called with sg.mu held.
@@ -86,6 +94,8 @@ func (sg *sandboxGame) state() SandboxState {
 		Meters: g.Last.Meters, Nodes: nodes, Edges: append([]sandbox.Edge{}, g.Edges...),
 		Flow: g.Last.Flow, History: append([]sandbox.Meters{}, g.History...), Events: events,
 		Goals: g.Goals(), Report: g.Report(), NodeHistory: g.NodeHistory(),
+		Monitoring: g.Monitoring, Alerts: g.AlertStates(), AlertLog: append([]sandbox.AlertEvent(nil), g.AlertLog...),
+		SLOs: g.SLOStatuses(), Timeline: g.Timeline(),
 	}
 }
 

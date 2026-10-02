@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phase 12.3: alerts, SLOs, and an incident timeline (ADR-0029): a `monitor` command with alert rules on observed metrics (no data, ok, pending, firing, with a log of what fired), SLOs with error budgets and burn rates from observed history, and a timeline of events, alerts, and commands; Alerts, SLOs, and Timeline tabs and a firing badge.
 - Phase 12.2: explaining failures (ADR-0028): a per-tick report of failure causes by reason and place, traces through every hop, and aggregated logs, plus a metrics history for monitored components, each seen only through the configured telemetry; an **Observe** panel with Failures, Metrics, Traces, and Logs.
 - Phase 12.1: telemetry is configured, not given (ADR-0027), in ruleset `sandbox/v14`: metrics store, log store, and trace backend components with ingest capacity and cost; per-component metrics, log level and sampling, and trace sampling, off by default, with CPU overhead and dropped data when a backend saturates; the dashboard shows business numbers always and a component's numbers, panels, and inside view only while monitored; a Telemetry section in the inspector.
 - Container deployment for the API (ADR-0026): `backend/Dockerfile` (distroless, non-root, about 16 MB, built from the repository root), `.dockerignore`, and a `render.yaml` blueprint; `forgelab serve` listens on `$PORT`, reads `FORGELAB_ALLOW_ORIGIN`, and stops cleanly on SIGTERM.

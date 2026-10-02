@@ -1069,3 +1069,14 @@ button.link {
   text-align: right;
   color: var(--muted);
 }
+
+.badge.firing {
+  margin-left: 6px;
+  background: var(--bad);
+  color: #fff;
+  border-color: var(--bad);
+}
+
+.sb-observe .sb-row {
+  align-items: flex-end;
+}
