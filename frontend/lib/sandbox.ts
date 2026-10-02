@@ -233,6 +233,43 @@ export interface StreamStats {
   groups: GroupStats[] | null;
 }
 
+// LBConfig, GatewayConfig, CDNConfig, and EdgeNodeStats are the edge's
+// model (v13).
+export interface LBConfig {
+  algorithm: "round-robin" | "least-connections";
+  healthChecks: boolean;
+}
+
+export interface GatewayRoute {
+  prefix: string;
+  service: string;
+}
+
+export interface GatewayConfig {
+  routes: GatewayRoute[];
+  auth: boolean;
+  rateLimitRps?: number;
+}
+
+export interface CDNConfig {
+  cacheable?: string[];
+  ttlSeconds: number;
+  objectsPerEndpoint: number;
+  objectKb: number;
+}
+
+export interface EdgeNodeStats {
+  health: Health;
+  targets?: { node: string; rps: number; share: number; healthy: boolean }[];
+  notFound?: number;
+  limited?: number;
+  hits?: number;
+  misses?: number;
+  hitRatio?: number;
+  egressMbps?: number;
+  cost?: number;
+}
+
 export interface EdgeStats {
   from: string;
   to: string;
@@ -458,6 +495,9 @@ export interface Ruleset {
   queue?: QueueConfig;
   worker?: WorkerConfig;
   stream?: StreamConfig;
+  lb?: LBConfig;
+  gateway?: GatewayConfig;
+  cdn?: CDNConfig;
 }
 
 export interface SandboxNode {
@@ -485,6 +525,9 @@ export interface SandboxNode {
   deadLetters?: number;
   stream?: StreamConfig;
   lags?: Record<string, number>;
+  lb?: LBConfig;
+  gateway?: GatewayConfig;
+  cdn?: CDNConfig;
 }
 
 export interface Edge {
@@ -512,6 +555,7 @@ export interface NodeStats {
   storage?: StorageStats;
   queue?: QueueStats;
   stream?: StreamStats;
+  edge?: EdgeNodeStats;
 }
 
 export interface Meters {
@@ -610,7 +654,7 @@ export type Command =
   | { type: "scale"; node: string; replicas: number }
   | { type: "move"; node: string; x: number; y: number }
   | { type: "respond"; action: "restart" | "failover" | "rate-limit" | "lift-rate-limit"; node: string }
-  | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig; client?: ClientConfig; listener?: Listener; db?: DBConfig; cache?: CacheConfig; storage?: StorageConfig; queue?: QueueConfig; worker?: WorkerConfig; stream?: StreamConfig }
+  | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig; client?: ClientConfig; listener?: Listener; db?: DBConfig; cache?: CacheConfig; storage?: StorageConfig; queue?: QueueConfig; worker?: WorkerConfig; stream?: StreamConfig; lb?: LBConfig; gateway?: GatewayConfig; cdn?: CDNConfig }
   | { type: "configure"; from: string; to: string; connection: Connection };
 
 export const SPEEDS = [0, 1, 2, 4, 8] as const;

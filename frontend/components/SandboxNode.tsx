@@ -25,7 +25,7 @@ export function SandboxNode({ id, data, selected }: NodeProps<SandboxFlowNode>) 
   const internet = data.kind === "internet" || data.kind === "traffic";
   const problem = s?.traffic?.problem;
   const util = s?.utilization ?? 0;
-  const health = s?.app?.health ?? s?.db?.health ?? s?.cache?.health ?? s?.storage?.health ?? s?.queue?.health ?? s?.stream?.health;
+  const health = s?.app?.health ?? s?.db?.health ?? s?.cache?.health ?? s?.storage?.health ?? s?.queue?.health ?? s?.stream?.health ?? s?.edge?.health;
   // A traffic component is coloured by how its requests fare.
   const failing = !!s?.traffic && s.traffic.success < s.traffic.rps * 0.99;
   const cls = data.down || data.downReplicas > 0 || problem ? "bad" : health ? healthLevel(health) : s?.traffic ? (failing ? "warn" : "ok") : level(util);
@@ -36,7 +36,9 @@ export function SandboxNode({ id, data, selected }: NodeProps<SandboxFlowNode>) 
       <div className="sb-node-meta">
         {internet
           ? `${data.kind === "traffic" ? `${id} · ` : ""}${data.loadTest ? "traffic source · load test" : "traffic source"}`
-          : `${id} · ${data.size}${data.replicas > 1 ? ` ×${data.replicas}` : ""}`}
+          : s?.storage || (data.kind === "cdn" && s?.edge)
+            ? `${id} · managed`
+            : `${id} · ${data.size}${data.replicas > 1 ? ` ×${data.replicas}` : ""}`}
       </div>
       {s && (
         <>

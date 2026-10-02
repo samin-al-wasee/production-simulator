@@ -79,6 +79,10 @@ type Node struct {
 	// events each consumer group has not read yet.
 	Stream *StreamConfig      `json:"stream,omitempty"`
 	Lags   map[string]float64 `json:"lags,omitempty"`
+	// LB, Gateway, and CDN configure the edge once set (v13).
+	LB      *LBConfig      `json:"lb,omitempty"`
+	Gateway *GatewayConfig `json:"gateway,omitempty"`
+	CDN     *CDNConfig     `json:"cdn,omitempty"`
 }
 
 // Edge sends traffic from one node to another. Conn is its client side
@@ -115,6 +119,9 @@ type Command struct {
 	Queue      *QueueConfig   `json:"queue,omitempty"`
 	Worker     *WorkerConfig  `json:"worker,omitempty"`
 	Stream     *StreamConfig  `json:"stream,omitempty"`
+	LB         *LBConfig      `json:"lb,omitempty"`
+	Gateway    *GatewayConfig `json:"gateway,omitempty"`
+	CDN        *CDNConfig     `json:"cdn,omitempty"`
 }
 
 // LoggedCommand is a command applied before a given tick was simulated.
@@ -184,6 +191,11 @@ type Game struct {
 	// v11: the share of each queue's deliveries its workers failed last
 	// tick.
 	queueFail map[string]float64
+	// v13: each edge node's forwarding, outcomes per endpoint, and stats
+	// this solve.
+	fwds     []map[string]fwd
+	epOut    []map[string][2]float64
+	edgeRuns []*EdgeNodeStats
 
 	Last    Snapshot
 	History []Meters
@@ -381,8 +393,17 @@ func (g *Game) connect(from, to string) error {
 		return invalid("connecting %s to %s would create a loop", from, to)
 	}
 	g.Edges = append(g.Edges, Edge{From: from, To: to})
-	if f.Kind == KindTraffic && t.Kind == KindApp && g.clientModel() {
+	if f.Kind == KindTraffic && g.clientModel() {
 		g.adopt(f, t)
+	}
+	if g.edgeModel(f) && t.Kind == KindApp {
+		// Traffic in front of this edge node with nothing to ask for yet
+		// takes the routes of the application now behind it.
+		for _, e := range g.Edges {
+			if src := g.Node(e.From); e.To == f.ID && src.Kind == KindTraffic && len(g.clientConfig(src).Endpoints) == 0 {
+				g.adopt(src, f)
+			}
+		}
 	}
 	if f.Kind != KindTraffic && g.callModel() {
 		g.adoptConn(&g.Edges[len(g.Edges)-1], t)
@@ -435,6 +456,9 @@ func (g *Game) placeable(id string) (*Node, Kind, error) {
 	}
 	if g.storageModel(n) {
 		return nil, Kind{}, invalid("object storage is a managed service: it scales by prefixes, not sizes or replicas")
+	}
+	if g.edgeModel(n) && n.Kind == KindCDN {
+		return nil, Kind{}, invalid("a CDN is a managed service: it has no sizes or replicas")
 	}
 	k, _ := g.Rules.Kind(n.Kind)
 	return n, k, nil

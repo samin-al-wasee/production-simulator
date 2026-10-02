@@ -28,8 +28,10 @@ type NodeStats struct {
 	// Storage is object storage's (v10); Queue a message queue's (v11).
 	Storage *StorageStats `json:"storage,omitempty"`
 	Queue   *QueueStats   `json:"queue,omitempty"`
-	// Stream is an event stream's (v12).
-	Stream *StreamStats `json:"stream,omitempty"`
+	// Stream is an event stream's (v12); Edge a load balancer's,
+	// gateway's, or CDN's (v13).
+	Stream *StreamStats   `json:"stream,omitempty"`
+	Edge   *EdgeNodeStats `json:"edge,omitempty"`
 }
 
 // Flow is the result of routing one tick's traffic through the topology.
@@ -271,6 +273,12 @@ func (g *Game) solve() Snapshot {
 	}
 	g.problem, g.epLoad, g.edgeRun, g.edgeFailNext = nil, nil, nil, map[string]float64{}
 	g.runs = make([]*appRun, len(g.Nodes))
+	g.fwds, g.epOut, g.edgeRuns = nil, nil, nil
+	if g.Rules.LB != nil {
+		g.fwds = make([]map[string]fwd, len(g.Nodes))
+		g.epOut = make([]map[string][2]float64, len(g.Nodes))
+		g.edgeRuns = make([]*EdgeNodeStats, len(g.Nodes))
+	}
 	if g.callModel() {
 		// Requests are carried per endpoint to every application (v7).
 		g.problem = g.edgeProblems()
@@ -518,6 +526,13 @@ func (g *Game) solve() Snapshot {
 			continue
 		}
 		served[i] = math.Min(offered[i], c)
+		// A gateway answers requests above its rate limit with 429 (v13).
+		limited := 0.0
+		if g.edgeModel(nd) && nd.Kind == KindGateway {
+			if lim := g.gatewayConfig(nd).RateLimitRPS; lim > 0 && served[i] > lim {
+				limited, served[i] = served[i]-lim, lim
+			}
+		}
 		out, a := served[i], share(i)
 		if run := caches[i]; run != nil {
 			// Refused connections never reach the database behind.
@@ -536,6 +551,12 @@ func (g *Game) solve() Snapshot {
 		keep := 0.0
 		if offered[i] > 0 {
 			keep = out / offered[i]
+		}
+		if g.edgeModel(nd) {
+			// From v13 the edge forwards endpoint by endpoint.
+			g.forward(i, keep, a, load, attack)
+			g.edgeRuns[i].Limited = limited
+			continue
 		}
 		for cl := range nClass {
 			p := plans[i][cl]
@@ -650,7 +671,16 @@ func (g *Game) solve() Snapshot {
 		if nd.RateLimited {
 			frac *= 1 - r.RateLimitFalsePositive
 		}
+		if g.edgeModel(nd) {
+			if nd.Kind == KindGateway && g.gatewayConfig(nd).Auth {
+				own += r.EdgeRuntime.AuthMs
+			}
+			s[i], t[i] = g.finishEdge(i, frac, own)
+		}
 		for cl := range nClass {
+			if g.edgeModel(nd) {
+				break
+			}
 			p := plans[i][cl]
 			succ, lat := p.local, 0.0
 			for _, grp := range p.groups {
@@ -697,6 +727,13 @@ func (g *Game) solve() Snapshot {
 		if run := storages[i]; run != nil {
 			// Object storage is priced by use, not by replica (v10).
 			stats[i].Storage, stats[i].CostPerHour = &run.stats, run.cost
+		}
+		if g.edgeModel(nd) {
+			stats[i].Edge = g.edgeRuns[i]
+			if nd.Kind == KindCDN {
+				// A CDN is priced by use (v13).
+				stats[i].CostPerHour = g.edgeRuns[i].Cost
+			}
 		}
 		if st := streams[i]; st != nil {
 			stats[i].Stream = st
