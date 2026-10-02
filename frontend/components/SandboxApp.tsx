@@ -311,7 +311,7 @@ function Text({ label, value, onChange }: { label: string; value: string; onChan
   );
 }
 
-function Check({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+export function Check({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label>
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} /> {label}

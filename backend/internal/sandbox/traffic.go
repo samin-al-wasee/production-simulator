@@ -273,6 +273,12 @@ func (g *Game) configure(c Command) error {
 	if n := g.Node(c.Node); n != nil && n.Kind == KindTraffic {
 		return g.configureClient(n, c.Client)
 	}
+	if n := g.Node(c.Node); n != nil && g.queueModel(n) && c.Queue != nil {
+		return g.configureQueue(n, c.Queue)
+	}
+	if n := g.Node(c.Node); n != nil && n.Kind == KindWorker && g.Rules.Worker != nil && c.Worker != nil {
+		return g.configureWorker(n, c.Worker)
+	}
 	if n := g.Node(c.Node); n != nil && g.storageModel(n) && c.Storage != nil {
 		return g.configureStorage(n, c.Storage)
 	}

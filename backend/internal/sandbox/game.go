@@ -70,6 +70,11 @@ type Node struct {
 	Warmth float64      `json:"warmth,omitempty"`
 	// Storage is object storage's configuration once set (v10).
 	Storage *StorageConfig `json:"storage,omitempty"`
+	// Queue and Worker configure a queue and a worker once set (v11);
+	// DeadLetters are the messages a queue gave up on.
+	Queue       *QueueConfig  `json:"queue,omitempty"`
+	Worker      *WorkerConfig `json:"worker,omitempty"`
+	DeadLetters float64       `json:"deadLetters,omitempty"`
 }
 
 // Edge sends traffic from one node to another. Conn is its client side
@@ -103,6 +108,8 @@ type Command struct {
 	DB         *DBConfig      `json:"db,omitempty"`
 	Cache      *CacheConfig   `json:"cache,omitempty"`
 	Storage    *StorageConfig `json:"storage,omitempty"`
+	Queue      *QueueConfig   `json:"queue,omitempty"`
+	Worker     *WorkerConfig  `json:"worker,omitempty"`
 }
 
 // LoggedCommand is a command applied before a given tick was simulated.
@@ -169,6 +176,9 @@ type Game struct {
 	// v9: each cache's capacity and run this solve.
 	cacheCaps map[*Node]float64
 	cacheRuns []*cacheRun
+	// v11: the share of each queue's deliveries its workers failed last
+	// tick.
+	queueFail map[string]float64
 
 	Last    Snapshot
 	History []Meters

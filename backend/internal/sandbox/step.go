@@ -45,6 +45,8 @@ type Snapshot struct {
 	load        map[string]vec
 	writes      map[string]float64
 	warmth      map[string]float64
+	queueFail   map[string]float64
+	deadLetters map[string]float64
 	path        map[string]vec
 	outOfMemory []string
 }
@@ -154,6 +156,12 @@ func (g *Game) Step() Snapshot {
 	}
 	for id, w := range snap.warmth {
 		g.Node(id).Warmth = w
+	}
+	if g.Rules.Queue != nil {
+		g.queueFail = snap.queueFail
+		for id, d := range snap.deadLetters {
+			g.Node(id).DeadLetters = d
+		}
 	}
 	g.lastPath = snap.path
 	// An instance out of memory crashes, restarts, and starts again.

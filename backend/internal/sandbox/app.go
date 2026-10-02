@@ -167,6 +167,9 @@ type RouteStats struct {
 
 // appConfig is a node's configuration, or the ruleset's until one is set.
 func (g *Game) appConfig(n *Node) *AppConfig {
+	if n.Kind == KindWorker && g.Rules.Worker != nil {
+		return g.workerApp(n)
+	}
 	if n.App != nil {
 		return n.App
 	}
@@ -175,7 +178,7 @@ func (g *Game) appConfig(n *Node) *AppConfig {
 
 // appModel reports whether a node runs the application model of v5.
 func (g *Game) appModel(n *Node) bool {
-	return n.Kind == KindApp && g.Rules.App != nil
+	return n.Kind == KindApp && g.Rules.App != nil || n.Kind == KindWorker && g.Rules.Worker != nil
 }
 
 // mixEntry is an endpoint's request class and its share of that class.
@@ -471,6 +474,11 @@ func (g *Game) runApp(i int, load vec) appRun {
 				run.capacity, run.stats.Bottleneck = c, l.name
 			}
 		}
+	}
+	// An event that cuts a component's capacity cuts its throughput (a
+	// worker's from v11; it never targets applications).
+	if f := factor(g.fx.capacity, n.ID); f != 1 {
+		run.capacity *= f
 	}
 	if up == 0 {
 		run.capacity = 0
