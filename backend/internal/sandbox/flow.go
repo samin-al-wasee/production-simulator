@@ -25,8 +25,9 @@ type NodeStats struct {
 	// DB is a database's runtime state (v8); Cache a cache's (v9).
 	DB    *DBStats    `json:"db,omitempty"`
 	Cache *CacheStats `json:"cache,omitempty"`
-	// Storage is object storage's (v10).
+	// Storage is object storage's (v10); Queue a message queue's (v11).
 	Storage *StorageStats `json:"storage,omitempty"`
+	Queue   *QueueStats   `json:"queue,omitempty"`
 }
 
 // Flow is the result of routing one tick's traffic through the topology.
@@ -340,6 +341,7 @@ func (g *Game) solve() Snapshot {
 	dbs := make([]*dbRun, n)
 	caches := make([]*cacheRun, n)
 	storages := make([]*storageRun, n)
+	queues := make([]*QueueStats, n)
 	g.cacheRuns = caches
 	// Attack traffic asks for what real users ask for, and never retries.
 	if g.clientModel() {
@@ -445,19 +447,45 @@ func (g *Game) solve() Snapshot {
 			for _, w := range workers {
 				drain += g.capacity(g.Nodes[w.to])
 			}
-			room := math.Max(0, k.MaxBacklog*float64(nd.Replicas)-nd.Backlog)
+			maxBacklog := k.MaxBacklog * float64(nd.Replicas)
+			amp, qc := 1.0, (*QueueConfig)(nil)
+			if g.queueModel(nd) {
+				// Messages the workers failed come back until they run out
+				// of deliveries (v11).
+				qc = g.queueConfig(nd)
+				maxBacklog = qc.MaxBacklog * float64(nd.Replicas)
+				amp = redelivery(g.queueFail[nd.ID], qc.MaxDeliveries)
+			}
+			room := math.Max(0, maxBacklog-nd.Backlog)
 			if nd.Down {
 				// A failed queue keeps its messages but neither takes nor
 				// delivers any until it is back.
 				room, drain = 0, 0
 			}
 			accepted := math.Min(offered[i], math.Min(c, drain+room/dt))
-			drained := math.Min(drain, nd.Backlog/dt+accepted)
-			backlog[i] = nd.Backlog + (accepted-drained)*dt
+			if qc != nil {
+				accepted = math.Min(offered[i], math.Min(c, drain+room/dt)/amp)
+			}
+			inflow := accepted * amp
+			drained := math.Min(drain, nd.Backlog/dt+inflow)
+			backlog[i] = nd.Backlog + (inflow-drained)*dt
 			served[i] = accepted
+			if qc != nil {
+				f := g.queueFail[nd.ID]
+				dead := accepted * math.Pow(f, float64(qc.MaxDeliveries))
+				queues[i] = &QueueStats{Published: offered[i], Rejected: offered[i] - accepted, Delivered: drained,
+					Redelivered: inflow - accepted, DeadLettered: dead, DeadLetters: nd.DeadLetters + dead*dt,
+					Backlog: backlog[i], MaxBacklog: maxBacklog, WorkerFailure: f}
+				if drained > 0 {
+					queues[i].DelaySeconds = backlog[i] / drained
+				}
+			}
 			for _, w := range workers {
 				load[w.to][clsWrite] += drained * w.share
 				attack[w.to] += drained * w.share * share(i)
+				if g.queueModel(nd) {
+					g.edgeStat(i, w.to).RPS += drained * w.share
+				}
 			}
 			plans[i] = [nClass]plan{{local: 1}, {local: 1}, {local: 1}}
 			continue
@@ -643,6 +671,19 @@ func (g *Game) solve() Snapshot {
 			// Object storage is priced by use, not by replica (v10).
 			stats[i].Storage, stats[i].CostPerHour = &run.stats, run.cost
 		}
+		if q := queues[i]; q != nil {
+			switch fail := q.Rejected / math.Max(q.Published, 1e-300); {
+			case nd.Down:
+				q.Health = HealthStopped
+			case fail > 0.2:
+				q.Health = HealthUnhealthy
+			case fail > 0.01 || q.DeadLettered > 0.01 || q.Backlog > 0.85*q.MaxBacklog:
+				q.Health = HealthDegraded
+			default:
+				q.Health = HealthHealthy
+			}
+			stats[i].Queue = q
+		}
 	}
 
 	// An attempt's chance of success by class; a third-party outage fails
@@ -720,6 +761,24 @@ func (g *Game) solve() Snapshot {
 		f.Edges = g.edgeStats(load, s, t)
 	}
 	snap := Snapshot{Flow: f, backlog: backlog, attemptFail: fail, clientFail: clientFail, edgeFail: g.edgeFailNext, epPath: map[string]map[string]float64{}, path: map[string]vec{}}
+	if g.Rules.Queue != nil {
+		// Each queue learns how often its workers failed this tick.
+		snap.queueFail, snap.deadLetters = map[string]float64{}, map[string]float64{}
+		for i, nd := range g.Nodes {
+			if q := queues[i]; q != nil {
+				snap.deadLetters[nd.ID] = q.DeadLetters
+				f := 0.0
+				for _, w := range g.split(g.targets(i, KindWorker)) {
+					if run := apps[w.to]; run != nil {
+						if lambda := run.served + run.rejected; lambda > 0 {
+							f += w.share * (1 - run.stats.Success/lambda)
+						}
+					}
+				}
+				snap.queueFail[nd.ID] = f
+			}
+		}
+	}
 	if g.Rules.Cache != nil {
 		snap.warmth = map[string]float64{}
 		for i, nd := range g.Nodes {

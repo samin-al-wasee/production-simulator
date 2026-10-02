@@ -1,7 +1,7 @@
 # ForgeLab Architecture
 
 **Document status:** v2.0 (re-scoped by [ADR-0014](decisions/0014-sandbox-only-platform.md))
-**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic), [ADR-0017](decisions/0017-application-instance-model.md) (application instance), [ADR-0018](decisions/0018-traffic-components.md) (traffic components), [ADR-0019](decisions/0019-connections-and-service-calls.md) (connections and service calls), [ADR-0020](decisions/0020-database-model.md) (database), [ADR-0021](decisions/0021-cache-model.md) (cache), [ADR-0022](decisions/0022-object-storage-model.md) (object storage)
+**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic), [ADR-0017](decisions/0017-application-instance-model.md) (application instance), [ADR-0018](decisions/0018-traffic-components.md) (traffic components), [ADR-0019](decisions/0019-connections-and-service-calls.md) (connections and service calls), [ADR-0020](decisions/0020-database-model.md) (database), [ADR-0021](decisions/0021-cache-model.md) (cache), [ADR-0022](decisions/0022-object-storage-model.md) (object storage), [ADR-0023](decisions/0023-queue-and-worker-model.md) (queues and workers)
 
 ForgeLab is the **Production Sandbox**: a city-builder for software production. A new game is an **empty world** and starting cash (from `sandbox/v6`; earlier rulesets also start with an Internet traffic source). The player places components, wires them together, and keeps the system healthy and profitable as users arrive, traffic swings, and incidents happen. Everything is a deterministic model computed in the Go core; nothing runs on the host.
 
@@ -133,6 +133,13 @@ From `sandbox/v10` object storage is a managed service ([ADR-0022](decisions/002
 * **Rate:** 5,500 GETs/s per prefix; the rest is throttled and fails.
 * **Latency:** first byte by class (standard 20 ms, infrequent 30 ms, archive 2,000 ms) + `object size ÷ 80 Mbps`, over the utilization factor.
 * **Cost per hour:** stored GB (`1 GB + 2 MB × users`) at the class's GB-month price ÷ 730, GETs at its price per 1,000, retrieval per GB for colder classes, and egress at $0.09 per GB.
+
+## Queue and worker model
+
+From `sandbox/v11` ([ADR-0023](decisions/0023-queue-and-worker-model.md)):
+
+* **Queues** (`queue`: engine, max backlog, visibility timeout, max deliveries) deliver at least once. With `f` the workers' failure share on the previous tick and `D` max deliveries, each message takes `1 + f + … + f^(D−1)` deliveries, and `f^D` are dead-lettered into the queue's dead-letter count. Publishers succeed when the queue accepts; a full backlog rejects. Delay is `backlog ÷ delivery rate`.
+* **Workers** (`worker`: concurrency and a handler route) run the application model with one route `POST /messages`: slots = concurrency, one process per vCPU, timeout = the queue's visibility timeout. A message processed past it, or failed by the handler or a dependency, counts as a failed delivery.
 
 ## Traffic model
 
@@ -268,6 +275,7 @@ The economy is generic: revenue per successful request, cost per component-hour.
 | `sandbox/v3` | v2 plus goals and unlocks. |
 | `sandbox/v4` | v3 plus a configurable Internet: traffic groups, endpoints, regions, retries, and load tests. The CDN's hit ratio becomes 45% of cacheable reads. |
 | `sandbox/v5` | v4 plus the application instance model: capacity from CPU, slots, connections, and network under the routes' costs; middleware; queueing, timeouts, rejection, out-of-memory crashes, and health. |
+| `sandbox/v11` | v10 plus at-least-once queues (redelivery, visibility timeout, dead letters, delay) and workers running the application model with a handler. |
 | `sandbox/v10` | v9 plus object storage as a managed service: prefixes and throttling, first byte and transfer, usage pricing with egress. |
 | `sandbox/v9` | v8 plus the cache model: memory against the working set, eviction policy, TTL against traffic, warm-up after a start, CPU and network limits, max connections. |
 | `sandbox/v8` | v7 plus the database model: query profiles, buffer cache over growing data, IOPS, locks, max connections against pools, replication lag. |

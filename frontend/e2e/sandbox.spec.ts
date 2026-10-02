@@ -722,3 +722,59 @@ test("object storage is priced by use and scales by prefixes", async ({ page }) 
   await expect(page.locator(".sb-toast")).toHaveCount(0);
   expect(errors, "browser errors").toEqual([]);
 });
+
+test("a queue redelivers what its worker fails and dead-letters the rest", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
+  page.on("console", (m) => {
+    if (m.type() === "error" && !m.text().includes("status of 422")) errors.push(`console: ${m.text()}`);
+  });
+
+  const api = page.request;
+  const created = await (await api.post("/api/forgelab/sandbox/games", { data: { seed: 10, freeBuild: true } })).json();
+  const game = `/api/forgelab/sandbox/games/${created.id}`;
+  const command = async (c: object) => {
+    const res = await api.post(`${game}/commands`, { data: c });
+    expect(res.ok(), await res.text()).toBe(true);
+    return (await res.json()) as { node?: string };
+  };
+  const src = (await command({ type: "place", kind: "traffic", x: 0, y: 0 })).node!;
+  const app = (await command({ type: "place", kind: "app-instance", x: 300, y: 0 })).node!;
+  const q = (await command({ type: "place", kind: "queue", x: 600, y: 0 })).node!;
+  const w = (await command({ type: "place", kind: "worker", x: 900, y: 0 })).node!;
+  const db = (await command({ type: "place", kind: "db-primary", x: 1200, y: 0 })).node!;
+  const st = (await command({ type: "place", kind: "object-storage", x: 600, y: 200 })).node!;
+  for (const [from, to] of [[src, app], [app, q], [q, w], [w, db], [app, db], [app, st]]) await command({ type: "connect", from, to });
+  await api.post(`${game}/step`, { data: { ticks: 2 } });
+
+  await page.goto("/sandbox");
+  await page.evaluate((id) => localStorage.setItem("forgelab.sandbox.game", id), created.id);
+  await page.reload();
+
+  // Make the worker fail half its messages.
+  const inspector = page.locator(".sb-inspector");
+  await node(page, w).click();
+  await expect(inspector.locator("tr", { hasText: "Acknowledged" })).toBeVisible();
+  await inspector.getByRole("button", { name: "Configure worker" }).click();
+  const dialog = page.getByRole("dialog", { name: "Background worker" });
+  await dialog.getByLabel("Concurrency").fill("0");
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("concurrency must be between 1 and 10000");
+  await dialog.getByLabel("Concurrency").fill("10");
+  await dialog.getByLabel("Handler errors %").fill("50");
+  await dialog.getByRole("button", { name: "Apply" }).click();
+  await expect(dialog).toBeHidden();
+  await page.getByRole("button", { name: "+1h" }).click();
+
+  // The queue redelivers and dead-letters; publishers do not notice.
+  await node(page, q).click();
+  const inside = page.getByLabel(`Inside ${q}`);
+  await expect(inside.locator(".react-flow__node", { hasText: "Dead-letter queue" })).toBeVisible();
+  await expect(inside.locator(".react-flow__node", { hasText: "Redeliveries" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(inspector.locator("tr", { hasText: "Redelivered" })).toContainText("workers fail 50%");
+  await expect.poll(() => tile(page, "Errors")).toBe("0.0%");
+
+  await expect(page.locator(".sb-toast")).toHaveCount(0);
+  expect(errors, "browser errors").toEqual([]);
+});

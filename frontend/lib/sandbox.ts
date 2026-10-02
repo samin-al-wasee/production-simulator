@@ -171,6 +171,34 @@ export interface StorageStats {
   egressCost: number;
 }
 
+// QueueConfig, WorkerConfig, and QueueStats are a queue's and a worker's
+// model (v11); a worker reports its run as AppStats.
+export interface QueueConfig {
+  engine: string;
+  maxBacklog: number;
+  visibilitySeconds: number;
+  maxDeliveries: number;
+}
+
+export interface WorkerConfig {
+  concurrency: number;
+  handler: AppRoute;
+}
+
+export interface QueueStats {
+  health: Health;
+  published: number;
+  rejected: number;
+  delivered: number;
+  redelivered: number;
+  deadLettered: number;
+  deadLetters: number;
+  backlog: number;
+  maxBacklog: number;
+  delaySeconds: number;
+  workerFailure: number;
+}
+
 export interface EdgeStats {
   from: string;
   to: string;
@@ -393,6 +421,8 @@ export interface Ruleset {
   cache?: CacheConfig;
   storage?: StorageConfig;
   storageRuntime?: { classes: StorageClass[]; getsPerPrefix: number };
+  queue?: QueueConfig;
+  worker?: WorkerConfig;
 }
 
 export interface SandboxNode {
@@ -415,6 +445,9 @@ export interface SandboxNode {
   cache?: CacheConfig;
   warmth?: number;
   storage?: StorageConfig;
+  queue?: QueueConfig;
+  worker?: WorkerConfig;
+  deadLetters?: number;
 }
 
 export interface Edge {
@@ -440,6 +473,7 @@ export interface NodeStats {
   db?: DBStats;
   cache?: CacheStats;
   storage?: StorageStats;
+  queue?: QueueStats;
 }
 
 export interface Meters {
@@ -538,7 +572,7 @@ export type Command =
   | { type: "scale"; node: string; replicas: number }
   | { type: "move"; node: string; x: number; y: number }
   | { type: "respond"; action: "restart" | "failover" | "rate-limit" | "lift-rate-limit"; node: string }
-  | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig; client?: ClientConfig; listener?: Listener; db?: DBConfig; cache?: CacheConfig; storage?: StorageConfig }
+  | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig; client?: ClientConfig; listener?: Listener; db?: DBConfig; cache?: CacheConfig; storage?: StorageConfig; queue?: QueueConfig; worker?: WorkerConfig }
   | { type: "configure"; from: string; to: string; connection: Connection };
 
 export const SPEEDS = [0, 1, 2, 4, 8] as const;
