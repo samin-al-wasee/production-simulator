@@ -15,6 +15,8 @@ ForgeLab/
 ├── LICENSE                  Apache-2.0
 ├── CHANGELOG.md             Release history
 ├── Makefile                 Development helper targets
+├── render.yaml              Render blueprint for the API (ADR-0026)
+├── .dockerignore            What the API image is built from
 │
 ├── docs/                    Vision, architecture, principles, catalog, decisions
 ├── backend/                 Go: Sandbox engine, pipeline simulator, learning tracker, secret scan, API, CLI
@@ -34,7 +36,7 @@ ForgeLab/
 | Folder | Contains | Owns |
 |---|---|---|
 | `docs/` | Vision, architecture, principles, catalog, scenarios, glossary, learning path, security, decisions | Every conceptual document |
-| `backend/` | `cmd/forgelab` CLI; `internal/sandbox`, `internal/pipeline`, `internal/learning`, `internal/secretscan`, `internal/api` | Simulation logic and its tooling; never UI code |
+| `backend/` | `cmd/forgelab` CLI; `internal/sandbox`, `internal/pipeline`, `internal/learning`, `internal/secretscan`, `internal/api`; `Dockerfile` for hosting the API | Simulation logic and its tooling; never UI code |
 | `frontend/` | Next.js app: Sandbox (home), Pipelines, Learning path; Playwright tests in `e2e/` | Dashboard UI; never simulation logic |
 | `components/` | `sandbox/`, `cicd/`, `experience/`, `security/`, one README per component | Component documentation |
 | `manifests/` | `pipelines/*.yaml` | Pipeline declarations |

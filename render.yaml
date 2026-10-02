@@ -1,0 +1,13 @@
+# Render blueprint for the ForgeLab API (ADR-0026).
+services:
+  - type: web
+    name: forgelab-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    envVars:
+      # The dashboard's origin, e.g. https://forgelab.example.com; leave
+      # unset to send no CORS headers.
+      - key: FORGELAB_ALLOW_ORIGIN
+        sync: false

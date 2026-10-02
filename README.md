@@ -41,6 +41,7 @@ Games survive a page reload; **Save** writes a replayable save to `.forgelab/san
 | Simulate a deploy pipeline | Dashboard **Pipelines** page, or `forgelab pipeline run manifests/pipelines/web-release-canary.yaml` |
 | Lint, unit tests, secret scan | `make check` |
 | Browser tests | `make test-e2e` |
+| Deploy the API (Render or any container host) | `backend/Dockerfile` built from the repository root; `render.yaml` is a Render blueprint ([ADR-0026](docs/decisions/0026-container-deployment.md)) |
 | Every target | `make help` |
 
 ---
