@@ -1,7 +1,9 @@
 "use client";
 
 import {
+  BACKENDS,
   formatCompact,
+  seen,
   formatMoney,
   level,
   lockedBy,
@@ -20,6 +22,7 @@ import { StoragePanel } from "./SandboxStorage";
 import { StreamPanel } from "./SandboxStream";
 import { EdgeNodePanel } from "./SandboxEdge";
 import { TrafficPanel } from "./SandboxTraffic";
+import { BackendPanel, TelemetrySection } from "./SandboxTelemetry";
 
 export const KIND_DRAG_TYPE = "application/x-forgelab-kind";
 
@@ -72,6 +75,21 @@ export function SandboxPalette({
   );
 }
 
+// blind is the game without node id's live numbers: what the player sees of
+// a component nobody monitors (v14). Its bill is still known.
+function blind(game: GameState, id: string): GameState {
+  return {
+    ...game,
+    flow: {
+      ...game.flow,
+      nodes: game.flow.nodes.map((s) =>
+        s.id === id ? { id, offered: 0, served: 0, dropped: 0, capacity: 0, utilization: 0, latencyMs: 0, costPerHour: s.costPerHour, obs: s.obs } : s,
+      ),
+      edges: game.flow.edges?.filter((e) => e.from !== id && e.to !== id),
+    },
+  };
+}
+
 export function SandboxInspector({
   game,
   rules,
@@ -100,13 +118,18 @@ export function SandboxInspector({
     );
   }
   const kind = rules.kinds.find((k) => k.name === node.kind);
-  const stats = game.flow.nodes.find((s) => s.id === node.id);
+  // From v14 a component's live numbers are seen only while monitored; its
+  // panels then get a view of the game without them.
+  const visible =
+    node.kind === "traffic" ? !rules.telemetry || !!game.meters.monitored : seen(rules, game.flow.nodes.find((s) => s.id === node.id));
+  const view = visible ? game : blind(game, node.id);
+  const stats = view.flow.nodes.find((s) => s.id === node.id);
   const size = rules.sizes.find((s) => s.name === node.size);
   const internet = node.kind === "internet";
   // A traffic component is a source too: nothing to size, scale, or serve;
   // managed object storage (v10) has no sizes or replicas either.
   const source = internet || node.kind === "traffic";
-  const managed = (node.kind === "object-storage" && !!stats?.storage) || (node.kind === "cdn" && !!stats?.edge);
+  const managed = (node.kind === "object-storage" && !!rules.storage) || (node.kind === "cdn" && !!rules.lb);
   const replicaCost = (kind?.buildCost ?? 0) * (size?.costFactor ?? 1);
   const downstream = game.edges.filter((e) => e.from === node.id).map((e) => e.to);
   // Mirrors the engine's rule so the button is only offered when it can work;
@@ -126,7 +149,7 @@ export function SandboxInspector({
     <aside className="sb-inspector">
       <h3>{kind?.label ?? node.kind}</h3>
       <div className="meta">{node.id}</div>
-      {stats && node.kind !== "traffic" && (
+      {stats && visible && node.kind !== "traffic" && (
         <table>
           <tbody>
             <tr>
@@ -185,15 +208,24 @@ export function SandboxInspector({
 
       {internet && <InternetPanel game={game} rules={rules} onConfigure={onConfigure} />}
       <ListenerSection key={node.id} rules={rules} node={node} onConfigure={onConfigure} />
-      {(node.kind === "db-primary" || node.kind === "db-replica") && stats?.db && <DbPanel game={game} rules={rules} node={node} onConfigure={onConfigure} />}
-      {stats?.edge && <EdgeNodePanel game={game} rules={rules} node={node} onConfigure={onConfigure} />}
-      {node.kind === "event-stream" && stats?.stream && <StreamPanel game={game} rules={rules} node={node} onConfigure={onConfigure} />}
-      {node.kind === "queue" && stats?.queue && <QueuePanel game={game} rules={rules} node={node} onConfigure={onConfigure} />}
-      {node.kind === "worker" && rules.worker && <WorkerPanel game={game} rules={rules} node={node} onConfigure={onConfigure} />}
-      {node.kind === "object-storage" && stats?.storage && <StoragePanel game={game} rules={rules} node={node} onConfigure={onConfigure} />}
-      {node.kind === "cache" && stats?.cache && <CachePanel game={game} rules={rules} node={node} onConfigure={onConfigure} />}
-      {node.kind === "traffic" && <TrafficPanel game={game} rules={rules} node={node} onConfigure={onConfigure} />}
-      {node.kind === "app-instance" && <AppPanel game={game} rules={rules} node={node} stats={stats} onConfigure={onConfigure} />}
+      {!visible && (
+        <p className="sb-hint" role="status">
+          Not monitored: turn on its metrics below, with a metrics store in the system, to see its load, latency, and errors.
+        </p>
+      )}
+      {(node.kind === "db-primary" || node.kind === "db-replica") && rules.db && <DbPanel game={view} rules={rules} node={node} onConfigure={onConfigure} />}
+      {rules.lb && ["load-balancer", "api-gateway", "cdn"].includes(node.kind) && <EdgeNodePanel game={view} rules={rules} node={node} onConfigure={onConfigure} />}
+      {node.kind === "event-stream" && rules.stream && <StreamPanel game={view} rules={rules} node={node} onConfigure={onConfigure} />}
+      {node.kind === "queue" && rules.queue && <QueuePanel game={view} rules={rules} node={node} onConfigure={onConfigure} />}
+      {node.kind === "worker" && rules.worker && <WorkerPanel game={view} rules={rules} node={node} onConfigure={onConfigure} />}
+      {node.kind === "object-storage" && rules.storage && <StoragePanel game={view} rules={rules} node={node} onConfigure={onConfigure} />}
+      {node.kind === "cache" && rules.cache && <CachePanel game={view} rules={rules} node={node} onConfigure={onConfigure} />}
+      {node.kind === "traffic" && <TrafficPanel game={view} rules={rules} node={node} onConfigure={onConfigure} />}
+      {node.kind === "app-instance" && <AppPanel game={view} rules={rules} node={node} stats={stats} onConfigure={onConfigure} />}
+      {BACKENDS.includes(node.kind) && <BackendPanel game={game} node={node} />}
+      {rules.telemetry && node.kind !== "traffic" && !BACKENDS.includes(node.kind) && (
+        <TelemetrySection key={`telemetry:${node.id}`} game={game} rules={rules} node={node} onConfigure={onConfigure} />
+      )}
 
       {(node.kind === "traffic" || managed) && (
         <div className="sb-actions">

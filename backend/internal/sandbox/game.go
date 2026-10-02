@@ -83,6 +83,8 @@ type Node struct {
 	LB      *LBConfig      `json:"lb,omitempty"`
 	Gateway *GatewayConfig `json:"gateway,omitempty"`
 	CDN     *CDNConfig     `json:"cdn,omitempty"`
+	// Telemetry is what the component reports once configured (v14).
+	Telemetry *Telemetry `json:"telemetry,omitempty"`
 }
 
 // Edge sends traffic from one node to another. Conn is its client side
@@ -122,6 +124,7 @@ type Command struct {
 	LB         *LBConfig      `json:"lb,omitempty"`
 	Gateway    *GatewayConfig `json:"gateway,omitempty"`
 	CDN        *CDNConfig     `json:"cdn,omitempty"`
+	Telemetry  *Telemetry     `json:"telemetry,omitempty"`
 }
 
 // LoggedCommand is a command applied before a given tick was simulated.

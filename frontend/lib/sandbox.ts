@@ -270,6 +270,47 @@ export interface EdgeNodeStats {
   cost?: number;
 }
 
+// Telemetry, ObsStats, and BackendStats are what a component reports and
+// what a telemetry backend takes in (v14).
+export interface Telemetry {
+  metrics: boolean;
+  resolutionSeconds: number;
+  logLevel: "off" | "error" | "warn" | "info" | "debug";
+  logSampling: number;
+  traceSampling: number;
+}
+
+export interface ObsStats {
+  metrics: boolean;
+  metricsCoverage: number;
+  logLevel: string;
+  logLines: number;
+  logCoverage: number;
+  traceSampling: number;
+  spans: number;
+  traceCoverage: number;
+}
+
+export interface BackendStats {
+  health: Health;
+  ingest: number;
+  capacity: number;
+  dropped: number;
+  gbPerDay: number;
+  cost: number;
+}
+
+export const BACKENDS = ["metrics-store", "log-store", "trace-backend"];
+
+// seen reports whether the player can see a component's live numbers: always
+// before v14; from v14 only while its metrics reach a store. Telemetry
+// backends report on themselves.
+export function seen(rules: Ruleset, s?: NodeStats): boolean {
+  if (!rules.telemetry || !s) return true;
+  if (s.backend) return true;
+  return !!s.obs?.metrics && s.obs.metricsCoverage > 0;
+}
+
 export interface EdgeStats {
   from: string;
   to: string;
@@ -498,6 +539,7 @@ export interface Ruleset {
   lb?: LBConfig;
   gateway?: GatewayConfig;
   cdn?: CDNConfig;
+  telemetry?: Telemetry;
 }
 
 export interface SandboxNode {
@@ -528,6 +570,7 @@ export interface SandboxNode {
   lb?: LBConfig;
   gateway?: GatewayConfig;
   cdn?: CDNConfig;
+  telemetry?: Telemetry;
 }
 
 export interface Edge {
@@ -556,6 +599,8 @@ export interface NodeStats {
   queue?: QueueStats;
   stream?: StreamStats;
   edge?: EdgeNodeStats;
+  obs?: ObsStats;
+  backend?: BackendStats;
 }
 
 export interface Meters {
@@ -576,6 +621,7 @@ export interface Meters {
   complexity: number;
   tier: string;
   loadTest?: boolean;
+  monitored?: boolean;
   revenuePerHour: number;
   costPerHour: number;
   cash: number;
@@ -654,7 +700,7 @@ export type Command =
   | { type: "scale"; node: string; replicas: number }
   | { type: "move"; node: string; x: number; y: number }
   | { type: "respond"; action: "restart" | "failover" | "rate-limit" | "lift-rate-limit"; node: string }
-  | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig; client?: ClientConfig; listener?: Listener; db?: DBConfig; cache?: CacheConfig; storage?: StorageConfig; queue?: QueueConfig; worker?: WorkerConfig; stream?: StreamConfig; lb?: LBConfig; gateway?: GatewayConfig; cdn?: CDNConfig }
+  | { type: "configure"; node: string; traffic?: TrafficConfig; app?: AppConfig; client?: ClientConfig; listener?: Listener; db?: DBConfig; cache?: CacheConfig; storage?: StorageConfig; queue?: QueueConfig; worker?: WorkerConfig; stream?: StreamConfig; lb?: LBConfig; gateway?: GatewayConfig; cdn?: CDNConfig; telemetry?: Telemetry }
   | { type: "configure"; from: string; to: string; connection: Connection };
 
 export const SPEEDS = [0, 1, 2, 4, 8] as const;

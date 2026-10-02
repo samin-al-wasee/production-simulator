@@ -15,12 +15,15 @@ export type SandboxNodeData = {
   source: boolean;
   target: boolean;
   stats?: NodeStats;
+  // seen is false for a component the player cannot see the numbers of
+  // (v14: no metrics in a store).
+  seen: boolean;
 };
 
 export type SandboxFlowNode = Node<SandboxNodeData, "component">;
 
 export function SandboxNode({ id, data, selected }: NodeProps<SandboxFlowNode>) {
-  const s = data.stats;
+  const s = data.seen ? data.stats : undefined;
   // The Internet and traffic components are sources: no size, no capacity.
   const internet = data.kind === "internet" || data.kind === "traffic";
   const problem = s?.traffic?.problem;
@@ -28,7 +31,8 @@ export function SandboxNode({ id, data, selected }: NodeProps<SandboxFlowNode>) 
   const health = s?.app?.health ?? s?.db?.health ?? s?.cache?.health ?? s?.storage?.health ?? s?.queue?.health ?? s?.stream?.health ?? s?.edge?.health;
   // A traffic component is coloured by how its requests fare.
   const failing = !!s?.traffic && s.traffic.success < s.traffic.rps * 0.99;
-  const cls = data.down || data.downReplicas > 0 || problem ? "bad" : health ? healthLevel(health) : s?.traffic ? (failing ? "warn" : "ok") : level(util);
+  // An unmonitored component shows only whether it is down.
+  const cls = data.down || data.downReplicas > 0 || problem ? "bad" : !data.seen ? "unknown" : health ? healthLevel(health) : s?.traffic ? (failing ? "warn" : "ok") : level(util);
   return (
     <div className={`sb-node lvl-${cls}${selected ? " selected" : ""}${internet ? " internet" : ""}`}>
       {data.target && <Handle type="target" position={Position.Left} />}
@@ -56,6 +60,7 @@ export function SandboxNode({ id, data, selected }: NodeProps<SandboxFlowNode>) 
           </div>
         </>
       )}
+      {!data.seen && <div className="sb-node-meta muted">not monitored</div>}
       {problem && <div className="sb-node-meta bad">{problem}</div>}
       {data.down && <div className="sb-node-meta bad">DOWN</div>}
       {!data.down && data.downReplicas > 0 && (

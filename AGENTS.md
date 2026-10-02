@@ -10,7 +10,7 @@ The repository exists for learning production systems: scaling, bottlenecks, cac
 
 The prime directive is **modelled, never scripted**: every value the game shows is computed from declared capacities and the player's topology, and labelled as simulated. Nothing in ForgeLab starts a real container, process, or cloud resource.
 
-**Status:** Phase 11 (Deep component simulation) is in progress, after Phase 10 (Production Sandbox); the Live-mode lab of phases 1 to 9 is retired and kept on the `archive/live-lab` branch (see `ROADMAP.md`). **Do not reintroduce real infrastructure (Docker, Kubernetes, Terraform, sample applications) without a new ADR, and build only what a roadmap phase authorizes.**
+**Status:** Phase 12 (Observability) is in progress, after Phase 11 (Deep component simulation) and Phase 10 (Production Sandbox); the Live-mode lab of phases 1 to 9 is retired and kept on the `archive/live-lab` branch (see `ROADMAP.md`). **Do not reintroduce real infrastructure (Docker, Kubernetes, Terraform, sample applications) without a new ADR, and build only what a roadmap phase authorizes.** The one container is the API's own deployment image (`backend/Dockerfile`, ADR-0026), not lab infrastructure.
 
 ## 2. Decided stack
 
