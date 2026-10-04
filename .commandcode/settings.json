@@ -33,7 +33,14 @@
       "Shell(grep:*)",
       "Shell(COMMANDCODE_PROJECT_DIR= COMMANDCODE_HOOK_EVENT=PreToolUse bash .commandcode/hooks/ponytail-caveman.sh)",
       "Shell(cd /workspaces/production-simulator && echo \"=== PreToolUse: valid JSON + decision ===\" && printf '%s' '{\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"write_file\"}' | COMMANDCODE_PROJECT_DIR=\"$PWD\" COMMANDCODE_HOOK_EVENT=PreToolUse bash .commandcode/hooks/ponytail-caveman.sh | jq -e '.hookSpecificOutput.permissionDecision' && echo \"=== SessionStart includes caveman? ===\" && printf '%s' '{\"hook_event_name\":\"SessionStart\",\"source\":\"startup\"}' | COMMANDCODE_PROJECT_DIR=\"$PWD\" COMMANDCODE_HOOK_EVENT=SessionStart bash .commandcode/hooks/ponytail-caveman.sh | jq -r '.hookSpecificOutput.additionalContext' | grep -nE 'CAVEMAN \\(always on\\)|Caveman mode|Me talk short' && echo \"=== unknown event -> empty ===\" && out=$(printf '%s' '{}' | COMMANDCODE_PROJECT_DIR=\"$PWD\" COMMANDCODE_HOOK_EVENT=PostToolUse bash .commandcode/hooks/ponytail-caveman.sh); echo \"stdout=[$out]\" && echo \"=== git status ===\" && git status --short)",
-      "Shell(git:*)"
+      "Shell(git:*)",
+      "Shell(rm:*)",
+      "Shell(pwd; ls -la backend/.env.example frontend/.env.example /workspaces/production-simulator/.env.example 2>&1; echo \"---\"; ls -la backend/ | head -30)",
+      "Shell(echo \"env DATABASE_URL=${DATABASE_URL:-<unset>}\"; echo \"--- db host ---\"; pg_isready -h db -p 5432 -U postgres 2>&1; echo \"--- localhost ---\"; pg_isready -h localhost -p 5432 2>&1; echo \"--- resolve ---\"; getent hosts db 2>&1 || echo \"no host entry for db\")",
+      "Shell(command -v psql nc pg_isready python3 2>&1; echo \"--- tcp probe db:5432 ---\"; (timeout 3 bash -c 'cat < /dev/null > /dev/tcp/db/5432' && echo \"db:5432 OPEN\") 2>&1 || echo \"db:5432 CLOSED/unreachable\")",
+      "Shell(go:*)",
+      "Shell(curl -s -o /dev/null -w %{http_code}\\n http://127.0.0.1:8099/healthz)",
+      "Shell(curl -s -w \\nHTTP %{http_code}\\n http://127.0.0.1:8099/readyz)"
     ],
     "deny": [],
     "defaultMode": "default"
