@@ -1,7 +1,7 @@
 # ForgeLab Architecture
 
 **Document status:** v2.0 (re-scoped by [ADR-0014](decisions/0014-sandbox-only-platform.md))
-**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic), [ADR-0017](decisions/0017-application-instance-model.md) (application instance), [ADR-0018](decisions/0018-traffic-components.md) (traffic components), [ADR-0019](decisions/0019-connections-and-service-calls.md) (connections and service calls), [ADR-0020](decisions/0020-database-model.md) (database), [ADR-0021](decisions/0021-cache-model.md) (cache), [ADR-0022](decisions/0022-object-storage-model.md) (object storage), [ADR-0023](decisions/0023-queue-and-worker-model.md) (queues and workers), [ADR-0024](decisions/0024-event-streams.md) (event streams), [ADR-0025](decisions/0025-edge-components.md) (edge), [ADR-0027](decisions/0027-configured-telemetry.md) (telemetry), [ADR-0028](decisions/0028-explaining-failures.md) (explaining failures), [ADR-0029](decisions/0029-alerts-slos-incidents.md) (alerts and SLOs)
+**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic), [ADR-0017](decisions/0017-application-instance-model.md) (application instance), [ADR-0018](decisions/0018-traffic-components.md) (traffic components), [ADR-0019](decisions/0019-connections-and-service-calls.md) (connections and service calls), [ADR-0020](decisions/0020-database-model.md) (database), [ADR-0021](decisions/0021-cache-model.md) (cache), [ADR-0022](decisions/0022-object-storage-model.md) (object storage), [ADR-0023](decisions/0023-queue-and-worker-model.md) (queues and workers), [ADR-0024](decisions/0024-event-streams.md) (event streams), [ADR-0025](decisions/0025-edge-components.md) (edge), [ADR-0027](decisions/0027-configured-telemetry.md) (telemetry), [ADR-0028](decisions/0028-explaining-failures.md) (explaining failures), [ADR-0029](decisions/0029-alerts-slos-incidents.md) (alerts and SLOs), [ADR-0030](decisions/0030-application-store-and-postgres.md) (application store), [ADR-0031](decisions/0031-oauth-identity.md) (identity)
 
 ForgeLab is the **Production Sandbox**: a city-builder for software production. A new game is an **empty world** and starting cash (from `sandbox/v6`; earlier rulesets also start with an Internet traffic source). The player places components, wires them together, and keeps the system healthy and profitable as users arrive, traffic swings, and incidents happen. Everything is a deterministic model computed in the Go core; nothing runs on the host.
 
@@ -15,10 +15,15 @@ flowchart LR
         API["internal/api<br/>HTTP + SSE"]
         CLI["cmd/forgelab<br/>CLI"]
     end
+    subgraph APP["backend/ (application layer)"]
+        ST["internal/store<br/>Postgres + migrations"]
+    end
+    PG[("Postgres<br/>application data")]
     UI["frontend/ (Next.js)<br/>Sandbox · Pipelines · Learning path"]
 
     SB & PL & LE --> API
     PL & LE & SS --> CLI
+    API --> ST --> PG
     API -- "state, SSE" --> UI
     UI -- commands --> API
 ```
@@ -31,6 +36,7 @@ flowchart LR
 | Pipeline simulator | `backend/internal/pipeline`, `manifests/pipelines/` | Build, test, and deploy on a virtual clock (rolling, canary, blue-green, rollback) |
 | Learning path | `learning/path.yaml`, `backend/internal/learning` | Missions played in the Sandbox and the pipeline simulator; completed automatically by Sandbox goals or by hand; progress in `.forgelab/progress.json` |
 | Secret scan | `backend/internal/secretscan`, `security/secretscan.yaml` | Keeps credentials out of the repository |
+| Application store | `backend/internal/store` | Postgres access and embedded migrations; the application layer's persistence (ADR-0030) |
 
 ## Engine layout
 
@@ -353,6 +359,15 @@ Reaching a goal is permanent and deterministic, so a replay reaches the same goa
 * 100,000 users with health of 80 or more unlock the CDN
 
 **The learning path.** Exercises in `learning/path.yaml` can name a goal as their evidence. When a game reaches a goal, the API completes those exercises in the learner's progress file. Data only flows from the game to progress, never back, so a game stays a function of `(ruleset, seed, command log)`. The mapping of goals to exercises is in [`learning-path.md`](learning-path.md).
+
+## Application layer and identity
+
+Phase 13 wraps the deterministic core in a product ([ADR-0030](decisions/0030-application-store-and-postgres.md), [ADR-0031](decisions/0031-oauth-identity.md)) without changing it.
+
+* **Persistence.** `backend/internal/store` opens a Postgres connection pool from `DATABASE_URL` (or `-database`) and applies numbered, embedded migrations at startup, each in its own transaction, tracked in `schema_migrations`, serialized by a Postgres advisory lock. When no database is configured the API runs without a store, exactly as before, so the core, the CLI, and their tests need no database.
+* **One-way dependency.** The application layer imports the Sandbox engine to replay a game; no simulation package imports the store. A game stays a function of **(ruleset version, seed, command log)** and the database stores that triple plus the application data around it (users, ownership, progress, content, submissions, evaluation results) — never a tick stream, never the source of simulation truth.
+* **Identity** is OAuth 2.0 only (Authorization Code with PKCE) through GitHub and Google. A user is created or linked on first sign-in by `(provider, provider_user_id)`; no password is ever stored. Sessions are opaque random tokens whose SHA-256 hash alone is stored, sent in an `HttpOnly`, `Secure`, `SameSite=Lax` cookie and revocable server-side. Handlers take the user id from the session, never from the request, so one user cannot read or change another's data.
+* **Health.** `GET /healthz` is liveness; `GET /readyz` reports whether the store is reachable.
 
 ## Boundaries
 

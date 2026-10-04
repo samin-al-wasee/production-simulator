@@ -69,6 +69,13 @@ func TestHealth(t *testing.T) {
 	}
 }
 
+func TestReadyWithoutStore(t *testing.T) {
+	rec, body := do(t, newTestServer(t), "GET", "/readyz", "")
+	if rec.Code != 200 || body["status"] != "ok" || body["database"] != "none" {
+		t.Fatalf("code=%d body=%v", rec.Code, body)
+	}
+}
+
 func TestPipelines(t *testing.T) {
 	s := newTestServer(t)
 	req := httptest.NewRequest("GET", "/api/v1/pipelines", nil)

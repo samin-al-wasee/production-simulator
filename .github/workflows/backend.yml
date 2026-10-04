@@ -11,6 +11,19 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: forgelab_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -20,6 +33,9 @@ jobs:
       - name: gofmt
         run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
       - run: go vet ./...
-      - run: go test ./...
+      - name: Test
+        run: go test ./...
+        env:
+          FORGELAB_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/forgelab_test?sslmode=disable
       - name: Secret scan
         run: go run ./cmd/forgelab security scan-secrets ..

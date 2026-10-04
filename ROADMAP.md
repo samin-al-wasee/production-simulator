@@ -16,7 +16,7 @@ ForgeLab is the **Production Sandbox** ([ADR-0014](docs/decisions/0014-sandbox-o
   a Postgres application store, user-owned sandboxes with save/resume, per-user learning
   progress, and a My ForgeLab shell. The global `.forgelab` files are retired.
   (ADR-0030, ADR-0031)
-  - [ ] 13.1a Database foundation
+  - [x] 13.1a Database foundation
   - [ ] 13.1b Identity (OAuth, sessions, login)
   - [ ] 13.1c Ownership, persistence, and per-user progress
   - [ ] 13.1d My ForgeLab shell

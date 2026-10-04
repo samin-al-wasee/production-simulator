@@ -36,14 +36,14 @@ ForgeLab/
 | Folder | Contains | Owns |
 |---|---|---|
 | `docs/` | Vision, architecture, principles, catalog, scenarios, glossary, learning path, security, decisions | Every conceptual document |
-| `backend/` | `cmd/forgelab` CLI; `internal/sandbox`, `internal/pipeline`, `internal/learning`, `internal/secretscan`, `internal/api`; `Dockerfile` for hosting the API | Simulation logic and its tooling; never UI code |
+| `backend/` | `cmd/forgelab` CLI; `internal/sandbox`, `internal/pipeline`, `internal/learning`, `internal/secretscan`, `internal/store`, `internal/api`; `Dockerfile` for hosting the API | Simulation logic and its tooling, plus the application layer's persistence (Postgres); never UI code |
 | `frontend/` | Next.js app: Sandbox (home), Pipelines, Learning path; Playwright tests in `e2e/` | Dashboard UI; never simulation logic |
 | `components/` | `sandbox/`, `cicd/`, `experience/`, `security/`, one README per component | Component documentation |
 | `manifests/` | `pipelines/*.yaml` | Pipeline declarations |
 | `learning/` | `path.yaml` | Learning path definition |
 | `security/` | `secretscan.yaml` | Secret-scan allowlist |
 | `templates/` | `postmortem/` | Templates |
-| `.devcontainer/` | `devcontainer.json`, `Dockerfile`, setup scripts | Development container definition |
+| `.devcontainer/` | `devcontainer.json`, `docker-compose.yml` (the dev container and its local Postgres), `Dockerfile`, setup scripts | Development container definition |
 | `.claude/` | `commands/dev-loop.md`; `skills/caveman/SKILL.md` (terse chat replies on request) | Claude Code project commands and skills |
 | `.github/` | Issue templates, PR template, CI workflows | GitHub automation |
 

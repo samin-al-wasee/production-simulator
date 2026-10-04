@@ -35,6 +35,8 @@ This directory records ForgeLab's architecture decisions. Rules live in `AGENTS.
 | [0027](0027-configured-telemetry.md) | Accepted | Telemetry is configured, not given (Phase 12) |
 | [0028](0028-explaining-failures.md) | Accepted | Explaining failures: causes, metrics history, traces, and logs (Phase 12) |
 | [0029](0029-alerts-slos-incidents.md) | Accepted | Alerts, SLOs, and an incident timeline (Phase 12) |
+| [0030](0030-application-store-and-postgres.md) | Accepted | An application layer and a Postgres application store (Phase 13) |
+| [0031](0031-oauth-identity.md) | Accepted | OAuth-only sign-in with database-backed sessions (Phase 13) |
 
 ## Conventions
 

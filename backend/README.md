@@ -11,6 +11,7 @@ backend/
 ├── internal/api/          HTTP API for the dashboard (Sandbox games and SSE, pipelines, learning) — Phase 7, 10
 ├── internal/pipeline/     CI/CD pipeline simulation on a virtual clock — Phase 7
 ├── internal/learning/     Learning path and progress — Phase 9
+├── internal/store/        Postgres access and embedded migrations for the application layer — Phase 13
 └── internal/secretscan/   Committed-secret detection — Phase 8
 ```
 
@@ -37,4 +38,4 @@ docker build -f backend/Dockerfile -t forgelab-api .
 docker run -p 8090:8090 forgelab-api            # or -e PORT=10000 -p 10000:10000
 ```
 
-`serve` listens on `:$PORT` when `PORT` is set, takes `FORGELAB_ALLOW_ORIGIN` for CORS, and stops cleanly on SIGTERM. On Render, `render.yaml` at the repository root defines the service (Docker, context `.`, health check `/healthz`). Saves go to `/app/.forgelab`, which needs a persistent disk to survive a redeploy.
+`serve` listens on `:$PORT` when `PORT` is set, takes `FORGELAB_ALLOW_ORIGIN` for CORS, and stops cleanly on SIGTERM. Set `DATABASE_URL` (or `-database`) to enable the Postgres application store: the embedded migrations apply at startup and `GET /readyz` reports its reachability. Unset, the API runs without a database (ADR-0030). On Render, `render.yaml` at the repository root defines the service (Docker, context `.`, health check `/healthz`). Saves go to `/app/.forgelab`, which needs a persistent disk to survive a redeploy.

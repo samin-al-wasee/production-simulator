@@ -1,0 +1,36 @@
+# ForgeLab development stack: the dev container and its Postgres application
+# store (ADR-0030). The editor attaches to the `app` service; `db` is the
+# local database it talks to over the compose network.
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: sleep infinity
+    volumes:
+      - ..:/workspaces/production-simulator:cached
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/forgelab?sslmode=disable
+      FORGELAB_TEST_DATABASE_URL: postgres://postgres:postgres@db:5432/forgelab?sslmode=disable
+      FORGELAB_ALLOW_ORIGIN: http://localhost:3001
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: forgelab
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d forgelab"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db-data:

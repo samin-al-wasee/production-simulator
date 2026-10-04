@@ -5,6 +5,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/samin-al-wasee/production-simulator/backend/internal/learning"
 	"github.com/samin-al-wasee/production-simulator/backend/internal/pipeline"
+	"github.com/samin-al-wasee/production-simulator/backend/internal/store"
 )
 
 // Config configures a Server.
@@ -30,6 +32,9 @@ type Config struct {
 	ProgressFile string
 	// AllowedOrigin, when set, is returned in CORS headers.
 	AllowedOrigin string
+	// Store is the application database. When nil the API runs without one,
+	// exactly as before the application layer existed (ADR-0030).
+	Store *store.Store
 }
 
 // Server implements http.Handler.
@@ -56,6 +61,7 @@ func NewServer(cfg Config) *Server {
 	s := &Server{cfg: cfg, games: map[string]*sandboxGame{}}
 	s.mux = http.NewServeMux()
 	s.mux.HandleFunc("GET /healthz", s.handleHealth)
+	s.mux.HandleFunc("GET /readyz", s.handleReady)
 	s.mux.HandleFunc("GET /api/v1/learning", s.handleLearning)
 	s.mux.HandleFunc("POST /api/v1/learning/{id}/complete", s.handleLearningComplete)
 	s.mux.HandleFunc("GET /api/v1/pipelines", s.handlePipelines)
@@ -90,6 +96,22 @@ func writeError(w http.ResponseWriter, status int, format string, a ...any) {
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// handleReady reports readiness: the API is up and, when configured, the
+// application store is reachable.
+func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
+	if s.cfg.Store == nil {
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "database": "none"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	if err := s.cfg.Store.Ping(ctx); err != nil {
+		writeError(w, http.StatusServiceUnavailable, "database unreachable: %v", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "database": "ok"})
 }
 
 // PipelineInfo describes a discoverable pipeline.

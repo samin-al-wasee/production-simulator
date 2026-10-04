@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/samin-al-wasee/production-simulator/backend/internal/api"
+	"github.com/samin-al-wasee/production-simulator/backend/internal/store"
 )
 
 func runServe(args []string) int {
@@ -20,9 +21,10 @@ func runServe(args []string) int {
 	repo := fs.String("repo", ".", "repository root (contains learning/ and manifests/)")
 	origin := fs.String("allow-origin", "", "value for Access-Control-Allow-Origin (unset: no CORS headers)")
 	progress := fs.String("progress", "", "learning progress file (default <repo>/.forgelab/progress.json)")
+	database := fs.String("database", "", "Postgres URL for the application store (default $DATABASE_URL; unset runs without one)")
 	fs.Usage = func() {
-		fmt.Fprintln(fs.Output(), "usage: forgelab serve [-addr host:port] [-repo dir] [-progress file] [-allow-origin origin]")
-		fmt.Fprintln(fs.Output(), "environment: PORT listens on :PORT unless -addr is set; FORGELAB_ALLOW_ORIGIN sets -allow-origin")
+		fmt.Fprintln(fs.Output(), "usage: forgelab serve [-addr host:port] [-repo dir] [-progress file] [-allow-origin origin] [-database url]")
+		fmt.Fprintln(fs.Output(), "environment: PORT listens on :PORT unless -addr is set; FORGELAB_ALLOW_ORIGIN sets -allow-origin; DATABASE_URL sets -database")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -42,14 +44,33 @@ func runServe(args []string) int {
 	if o := os.Getenv("FORGELAB_ALLOW_ORIGIN"); o != "" && !set["allow-origin"] {
 		*origin = o
 	}
+	if u := os.Getenv("DATABASE_URL"); u != "" && !set["database"] {
+		*database = u
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	cfg := api.Config{RepoRoot: *repo, ProgressFile: *progress, AllowedOrigin: *origin}
+	if *database != "" {
+		st, err := store.Open(ctx, *database)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "forgelab: %v\n", err)
+			return exitFailed
+		}
+		defer st.Close()
+		if err := st.Migrate(ctx); err != nil {
+			fmt.Fprintf(os.Stderr, "forgelab: %v\n", err)
+			return exitFailed
+		}
+		cfg.Store = st
+	}
 
 	srv := &http.Server{
 		Addr:              *addr,
-		Handler:           api.NewServer(api.Config{RepoRoot: *repo, ProgressFile: *progress, AllowedOrigin: *origin}),
+		Handler:           api.NewServer(cfg),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)

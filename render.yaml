@@ -14,3 +14,7 @@ services:
       # unset to send no CORS headers.
       - key: FORGELAB_ALLOW_ORIGIN
         sync: false
+      # Postgres URL for the application store (ADR-0030); migrations apply at
+      # startup. Leave unset to run without a database.
+      - key: DATABASE_URL
+        sync: false
