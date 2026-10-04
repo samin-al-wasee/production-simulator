@@ -13,9 +13,12 @@ services:
       DATABASE_URL: postgres://postgres:postgres@db:5432/forgelab?sslmode=disable
       FORGELAB_TEST_DATABASE_URL: postgres://postgres:postgres@db:5432/forgelab?sslmode=disable
       FORGELAB_ALLOW_ORIGIN: http://localhost:3001
-      # The OAuth redirect base for a browser on the host. Set provider client
-      # ids and secrets here (or in the shell) to enable sign-in (ADR-0031).
-      FORGELAB_PUBLIC_URL: http://localhost:8090
+      # The dashboard's public origin (ADR-0033): the OAuth callback returns
+      # through the dashboard's /api/v1/auth proxy, so the session cookie lands
+      # on the dashboard. Set provider client ids and secrets (or in the shell)
+      # to enable sign-in, and register
+      # <FORGELAB_PUBLIC_URL>/api/v1/auth/callback/<provider> with each provider.
+      FORGELAB_PUBLIC_URL: http://localhost:3001
     depends_on:
       db:
         condition: service_healthy

@@ -10,7 +10,7 @@ Everything is a deterministic model computed in a Go core. Nothing runs on your 
 
 ## Status
 
-**Phase 10 (Production Sandbox) is complete.** The engine, API, dashboard canvas, event deck (surges, outages, attacks, with restart, failover, and rate limiting), and goals with unlocks and automatic learning-path completion are playable. **Phases 11 (Deep component simulation) and 12 (Observability) are complete.** Every component has a detailed configuration and model: traffic, applications calling each other over configured connections, databases, caches, object storage, queues and workers, event streams, load balancers, gateways, and CDNs. From ruleset v14 nothing technical is visible until you place telemetry backends and instrument components; then **Observe** explains failures, charts metrics, shows traces and logs, and runs your alerts and SLOs. Traffic is a component: place one per client population (web, mobile, API, bot; one region each), connect it to an app whose protocol, port, TLS, and routes match, or watch its requests be refused, and run load tests with a spike, ramp, burst, or daily schedule. Application instances are modelled backend services: select one to see its bottleneck, queue, timeouts, and health, and configure its workers, middleware, and routes. See [`ROADMAP.md`](ROADMAP.md).
+**Phase 10 (Production Sandbox) is complete.** The engine, API, dashboard canvas, event deck (surges, outages, attacks, with restart, failover, and rate limiting), and goals with unlocks and automatic learning-path completion are playable. **Phases 11 (Deep component simulation) and 12 (Observability) are complete.** Every component has a detailed configuration and model: traffic, applications calling each other over configured connections, databases, caches, object storage, queues and workers, event streams, load balancers, gateways, and CDNs. From ruleset v14 nothing technical is visible until you place telemetry backends and instrument components; then **Observe** explains failures, charts metrics, shows traces and logs, and runs your alerts and SLOs. Traffic is a component: place one per client population (web, mobile, API, bot; one region each), connect it to an app whose protocol, port, TLS, and routes match, or watch its requests be refused, and run load tests with a spike, ramp, burst, or daily schedule. Application instances are modelled backend services: select one to see its bottleneck, queue, timeouts, and health, and configure its workers, middleware, and routes. **Phase 13 (Accounts & product foundation) is in progress:** optional OAuth sign-in, per-user saved games and learning progress, and **My ForgeLab**, the header page where a signed-in player finds their saved work. See [`ROADMAP.md`](ROADMAP.md).
 
 ForgeLab used to be a real-infrastructure lab (Docker Compose, Kubernetes, Terraform, chaos drills). That **Live mode** was retired in favour of the game ([ADR-0014](docs/decisions/0014-sandbox-only-platform.md)); it is kept on the `archive/live-lab` branch.
 
@@ -18,7 +18,7 @@ ForgeLab used to be a real-infrastructure lab (Docker Compose, Kubernetes, Terra
 
 ## Getting Started
 
-You need Go and Node.js (the dev container in `.devcontainer/` has both, plus a Postgres for the application store and `DATABASE_URL` already set). Outside the dev container, copy `backend/.env.example` to `.env` and point `DATABASE_URL` at your own Postgres (the dashboard's `frontend/.env.example` sets `FORGELAB_API_URL` in `frontend/.env.local`). Sign-in is optional: set `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` and/or `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` plus `FORGELAB_PUBLIC_URL` to enable it (ADR-0031).
+You need Go and Node.js (the dev container in `.devcontainer/` has both, plus a Postgres for the application store and `DATABASE_URL` already set). Outside the dev container, copy `backend/.env.example` to `.env` and point `DATABASE_URL` at your own Postgres (the dashboard's `frontend/.env.example` sets `FORGELAB_API_URL` in `frontend/.env.local`). Sign-in is optional: set `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` and/or `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, set `FORGELAB_PUBLIC_URL` to the dashboard's URL (`http://localhost:3001` in the dev container), and register the redirect URI `<FORGELAB_PUBLIC_URL>/api/v1/auth/callback/<provider>` with the provider (ADR-0031, ADR-0033). Signed in, your saved games and learning progress follow your account — **My ForgeLab** in the header is where you find them.
 
 ```sh
 make serve           # terminal 1: core API on 127.0.0.1:8090
@@ -33,7 +33,7 @@ Open <http://localhost:3001> and click **New game**.
 3. Press **1×**. Users start paying. Watch the meters: cash, profit, users, RPS, p95 latency, errors, health, satisfaction, popularity, complexity.
 4. As users grow, the app saturates (its bar turns red). Add replicas, a cache, read replicas, a queue with workers: whatever the bottleneck calls for, and whatever you can afford.
 
-Games survive a page reload; **Save** writes a replayable save to `.forgelab/sandbox/`.
+Games survive a page reload. Signed in, **Save** keeps a replayable game to your account — find, resume, and delete it on **My ForgeLab**; with no database it writes a file under `.forgelab/sandbox/`.
 
 | What | Command |
 |---|---|
@@ -41,6 +41,7 @@ Games survive a page reload; **Save** writes a replayable save to `.forgelab/san
 | Simulate a deploy pipeline | Dashboard **Pipelines** page, or `forgelab pipeline run manifests/pipelines/web-release-canary.yaml` |
 | Lint, unit tests, secret scan | `make check` |
 | Browser tests | `make test-e2e` |
+| Sign-in browser tests | `make test-e2e-auth` (needs `FORGELAB_TEST_DATABASE_URL`) |
 | Deploy the API (Render or any container host) | `backend/Dockerfile` built from the repository root; `render.yaml` is a Render blueprint ([ADR-0026](docs/decisions/0026-container-deployment.md)) |
 | Deploy the dashboard (Netlify) | `netlify.toml` builds `frontend/`; set `FORGELAB_API_URL` to the API's URL in the site environment (read at build time) |
 | Every target | `make help` |

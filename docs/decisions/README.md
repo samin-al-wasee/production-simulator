@@ -37,6 +37,8 @@ This directory records ForgeLab's architecture decisions. Rules live in `AGENTS.
 | [0029](0029-alerts-slos-incidents.md) | Accepted | Alerts, SLOs, and an incident timeline (Phase 12) |
 | [0030](0030-application-store-and-postgres.md) | Accepted | An application layer and a Postgres application store (Phase 13) |
 | [0031](0031-oauth-identity.md) | Accepted | OAuth-only sign-in with database-backed sessions (Phase 13) |
+| [0032](0032-user-owned-resources.md) | Accepted | User-owned sandboxes and progress, with an anonymous fallback (Phase 13) |
+| [0033](0033-sign-in-front-door-and-my-forgelab.md) | Accepted | Sign-in as the front door, and the My ForgeLab shell (Phase 13) |
 
 ## Conventions
 

@@ -11,6 +11,7 @@ Next.js (App Router, TypeScript) dashboard where the Production Sandbox is playe
 | Sandbox (home: `/` redirects here) | The Production Sandbox game (Phase 10, ADR-0013): build palette, React Flow topology canvas, meters with sparklines, component inspector, speed controls, save. Every value is labelled simulated and comes from `backend/internal/sandbox` |
 | Pipelines | Simulated build → test → deploy runs with seed, warm cache, bad release, and forced-failure options and a stage timeline |
 | Learning path | The seven-stage path of Sandbox and pipeline missions, with progress; goal-linked exercises complete themselves, and any can be marked done |
+| My ForgeLab (`/me`) | The signed-in player's home: saved games (resume, delete) and a link to per-user learning progress; the header offers optional OAuth sign-in (ADR-0033) |
 
 Every value is simulated and labelled as such; nothing is presented as a measurement of real hardware.
 
@@ -21,7 +22,7 @@ make serve            # core API on 127.0.0.1:8090
 make frontend-dev    # npm install + dev server on http://localhost:3001
 ```
 
-The Sandbox is at <http://localhost:3001/sandbox>. The game state streams over Server-Sent Events through the `/api/forgelab/*` rewrite; if the stream cannot be held open the page falls back to polling. The current game id is remembered in the browser so a reload resumes it (games live in the `forgelab serve` process and end when it stops; use Save to keep one).
+The Sandbox is at <http://localhost:3001/sandbox>. The game state streams over Server-Sent Events through the `/api/forgelab/*` rewrite; if the stream cannot be held open the page falls back to polling. The current game id is remembered in the browser so a reload resumes it (games live in the `forgelab serve` process and end when it stops; use Save to keep one). Signed in, Save keeps a game to your account — find, resume, and delete it on **My ForgeLab**; without a database it writes `.forgelab/sandbox/`. Sign-in runs through the same-origin `/api/v1/auth/*` proxy route so the session cookie stays first-party (ADR-0033).
 
 ## Configuration
 
@@ -48,8 +49,8 @@ cd frontend && npm run build
 
 ```text
 frontend/
-├── app/          pages (Sandbox, Pipelines, Learning path; `/` redirects to Sandbox) and layout
-├── components/   Sandbox*, PipelineSimulator, LearningPath, Notice
+├── app/          pages (Sandbox, Pipelines, Learning path, My ForgeLab; `/` redirects to Sandbox), the `/api/v1/auth/*` proxy route, and layout
+├── components/   Sandbox*, PipelineSimulator, LearningPath, MyForgeLab, UserMenu, Notice
 ├── lib/          API types and clients, formatting, timeline, and Sandbox display helpers (tested)
 └── e2e/          Playwright browser tests
 ```

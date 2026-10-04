@@ -1,7 +1,7 @@
 # ForgeLab Architecture
 
 **Document status:** v2.0 (re-scoped by [ADR-0014](decisions/0014-sandbox-only-platform.md))
-**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic), [ADR-0017](decisions/0017-application-instance-model.md) (application instance), [ADR-0018](decisions/0018-traffic-components.md) (traffic components), [ADR-0019](decisions/0019-connections-and-service-calls.md) (connections and service calls), [ADR-0020](decisions/0020-database-model.md) (database), [ADR-0021](decisions/0021-cache-model.md) (cache), [ADR-0022](decisions/0022-object-storage-model.md) (object storage), [ADR-0023](decisions/0023-queue-and-worker-model.md) (queues and workers), [ADR-0024](decisions/0024-event-streams.md) (event streams), [ADR-0025](decisions/0025-edge-components.md) (edge), [ADR-0027](decisions/0027-configured-telemetry.md) (telemetry), [ADR-0028](decisions/0028-explaining-failures.md) (explaining failures), [ADR-0029](decisions/0029-alerts-slos-incidents.md) (alerts and SLOs), [ADR-0030](decisions/0030-application-store-and-postgres.md) (application store), [ADR-0031](decisions/0031-oauth-identity.md) (identity)
+**Primary decision records:** [ADR-0001](decisions/0001-apply-stack-foundations.md) (stack), [ADR-0013](decisions/0013-production-sandbox-game.md) (Sandbox), [ADR-0014](decisions/0014-sandbox-only-platform.md) (Sandbox only), [ADR-0016](decisions/0016-configurable-internet-traffic.md) (Internet traffic), [ADR-0017](decisions/0017-application-instance-model.md) (application instance), [ADR-0018](decisions/0018-traffic-components.md) (traffic components), [ADR-0019](decisions/0019-connections-and-service-calls.md) (connections and service calls), [ADR-0020](decisions/0020-database-model.md) (database), [ADR-0021](decisions/0021-cache-model.md) (cache), [ADR-0022](decisions/0022-object-storage-model.md) (object storage), [ADR-0023](decisions/0023-queue-and-worker-model.md) (queues and workers), [ADR-0024](decisions/0024-event-streams.md) (event streams), [ADR-0025](decisions/0025-edge-components.md) (edge), [ADR-0027](decisions/0027-configured-telemetry.md) (telemetry), [ADR-0028](decisions/0028-explaining-failures.md) (explaining failures), [ADR-0029](decisions/0029-alerts-slos-incidents.md) (alerts and SLOs), [ADR-0030](decisions/0030-application-store-and-postgres.md) (application store), [ADR-0031](decisions/0031-oauth-identity.md) (identity), [ADR-0032](decisions/0032-user-owned-resources.md) (user-owned resources), [ADR-0033](decisions/0033-sign-in-front-door-and-my-forgelab.md) (sign-in front door and My ForgeLab)
 
 ForgeLab is the **Production Sandbox**: a city-builder for software production. A new game is an **empty world** and starting cash (from `sandbox/v6`; earlier rulesets also start with an Internet traffic source). The player places components, wires them together, and keeps the system healthy and profitable as users arrive, traffic swings, and incidents happen. Everything is a deterministic model computed in the Go core; nothing runs on the host.
 
@@ -19,7 +19,7 @@ flowchart LR
         ST["internal/store<br/>Postgres + migrations"]
     end
     PG[("Postgres<br/>application data")]
-    UI["frontend/ (Next.js)<br/>Sandbox · Pipelines · Learning path"]
+    UI["frontend/ (Next.js)<br/>Sandbox · Pipelines · Learning path · My ForgeLab"]
 
     SB & PL & LE --> API
     PL & LE & SS --> CLI
@@ -34,7 +34,8 @@ flowchart LR
 | Sandbox API | `backend/internal/api/sandbox.go` | Games, commands, speed, step, save/replay, SSE stream |
 | Sandbox canvas | `frontend/app/sandbox`, `frontend/components/Sandbox*` | Build palette, React Flow canvas, meters, inspector |
 | Pipeline simulator | `backend/internal/pipeline`, `manifests/pipelines/` | Build, test, and deploy on a virtual clock (rolling, canary, blue-green, rollback) |
-| Learning path | `learning/path.yaml`, `backend/internal/learning` | Missions played in the Sandbox and the pipeline simulator; completed automatically by Sandbox goals or by hand; progress in `.forgelab/progress.json` |
+| Learning path | `learning/path.yaml`, `backend/internal/learning` | Missions played in the Sandbox and the pipeline simulator; completed automatically by Sandbox goals or by hand; progress per user in Postgres with a store, or in `.forgelab/progress.json` without one |
+| My ForgeLab | `frontend/app/me`, `frontend/components/MyForgeLab.tsx` | The signed-in player's home: saved games (resume, delete) and a link to their learning progress (ADR-0033) |
 | Secret scan | `backend/internal/secretscan`, `security/secretscan.yaml` | Keeps credentials out of the repository |
 | Application store | `backend/internal/store` | Postgres access and embedded migrations; the application layer's persistence (ADR-0030) |
 
@@ -61,7 +62,7 @@ flowchart LR
     WORLD -- tick state (SSE) --> API --> UI
 ```
 
-A game is fully defined by **(ruleset version, seed, ordered command log)**. Replaying the same triple yields the same world at every tick, so games are reproducible, testable in CI, and saved as data under `.forgelab/sandbox/`.
+A game is fully defined by **(ruleset version, seed, ordered command log)**. Replaying the same triple yields the same world at every tick, so games are reproducible, testable in CI, and saved per user in Postgres with a store (or as data under `.forgelab/sandbox/` without one).
 
 ## One tick
 
@@ -362,12 +363,14 @@ Reaching a goal is permanent and deterministic, so a replay reaches the same goa
 
 ## Application layer and identity
 
-Phase 13 wraps the deterministic core in a product ([ADR-0030](decisions/0030-application-store-and-postgres.md), [ADR-0031](decisions/0031-oauth-identity.md)) without changing it.
+Phase 13 wraps the deterministic core in a product ([ADR-0030](decisions/0030-application-store-and-postgres.md), [ADR-0031](decisions/0031-oauth-identity.md), [ADR-0033](decisions/0033-sign-in-front-door-and-my-forgelab.md)) without changing it.
 
 * **Persistence.** `backend/internal/store` opens a Postgres connection pool from `DATABASE_URL` (or `-database`) and applies numbered, embedded migrations at startup, each in its own transaction, tracked in `schema_migrations`, serialized by a Postgres advisory lock. When no database is configured the API runs without a store, exactly as before, so the core, the CLI, and their tests need no database.
 * **One-way dependency.** The application layer imports the Sandbox engine to replay a game; no simulation package imports the store. A game stays a function of **(ruleset version, seed, command log)** and the database stores that triple plus the application data around it (users, ownership, progress, content, submissions, evaluation results) — never a tick stream, never the source of simulation truth.
 * **Identity** is OAuth 2.0 only (Authorization Code with PKCE) through GitHub and Google. A user is created or linked on first sign-in by `(provider, provider_user_id)`; no password is ever stored. Sessions are opaque random tokens whose SHA-256 hash alone is stored, sent in an `HttpOnly`, `Secure`, `SameSite=Lax` cookie and revocable server-side. Handlers take the user id from the session, never from the request, so one user cannot read or change another's data.
-* **Auth surface.** Sign-in is served under `/api/v1/auth/`: `providers`, `login/{provider}`, `callback/{provider}`, `logout`, and `me`. Provider credentials come from `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` and `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`; `FORGELAB_PUBLIC_URL` is the base for the OAuth redirect. A provider without credentials is not offered. CORS allows credentials when an origin is configured, so the session cookie travels to the dashboard.
+* **Ownership.** Saved sandboxes and learning progress are keyed by the session user id (`sandboxes`, `learning_progress` in Postgres), and every owned query is filtered by that id, so one user cannot read or change another's data. A signed-in player lists, saves, and resumes through `/api/v1/sandbox/saves`; a saved game is the replayable (ruleset, seed, command log) record, never a tick stream. A request without a session plays ephemerally (in-memory games) and persists nothing; with no `DATABASE_URL` the API keeps the local `.forgelab` files exactly as before, so the CLI and tests need no database (ADR-0032).
+* **Dashboard and sign-in.** The browser talks to the API same-origin: game data through the `/api/forgelab/*` rewrite, and the OAuth surface through a route handler at `/api/v1/auth/*` that forwards the session cookie and every `Set-Cookie` (ADR-0033). `FORGELAB_PUBLIC_URL` is the **dashboard's** public origin, so the OAuth callback returns through that proxy and the `HttpOnly`, `SameSite=Lax`, host-only session cookie is first-party. The header offers sign-in when providers are configured; `/me` (My ForgeLab) lists, resumes, and deletes the player's saved games; server rendering forwards the incoming session so per-user data renders server-side. Anonymous play stays available.
+* **Auth surface.** Sign-in is served under `/api/v1/auth/`: `providers`, `login/{provider}`, `callback/{provider}`, `logout`, and `me`. Provider credentials come from `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` and `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`; register the redirect URI `<FORGELAB_PUBLIC_URL>/api/v1/auth/callback/<provider>` with each provider. A provider without credentials is not offered.
 * **Health.** `GET /healthz` is liveness; `GET /readyz` reports whether the store is reachable.
 
 ## Boundaries

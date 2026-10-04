@@ -78,4 +78,4 @@ forgelab learn next                    # the next exercise and how to play it
 forgelab learn complete s1-serve       # mark an exercise done
 ```
 
-Progress lives in `.forgelab/progress.json` (git-ignored) and is shown on the dashboard's Learning path page. An exercise tied to a goal completes itself when any Sandbox game reaches that goal (recorded as `sandbox <game id>`); any exercise can also be marked done by hand. `forgelab serve -progress <file>` records to a different file. Order is guidance, not a gate.
+Signed in, progress is kept per user in Postgres and shown on the dashboard's Learning path page; with no database it lives in `.forgelab/progress.json` (git-ignored). An exercise tied to a goal completes itself when any Sandbox game reaches that goal (recorded as `sandbox <game id>`); any exercise can also be marked done by hand. `forgelab serve -progress <file>` records to a different file when no database is configured. Order is guidance, not a gate.

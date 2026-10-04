@@ -18,6 +18,7 @@ coverage.out
 # ---- Node / Next.js ----
 node_modules/
 .next/
+.next-auth/
 /frontend/test-results/
 /frontend/playwright-report/
 out/

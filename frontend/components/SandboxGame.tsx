@@ -25,11 +25,15 @@ import {
   newest,
   routedStorage,
   sandboxApi,
+  savedMessage,
+  recallGame,
+  rememberGame,
   type AppConfig,
   type Command,
   type GameState,
   type Ruleset,
 } from "@/lib/sandbox";
+import { UnauthorizedError } from "@/lib/client";
 import { SandboxEvents } from "./SandboxEvents";
 import { AppView, NewAppDialog } from "./SandboxApp";
 import { EdgePanel } from "./SandboxConn";
@@ -47,25 +51,7 @@ import { SandboxHud } from "./SandboxHud";
 import { SandboxNode, type SandboxFlowNode } from "./SandboxNode";
 import { KIND_DRAG_TYPE, SandboxInspector, SandboxPalette } from "./SandboxPanels";
 
-const STORAGE_KEY = "forgelab.sandbox.game";
 const nodeTypes = { component: SandboxNode };
-
-function remember(id: string | null) {
-  try {
-    if (id) localStorage.setItem(STORAGE_KEY, id);
-    else localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // storage is a convenience only
-  }
-}
-
-function recall(): string | null {
-  try {
-    return localStorage.getItem(STORAGE_KEY);
-  } catch {
-    return null;
-  }
-}
 
 // useGameStream keeps the game state live: Server-Sent Events first, polling
 // if the stream cannot be held open.
@@ -434,8 +420,13 @@ function Board({ rules, initial, onNewGame }: { rules: Ruleset; initial: GameSta
           className="secondary"
           onClick={() =>
             sandboxApi.save(game.id).then(
-              (r) => setToast(`Saved to ${r.path}`),
-              (err: Error) => setToast(err.message),
+              (r) => setToast(savedMessage(r)),
+              (err: Error) =>
+                setToast(
+                  err instanceof UnauthorizedError
+                    ? "Sign in to save your game — open My ForgeLab in the header"
+                    : err.message,
+                ),
             )
           }
         >
@@ -461,7 +452,7 @@ export function SandboxGame() {
     (async () => {
       try {
         const latest = await sandboxApi.ruleset();
-        const id = recall();
+        const id = recallGame();
         const g = id ? await sandboxApi.get(id).catch(() => null) : null;
         // An older game is shown with its own ruleset's catalog and defaults.
         const r = g && g.ruleset !== latest.version ? await sandboxApi.ruleset(g.ruleset) : latest;
@@ -484,7 +475,7 @@ export function SandboxGame() {
       const previous = game?.id;
       const g = await sandboxApi.create(game ? !!game.freeBuild : freeBuild);
       if (g.ruleset !== rules?.version) setRules(await sandboxApi.ruleset(g.ruleset));
-      remember(g.id);
+      rememberGame(g.id);
       setGame(g);
       if (previous) sandboxApi.remove(previous).catch(() => undefined);
     } catch (err) {

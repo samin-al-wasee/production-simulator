@@ -20,9 +20,14 @@ export interface PipelineRun {
   events: PipelineEvent[];
 }
 
+// UnauthorizedError marks a 401: the caller is anonymous where the API needs a
+// session, so the UI shows a sign-in prompt rather than a raw error (ADR-0033).
+export class UnauthorizedError extends Error {}
+
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api/forgelab${path}`, init);
   const body = (await res.json().catch(() => ({}))) as T & { error?: string };
+  if (res.status === 401) throw new UnauthorizedError(body.error ?? "sign in to continue");
   if (!res.ok) throw new Error(body.error ?? `${res.status} ${res.statusText}`);
   return body;
 }

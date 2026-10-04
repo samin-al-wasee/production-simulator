@@ -1113,3 +1113,53 @@ button.link {
 .sb-observe .sb-row {
   align-items: flex-end;
 }
+
+/* Header user menu and My ForgeLab (ADR-0033). */
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9rem;
+}
+
+.user-menu .who {
+  color: var(--muted);
+  font-family: var(--mono);
+}
+
+a.signin {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.signin-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 10px 0 0;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--bad);
+}
+
+td.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+td.actions button {
+  padding: 4px 10px;
+  font-size: 0.85rem;
+}

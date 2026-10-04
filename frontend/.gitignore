@@ -1,4 +1,5 @@
 node_modules/
 .next/
+.next-auth/
 next-env.d.ts
 *.tsbuildinfo

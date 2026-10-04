@@ -20,6 +20,7 @@ import {
   hasBlankNumber,
   percentTotal,
   problems,
+  savedMessage,
   toDraft,
   toPercent,
   type TrafficConfig,
@@ -236,5 +237,12 @@ describe("traffic drafts", () => {
     expect(describePattern({ shape: "schedule", rps: 0, schedule: [{ hour: 9, rps: 1000 }, { hour: 18.5, rps: 20000 }] })).toBe(
       "09:00 1000 RPS, 18:30 20.0k RPS",
     );
+  });
+});
+
+describe("savedMessage", () => {
+  it("names the store account or the file path", () => {
+    expect(savedMessage({ id: "save-1", name: "" })).toBe("Saved to your account");
+    expect(savedMessage({ path: ".forgelab/sandbox/game-1.json" })).toBe("Saved to .forgelab/sandbox/game-1.json");
   });
 });

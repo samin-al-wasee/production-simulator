@@ -1,6 +1,8 @@
 // Server-side client for the forgelab core API. The dashboard only renders
 // what the API returns; it never recomputes simulation results.
 
+import { cookies } from "next/headers";
+
 export const API_URL = process.env.FORGELAB_API_URL ?? "http://127.0.0.1:8090";
 
 export interface PipelineInfo {
@@ -39,7 +41,10 @@ export interface LearningStatus {
 export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_URL}/api/v1${path}`, { cache: "no-store" });
+  // Carry the browser's session so per-user data renders server-side (ADR-0033).
+  const jar = await cookies();
+  const headers = jar.getAll().length ? { cookie: jar.toString() } : undefined;
+  const res = await fetch(`${API_URL}/api/v1${path}`, { cache: "no-store", headers });
   if (!res.ok) {
     let detail = res.statusText;
     try {

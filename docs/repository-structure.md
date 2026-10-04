@@ -47,7 +47,7 @@ ForgeLab/
 | `.claude/` | `commands/dev-loop.md`; `skills/caveman/SKILL.md` (terse chat replies on request) | Claude Code project commands and skills |
 | `.github/` | Issue templates, PR template, CI workflows | GitHub automation |
 
-Generated, git-ignored local state lives in `.forgelab/`: learning progress (`progress.json`) and saved Sandbox games (`sandbox/`).
+Generated, git-ignored local state lives in `.forgelab/`: learning progress (`progress.json`) and saved Sandbox games (`sandbox/`). It is used only when the API runs without a database (`-database=`; the CLI, DB-free development, and the anonymous browser tests); with a store, progress and saved games are per user in Postgres (ADR-0033).
 
 ## Docs layout
 

@@ -40,6 +40,10 @@ test-fe: ## Dashboard: unit tests
 test-e2e: ## Dashboard browser tests (Playwright; starts or reuses the API and dev server)
 	cd frontend && npx playwright install chromium && npm run e2e
 
+.PHONY: test-e2e-auth
+test-e2e-auth: ## Sign-in browser tests (Playwright against a database; needs FORGELAB_TEST_DATABASE_URL)
+	cd frontend && npx playwright install chromium && npm run e2e:auth
+
 .PHONY: lint
 lint: lint-go lint-fe ## Run every linter and typechecker
 

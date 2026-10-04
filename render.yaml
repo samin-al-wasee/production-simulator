@@ -18,9 +18,10 @@ services:
       # startup. Leave unset to run without a database.
       - key: DATABASE_URL
         sync: false
-      # OAuth sign-in (ADR-0031). Set a provider's id and secret to offer it;
-      # both are optional. FORGELAB_PUBLIC_URL must be this service's public
-      # URL, the base of the OAuth redirect.
+      # OAuth sign-in (ADR-0031, ADR-0033). Set a provider's id and secret to
+      # offer it; both are optional. FORGELAB_PUBLIC_URL must be the dashboard's
+      # public URL (not this service's): the OAuth callback returns through the
+      # dashboard's /api/v1/auth proxy so the session cookie lands there.
       - key: FORGELAB_PUBLIC_URL
         sync: false
       - key: GITHUB_CLIENT_ID

@@ -11,7 +11,7 @@ backend/
 ├── internal/api/          HTTP API for the dashboard (Sandbox games and SSE, pipelines, learning) — Phase 7, 10
 ├── internal/pipeline/     CI/CD pipeline simulation on a virtual clock — Phase 7
 ├── internal/learning/     Learning path and progress — Phase 9
-├── internal/store/        Postgres access and embedded migrations for the application layer — Phase 13
+├── internal/store/        Postgres access (identity, sandboxes, progress) and migrations — Phase 13
 ├── internal/identity/     OAuth sign-in and database-backed sessions — Phase 13
 └── internal/secretscan/   Committed-secret detection — Phase 8
 ```

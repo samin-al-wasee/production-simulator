@@ -12,14 +12,14 @@ ForgeLab is the **Production Sandbox** ([ADR-0014](docs/decisions/0014-sandbox-o
 > Identity and an application datastore wrap the deterministic core without touching it.
 > The core stays headless and DB-free. ADR-0030, ADR-0031.
 
-- [ ] **13.1 Accounts & foundation**: OAuth (GitHub, Google) sign-in, DB-backed sessions,
+- [x] **13.1 Accounts & foundation**: OAuth (GitHub, Google) sign-in, DB-backed sessions,
   a Postgres application store, user-owned sandboxes with save/resume, per-user learning
   progress, and a My ForgeLab shell. The global `.forgelab` files are retired.
   (ADR-0030, ADR-0031)
   - [x] 13.1a Database foundation
   - [x] 13.1b Identity (OAuth, sessions, login)
-  - [ ] 13.1c Ownership, persistence, and per-user progress
-  - [ ] 13.1d My ForgeLab shell
+  - [x] 13.1c Ownership, persistence, and per-user progress
+  - [x] 13.1d My ForgeLab shell
 - [ ] **13.2 Free sandbox polish** — planned, not started
 - [ ] **13.3 Goals & progression** — planned, not started
 

@@ -823,18 +823,59 @@ const json = (body: unknown): RequestInit => ({
 
 const game = (id: string) => `/sandbox/games/${encodeURIComponent(id)}`;
 
+// SavedSummary is one saved sandbox as listed (without its command log).
+export interface SavedSummary {
+  id: string;
+  name: string;
+  ruleset: string;
+  seed: number;
+  tick: number;
+  updatedAt: string;
+}
+
+// SavedResult is the response to POST …/save: a store-owned row when signed in,
+// or a file path when the API runs without a store.
+export type SavedResult = { path: string } | { id?: string; name?: string; save?: unknown };
+
+export function savedMessage(r: SavedResult): string {
+  return "path" in r ? `Saved to ${r.path}` : "Saved to your account";
+}
+
 export const sandboxApi = {
   ruleset: (version?: string) => request<Ruleset>(`/sandbox/ruleset${version ? `?version=${encodeURIComponent(version)}` : ""}`),
   list: () => request<{ id: string; status: string; tick: number }[]>("/sandbox/games"),
   create: (freeBuild = false) => request<GameState>("/sandbox/games", json(freeBuild ? { freeBuild } : {})),
+  resume: (saveId: string) => request<GameState>("/sandbox/games", json({ saveId })),
   get: (id: string) => request<GameState>(game(id)),
   remove: (id: string) => fetch(`/api/forgelab${game(id)}`, { method: "DELETE" }),
   command: (id: string, c: Command) => request<{ node?: string; state: GameState }>(`${game(id)}/commands`, json(c)),
   speed: (id: string, speed: number) => request<GameState>(`${game(id)}/speed`, json({ speed })),
   step: (id: string, ticks: number) => request<GameState>(`${game(id)}/step`, json({ ticks })),
-  save: (id: string) => request<{ path: string }>(`${game(id)}/save`, { method: "POST" }),
+  save: (id: string, name?: string) => request<SavedResult>(`${game(id)}/save`, json(name ? { name } : {})),
+  saves: () => request<SavedSummary[]>("/sandbox/saves"),
+  deleteSave: (id: string) => request<unknown>(`/sandbox/saves/${encodeURIComponent(id)}`, { method: "DELETE" }),
   streamUrl: (id: string) => `/api/forgelab${game(id)}/stream`,
 };
+
+// The dashboard remembers the current game id so a reload resumes it.
+const STORAGE_KEY = "forgelab.sandbox.game";
+
+export function rememberGame(id: string | null) {
+  try {
+    if (id) localStorage.setItem(STORAGE_KEY, id);
+    else localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // storage is a convenience only
+  }
+}
+
+export function recallGame(): string | null {
+  try {
+    return localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
 
 export function formatMoney(value: number): string {
   if (!Number.isFinite(value)) return "n/a";

@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "e2e:auth": "playwright test --config playwright.auth.config.ts"
   },
   "dependencies": {
     "@xyflow/react": "^12.12.0",
