@@ -40,7 +40,12 @@
       "Shell(command -v psql nc pg_isready python3 2>&1; echo \"--- tcp probe db:5432 ---\"; (timeout 3 bash -c 'cat < /dev/null > /dev/tcp/db/5432' && echo \"db:5432 OPEN\") 2>&1 || echo \"db:5432 CLOSED/unreachable\")",
       "Shell(go:*)",
       "Shell(curl -s -o /dev/null -w %{http_code}\\n http://127.0.0.1:8099/healthz)",
-      "Shell(curl -s -w \\nHTTP %{http_code}\\n http://127.0.0.1:8099/readyz)"
+      "Shell(curl -s -w \\nHTTP %{http_code}\\n http://127.0.0.1:8099/readyz)",
+      "Shell(gofmt:*)",
+      "Shell(curl -s http://127.0.0.1:8099/api/v1/auth/providers)",
+      "Shell(curl -s -o /dev/null -w %{http_code}\\n http://127.0.0.1:8099/api/v1/auth/me)",
+      "Shell(curl -s -D - -o /dev/null http://127.0.0.1:8099/api/v1/auth/login/github)",
+      "Shell(curl -s http://127.0.0.1:8099/readyz)"
     ],
     "deny": [],
     "defaultMode": "default"
