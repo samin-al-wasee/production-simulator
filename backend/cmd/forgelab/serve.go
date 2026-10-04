@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/samin-al-wasee/production-simulator/backend/internal/api"
+	"github.com/samin-al-wasee/production-simulator/backend/internal/identity"
 	"github.com/samin-al-wasee/production-simulator/backend/internal/store"
 )
 
@@ -25,6 +27,7 @@ func runServe(args []string) int {
 	fs.Usage = func() {
 		fmt.Fprintln(fs.Output(), "usage: forgelab serve [-addr host:port] [-repo dir] [-progress file] [-allow-origin origin] [-database url]")
 		fmt.Fprintln(fs.Output(), "environment: PORT listens on :PORT unless -addr is set; FORGELAB_ALLOW_ORIGIN sets -allow-origin; DATABASE_URL sets -database")
+		fmt.Fprintln(fs.Output(), "sign-in: GITHUB_CLIENT_ID/GITHUB_CLIENT_SECRET and GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET enable providers; FORGELAB_PUBLIC_URL is the OAuth redirect base; FORGELAB_COOKIE_SECURE forces the Secure cookie flag")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -64,6 +67,21 @@ func runServe(args []string) int {
 			return exitFailed
 		}
 		cfg.Store = st
+
+		publicURL := os.Getenv("FORGELAB_PUBLIC_URL")
+		if publicURL == "" {
+			publicURL = "http://127.0.0.1:8090"
+		}
+		secure := strings.HasPrefix(publicURL, "https://")
+		if v := os.Getenv("FORGELAB_COOKIE_SECURE"); v != "" {
+			secure = v == "true" || v == "1"
+		}
+		cfg.Identity = identity.New(identity.Config{
+			Store:        st,
+			Providers:    identity.ProvidersFromEnv(),
+			PublicURL:    publicURL,
+			CookieSecure: secure,
+		})
 	}
 
 	srv := &http.Server{

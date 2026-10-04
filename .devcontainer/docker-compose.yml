@@ -13,6 +13,9 @@ services:
       DATABASE_URL: postgres://postgres:postgres@db:5432/forgelab?sslmode=disable
       FORGELAB_TEST_DATABASE_URL: postgres://postgres:postgres@db:5432/forgelab?sslmode=disable
       FORGELAB_ALLOW_ORIGIN: http://localhost:3001
+      # The OAuth redirect base for a browser on the host. Set provider client
+      # ids and secrets here (or in the shell) to enable sign-in (ADR-0031).
+      FORGELAB_PUBLIC_URL: http://localhost:8090
     depends_on:
       db:
         condition: service_healthy

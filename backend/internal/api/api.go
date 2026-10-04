@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/samin-al-wasee/production-simulator/backend/internal/identity"
 	"github.com/samin-al-wasee/production-simulator/backend/internal/learning"
 	"github.com/samin-al-wasee/production-simulator/backend/internal/pipeline"
 	"github.com/samin-al-wasee/production-simulator/backend/internal/store"
@@ -35,6 +36,9 @@ type Config struct {
 	// Store is the application database. When nil the API runs without one,
 	// exactly as before the application layer existed (ADR-0030).
 	Store *store.Store
+	// Identity runs OAuth sign-in and sessions. When nil the auth endpoints
+	// report that sign-in is not configured (ADR-0031).
+	Identity *identity.Service
 }
 
 // Server implements http.Handler.
@@ -67,6 +71,7 @@ func NewServer(cfg Config) *Server {
 	s.mux.HandleFunc("GET /api/v1/pipelines", s.handlePipelines)
 	s.mux.HandleFunc("POST /api/v1/pipelines/{name}/runs", s.handleSimulatePipeline)
 	s.registerSandbox()
+	s.registerAuth()
 	return s
 }
 
@@ -74,6 +79,7 @@ func NewServer(cfg Config) *Server {
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if s.cfg.AllowedOrigin != "" {
 		w.Header().Set("Access-Control-Allow-Origin", s.cfg.AllowedOrigin)
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if r.Method == http.MethodOptions {

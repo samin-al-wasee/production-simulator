@@ -17,7 +17,7 @@ ForgeLab is the **Production Sandbox** ([ADR-0014](docs/decisions/0014-sandbox-o
   progress, and a My ForgeLab shell. The global `.forgelab` files are retired.
   (ADR-0030, ADR-0031)
   - [x] 13.1a Database foundation
-  - [ ] 13.1b Identity (OAuth, sessions, login)
+  - [x] 13.1b Identity (OAuth, sessions, login)
   - [ ] 13.1c Ownership, persistence, and per-user progress
   - [ ] 13.1d My ForgeLab shell
 - [ ] **13.2 Free sandbox polish** — planned, not started
