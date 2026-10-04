@@ -1,0 +1,40 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./.commandcode/hooks/ponytail-caveman.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "write|edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./.commandcode/hooks/ponytail-caveman.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Shell(cd:*)",
+      "Shell(COMMANDCODE_PROJECT_DIR= COMMANDCODE_HOOK_EVENT=SessionStart bash .commandcode/hooks/ponytail-caveman.sh)",
+      "Shell(jq:*)",
+      "Shell(echo:*)",
+      "Shell(grep:*)",
+      "Shell(COMMANDCODE_PROJECT_DIR= COMMANDCODE_HOOK_EVENT=PreToolUse bash .commandcode/hooks/ponytail-caveman.sh)",
+      "Shell(cd /workspaces/production-simulator && echo \"=== PreToolUse: valid JSON + decision ===\" && printf '%s' '{\"hook_event_name\":\"PreToolUse\",\"tool_name\":\"write_file\"}' | COMMANDCODE_PROJECT_DIR=\"$PWD\" COMMANDCODE_HOOK_EVENT=PreToolUse bash .commandcode/hooks/ponytail-caveman.sh | jq -e '.hookSpecificOutput.permissionDecision' && echo \"=== SessionStart includes caveman? ===\" && printf '%s' '{\"hook_event_name\":\"SessionStart\",\"source\":\"startup\"}' | COMMANDCODE_PROJECT_DIR=\"$PWD\" COMMANDCODE_HOOK_EVENT=SessionStart bash .commandcode/hooks/ponytail-caveman.sh | jq -r '.hookSpecificOutput.additionalContext' | grep -nE 'CAVEMAN \\(always on\\)|Caveman mode|Me talk short' && echo \"=== unknown event -> empty ===\" && out=$(printf '%s' '{}' | COMMANDCODE_PROJECT_DIR=\"$PWD\" COMMANDCODE_HOOK_EVENT=PostToolUse bash .commandcode/hooks/ponytail-caveman.sh); echo \"stdout=[$out]\" && echo \"=== git status ===\" && git status --short)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}

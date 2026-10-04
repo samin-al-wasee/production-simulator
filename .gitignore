@@ -37,7 +37,10 @@ venv/
 # ---- Tooling / editors ----
 .idea/
 .vscode/
-.commandcode/
+.commandcode/*
+!.commandcode/skills/
+!.commandcode/hooks/
+!.commandcode/settings.json
 *.swp
 *.swo
 
