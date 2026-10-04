@@ -6,6 +6,23 @@ Legend: ⬜ planned · 🔨 in progress · ✅ done · 🗄️ retired
 
 ForgeLab is the **Production Sandbox** ([ADR-0014](docs/decisions/0014-sandbox-only-platform.md)). Phases 0 to 9 built a real-infrastructure lab (Live mode); most of it was retired and is kept on the `archive/live-lab` branch. What survived is noted below.
 
+## Phase 13 — Accounts & product foundation *🔨 in progress*
+
+> ForgeLab becomes a product: real users, persistent work, and a place to return to.
+> Identity and an application datastore wrap the deterministic core without touching it.
+> The core stays headless and DB-free. ADR-0030, ADR-0031.
+
+- [ ] **13.1 Accounts & foundation**: OAuth (GitHub, Google) sign-in, DB-backed sessions,
+  a Postgres application store, user-owned sandboxes with save/resume, per-user learning
+  progress, and a My ForgeLab shell. The global `.forgelab` files are retired.
+  (ADR-0030, ADR-0031)
+  - [ ] 13.1a Database foundation
+  - [ ] 13.1b Identity (OAuth, sessions, login)
+  - [ ] 13.1c Ownership, persistence, and per-user progress
+  - [ ] 13.1d My ForgeLab shell
+- [ ] **13.2 Free sandbox polish** — planned, not started
+- [ ] **13.3 Goals & progression** — planned, not started
+
 ## Phase 11 — Deep component simulation *✅ done*
 
 > Each component becomes progressively realistic, one at a time, so players learn production engineering by experimenting: configuration inside the component, behavior in the Go core, metrics out. The canvas stays simple: one node per infrastructure concept. ADR-0016.
