@@ -2,7 +2,7 @@
 
 The Production Sandbox: a model-driven game in which the player builds a production system from an empty world and runs it under growth, events, and incidents. Nothing here starts a container; every value is modelled in the Go core and labelled as simulated (Principle 1).
 
-**Status:** Phase 10 complete (ADR-0013, ADR-0014); Phase 11 in progress (ADR-0016, ADR-0017, ADR-0018): a configurable Internet, the application instance, and traffic components.
+**Status:** Phases 10 to 12 complete. Phase 10 built the Sandbox (ADR-0013, ADR-0014); Phase 11 modelled every component kind (ADR-0016 to ADR-0025); Phase 12 added observability (ADR-0027 to ADR-0029).
 
 ## Components
 

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-04
+
 ### Removed
 
 - Live mode, per ADR-0014: the sample application, every environment (Docker Compose lab and overlays, Kubernetes, AWS and GCP Terraform presets, cost guard), the scenario drills, helper scripts, application and cluster manifests and templates, the real-infrastructure component READMEs, the core packages for host calibration, resource budgeting, virtual clusters, scale factors, capacity, dual metrics, chaos, load testing, benchmark reports, retry semantics, cost guard, compliance, and manifest validation (with their CLI commands, API endpoints, and the JSON Schema dependency), and the dashboard's Overview and Experiments pages. Everything removed is on the `archive/live-lab` branch.

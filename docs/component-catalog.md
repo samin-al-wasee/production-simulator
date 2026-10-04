@@ -53,7 +53,7 @@ These are what a player places in a game, plus the Internet, which every game ha
 | Message queue | Accepts writes, holds a backlog, feeds workers | 1000 | $1.50 |
 | Object storage | Serves the requests that need stored objects (10% in v1 to v3; the storage endpoints in v4) | 1000 | $1.00 |
 
-#### In-game component kinds (ruleset `sandbox/v6`)
+#### In-game component kinds (ruleset `sandbox/v6` and later)
 
 A v6 game starts with no node at all. Its catalog is v5's without the Internet, the CDN, the load balancer, and the API gateway, which return with their contracts in v13 (ADR-0025), plus:
 
