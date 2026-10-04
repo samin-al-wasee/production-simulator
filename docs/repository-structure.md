@@ -36,8 +36,8 @@ ForgeLab/
 | Folder | Contains | Owns |
 |---|---|---|
 | `docs/` | Vision, architecture, principles, catalog, scenarios, glossary, learning path, security, decisions | Every conceptual document |
-| `backend/` | `cmd/forgelab` CLI; `internal/sandbox`, `internal/pipeline`, `internal/learning`, `internal/secretscan`, `internal/store`, `internal/api`; `Dockerfile` for hosting the API | Simulation logic and its tooling, plus the application layer's persistence (Postgres); never UI code |
-| `frontend/` | Next.js app: Sandbox (home), Pipelines, Learning path; Playwright tests in `e2e/` | Dashboard UI; never simulation logic |
+| `backend/` | `cmd/forgelab` CLI; `internal/sandbox`, `internal/pipeline`, `internal/learning`, `internal/secretscan`, `internal/store`, `internal/api`; `Dockerfile` for hosting the API; `.env.example` (backend environment template) | Simulation logic and its tooling, plus the application layer's persistence (Postgres); never UI code |
+| `frontend/` | Next.js app: Sandbox (home), Pipelines, Learning path; Playwright tests in `e2e/`; `.env.example` (dashboard environment template) | Dashboard UI; never simulation logic |
 | `components/` | `sandbox/`, `cicd/`, `experience/`, `security/`, one README per component | Component documentation |
 | `manifests/` | `pipelines/*.yaml` | Pipeline declarations |
 | `learning/` | `path.yaml` | Learning path definition |

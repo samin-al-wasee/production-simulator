@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Phase 13.1a: the database foundation (ADR-0030): `backend/internal/store` opens a `pgx/v5` Postgres pool from `DATABASE_URL` (or `-database`) and applies numbered, embedded SQL migrations at startup, each in its own transaction, recorded in `schema_migrations`, serialized by a Postgres advisory lock. The first migration adds the identity schema (users, OAuth accounts, sessions). `GET /readyz` reports store reachability; unset, the API runs without a database exactly as before. The application layer points one way: no simulation package imports the store.
-- Local development Postgres: the dev container now runs a `postgres:16-alpine` service beside the workspace and sets `DATABASE_URL` and `FORGELAB_TEST_DATABASE_URL` (`.devcontainer/docker-compose.yml`).
+- Local development Postgres: the dev container now runs a `postgres:16-alpine` service beside the workspace and sets `DATABASE_URL` and `FORGELAB_TEST_DATABASE_URL` (`.devcontainer/docker-compose.yml`); `backend/.env.example` documents the backend environment for runs outside it, and `frontend/.env.example` documents the dashboard's `FORGELAB_API_URL`.
 
 ## [0.1.0] - 2026-10-04
 

@@ -18,7 +18,7 @@ ForgeLab used to be a real-infrastructure lab (Docker Compose, Kubernetes, Terra
 
 ## Getting Started
 
-You need Go and Node.js (the dev container in `.devcontainer/` has both).
+You need Go and Node.js (the dev container in `.devcontainer/` has both, plus a Postgres for the application store and `DATABASE_URL` already set). Outside the dev container, copy `backend/.env.example` to `.env` and point `DATABASE_URL` at your own Postgres (the dashboard's `frontend/.env.example` sets `FORGELAB_API_URL` in `frontend/.env.local`).
 
 ```sh
 make serve           # terminal 1: core API on 127.0.0.1:8090

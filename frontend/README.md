@@ -25,6 +25,8 @@ The Sandbox is at <http://localhost:3001/sandbox>. The game state streams over S
 
 ## Configuration
 
+Copy `.env.example` to `.env.local` to override locally; Netlify reads the same variable from its site environment.
+
 | Variable | Default | Meaning |
 |---|---|---|
 | `FORGELAB_API_URL` | `http://127.0.0.1:8090` | Backend API base URL (used by server rendering and the `/api/forgelab/*` rewrite) |
