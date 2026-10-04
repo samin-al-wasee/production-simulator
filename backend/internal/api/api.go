@@ -41,9 +41,23 @@ type Config struct {
 	Identity *identity.Service
 }
 
+// appStore is the application persistence the ownership layer needs (ADR-0030).
+// *store.Store implements it; tests substitute a fake.
+type appStore interface {
+	CreateSandbox(ctx context.Context, userID, name, ruleset string, seed int64, tick int, saveJSON string) (store.SandboxSummary, error)
+	UpdateSandbox(ctx context.Context, userID, id, name string, tick int, saveJSON string) error
+	ListSandboxes(ctx context.Context, userID string) ([]store.SandboxSummary, error)
+	GetSandbox(ctx context.Context, userID, id string) (store.SavedSandbox, error)
+	DeleteSandbox(ctx context.Context, userID, id string) error
+	ProgressForUser(ctx context.Context, userID string) ([]store.ProgressEntry, error)
+	RecordProgress(ctx context.Context, userID string, exerciseIDs []string, by string, at time.Time) ([]string, error)
+}
+
 // Server implements http.Handler.
 type Server struct {
 	cfg Config
+	// store is nil when no database is configured (ADR-0030).
+	store appStore
 
 	progressMu sync.Mutex
 
@@ -63,6 +77,9 @@ func NewServer(cfg Config) *Server {
 		cfg.ProgressFile = filepath.Join(cfg.RepoRoot, ".forgelab", "progress.json")
 	}
 	s := &Server{cfg: cfg, games: map[string]*sandboxGame{}}
+	if cfg.Store != nil {
+		s.store = cfg.Store
+	}
 	s.mux = http.NewServeMux()
 	s.mux.HandleFunc("GET /healthz", s.handleHealth)
 	s.mux.HandleFunc("GET /readyz", s.handleReady)
@@ -205,8 +222,12 @@ func (s *Server) handleSimulatePipeline(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, run)
 }
 
+func (s *Server) loadPath() (*learning.Path, error) {
+	return learning.LoadPath(filepath.Join(s.cfg.RepoRoot, s.cfg.LearningPath))
+}
+
 func (s *Server) loadLearning() (*learning.Path, learning.Progress, error) {
-	path, err := learning.LoadPath(filepath.Join(s.cfg.RepoRoot, s.cfg.LearningPath))
+	path, err := s.loadPath()
 	if err != nil {
 		return nil, learning.Progress{}, err
 	}
@@ -214,7 +235,36 @@ func (s *Server) loadLearning() (*learning.Path, learning.Progress, error) {
 	return path, progress, err
 }
 
-func (s *Server) handleLearning(w http.ResponseWriter, _ *http.Request) {
+// progressFrom turns the store's rows into the learning package's model.
+func progressFrom(entries []store.ProgressEntry) learning.Progress {
+	progress := learning.Progress{Completed: map[string]learning.Completion{}}
+	for _, e := range entries {
+		progress.Completed[e.ExerciseID] = learning.Completion{At: e.CompletedAt, By: e.CompletedBy}
+	}
+	return progress
+}
+
+// handleLearning serves the path with the learner's progress: per-user when a
+// store is configured, otherwise the local progress file.
+func (s *Server) handleLearning(w http.ResponseWriter, r *http.Request) {
+	if s.store != nil {
+		path, err := s.loadPath()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "%v", err)
+			return
+		}
+		progress := learning.Progress{Completed: map[string]learning.Completion{}}
+		if user, ok := s.currentUser(r); ok {
+			entries, err := s.store.ProgressForUser(r.Context(), user.ID)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "%v", err)
+				return
+			}
+			progress = progressFrom(entries)
+		}
+		writeJSON(w, http.StatusOK, path.Status(progress))
+		return
+	}
 	s.progressMu.Lock()
 	path, progress, err := s.loadLearning()
 	s.progressMu.Unlock()
@@ -226,6 +276,35 @@ func (s *Server) handleLearning(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) handleLearningComplete(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if s.store != nil {
+		user, ok := s.currentUser(r)
+		if !ok {
+			writeError(w, http.StatusUnauthorized, "sign in to save progress")
+			return
+		}
+		path, err := s.loadPath()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "%v", err)
+			return
+		}
+		var probe learning.Progress
+		if _, err := probe.Complete(path, id, "manual", time.Now()); err != nil {
+			writeError(w, http.StatusNotFound, "%v", err)
+			return
+		}
+		if _, err := s.store.RecordProgress(r.Context(), user.ID, []string{id}, "manual", time.Now()); err != nil {
+			writeError(w, http.StatusInternalServerError, "%v", err)
+			return
+		}
+		entries, err := s.store.ProgressForUser(r.Context(), user.ID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "%v", err)
+			return
+		}
+		writeJSON(w, http.StatusOK, path.Status(progressFrom(entries)))
+		return
+	}
 	s.progressMu.Lock()
 	defer s.progressMu.Unlock()
 	path, progress, err := s.loadLearning()
@@ -233,7 +312,7 @@ func (s *Server) handleLearningComplete(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusInternalServerError, "%v", err)
 		return
 	}
-	if _, err := progress.Complete(path, r.PathValue("id"), "manual", time.Now()); err != nil {
+	if _, err := progress.Complete(path, id, "manual", time.Now()); err != nil {
 		writeError(w, http.StatusNotFound, "%v", err)
 		return
 	}

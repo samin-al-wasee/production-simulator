@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,7 +12,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/samin-al-wasee/production-simulator/backend/internal/learning"
 	"github.com/samin-al-wasee/production-simulator/backend/internal/sandbox"
+	"github.com/samin-al-wasee/production-simulator/backend/internal/store"
 )
 
 // Sandbox games live in memory; each is driven by its own clock goroutine
@@ -26,6 +29,10 @@ var sandboxSpeeds = map[int]bool{0: true, 1: true, 2: true, 4: true, 8: true}
 type sandboxGame struct {
 	id  string
 	seq int
+	// userID is the owner, empty for an anonymous game (ADR-0031).
+	userID string
+	// saveID is the store row this game is saved to, empty until first saved.
+	saveID string
 
 	mu    sync.Mutex
 	game  *sandbox.Game
@@ -38,7 +45,7 @@ type sandboxGame struct {
 	// recorded are the goals already passed to record, which completes the
 	// learning-path exercises tied to them.
 	recorded map[string]bool
-	record   func(game string, goals []string) error
+	record   func(userID, game string, goals []string) error
 }
 
 // SandboxState is the full game view sent to the dashboard.
@@ -109,7 +116,7 @@ func (sg *sandboxGame) recordGoals() {
 			fresh = append(fresh, gl.ID)
 		}
 	}
-	if len(fresh) == 0 || sg.record == nil || sg.record(sg.id, fresh) != nil {
+	if len(fresh) == 0 || sg.record == nil || sg.record(sg.userID, sg.id, fresh) != nil {
 		return
 	}
 	for _, id := range fresh {
@@ -199,14 +206,21 @@ func (s *Server) registerSandbox() {
 	s.mux.HandleFunc("POST /api/v1/sandbox/games/{id}/step", s.handleSandboxStep)
 	s.mux.HandleFunc("POST /api/v1/sandbox/games/{id}/save", s.handleSandboxSave)
 	s.mux.HandleFunc("GET /api/v1/sandbox/games/{id}/stream", s.handleSandboxStream)
+	s.mux.HandleFunc("GET /api/v1/sandbox/saves", s.handleSandboxSavesList)
+	s.mux.HandleFunc("GET /api/v1/sandbox/saves/{id}", s.handleSandboxSaveGet)
+	s.mux.HandleFunc("DELETE /api/v1/sandbox/saves/{id}", s.handleSandboxSaveDelete)
 }
 
+// sandboxGame finds a game the caller owns. Another user's game is a 404, so
+// one player cannot see or touch another's (ADR-0031).
 func (s *Server) sandboxGame(w http.ResponseWriter, r *http.Request) *sandboxGame {
+	user, _ := s.currentUser(r)
 	s.mu.Lock()
 	sg := s.games[r.PathValue("id")]
 	s.mu.Unlock()
-	if sg == nil {
+	if sg == nil || sg.userID != user.ID {
 		writeError(w, http.StatusNotFound, "unknown game %q", r.PathValue("id"))
+		return nil
 	}
 	return sg
 }
@@ -227,7 +241,7 @@ func (s *Server) handleSandboxRuleset(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, rules)
 }
 
-func (s *Server) handleSandboxList(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) handleSandboxList(w http.ResponseWriter, r *http.Request) {
 	type summary struct {
 		ID     string  `json:"id"`
 		Status string  `json:"status"`
@@ -235,10 +249,13 @@ func (s *Server) handleSandboxList(w http.ResponseWriter, _ *http.Request) {
 		Users  float64 `json:"users"`
 		Cash   float64 `json:"cash"`
 	}
+	user, _ := s.currentUser(r)
 	s.mu.Lock()
 	games := make([]*sandboxGame, 0, len(s.games))
 	for _, sg := range s.games {
-		games = append(games, sg)
+		if sg.userID == user.ID {
+			games = append(games, sg)
+		}
 	}
 	s.mu.Unlock()
 	out := make([]summary, 0, len(games))
@@ -251,8 +268,8 @@ func (s *Server) handleSandboxList(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// handleSandboxCreate starts a new empty game, or replays a save when the
-// body carries one.
+// handleSandboxCreate starts a new empty game, replays a save from the body,
+// or resumes an owned saved sandbox named by saveId.
 func (s *Server) handleSandboxCreate(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Seed *int64 `json:"seed"`
@@ -260,6 +277,8 @@ func (s *Server) handleSandboxCreate(w http.ResponseWriter, r *http.Request) {
 		FreeBuild bool          `json:"freeBuild"`
 		Ruleset   string        `json:"ruleset"`
 		Save      *sandbox.Save `json:"save"`
+		// SaveID resumes an owned saved sandbox (signed-in players only).
+		SaveID string `json:"saveId"`
 	}
 	if r.ContentLength != 0 {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -267,8 +286,34 @@ func (s *Server) handleSandboxCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	user, _ := s.currentUser(r)
 	var g *sandbox.Game
+	var saveID string
 	switch {
+	case req.SaveID != "":
+		if s.store == nil || user.ID == "" {
+			writeError(w, http.StatusUnauthorized, "sign in to resume a saved sandbox")
+			return
+		}
+		saved, err := s.store.GetSandbox(r.Context(), user.ID, req.SaveID)
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "unknown save %q", req.SaveID)
+			return
+		}
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "%v", err)
+			return
+		}
+		var save sandbox.Save
+		if err := json.Unmarshal([]byte(saved.Save), &save); err != nil {
+			writeError(w, http.StatusInternalServerError, "bad save: %v", err)
+			return
+		}
+		if g, err = sandbox.Replay(save); err != nil {
+			writeError(w, http.StatusBadRequest, "replay save: %v", err)
+			return
+		}
+		saveID = saved.ID
 	case req.Save != nil:
 		var err error
 		if g, err = sandbox.Replay(*req.Save); err != nil {
@@ -304,8 +349,8 @@ func (s *Server) handleSandboxCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	s.gameSeq++
 	sg := &sandboxGame{
-		id: fmt.Sprintf("game-%d", s.gameSeq), seq: s.gameSeq, game: g, subs: map[chan []byte]bool{},
-		recorded: map[string]bool{}, record: s.recordGoals,
+		id: fmt.Sprintf("game-%d", s.gameSeq), seq: s.gameSeq, userID: user.ID, saveID: saveID,
+		game: g, subs: map[chan []byte]bool{}, recorded: map[string]bool{}, record: s.recordGoals,
 	}
 	s.games[sg.id] = sg
 	s.mu.Unlock()
@@ -320,9 +365,33 @@ func (s *Server) handleSandboxCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 // recordGoals completes the learning-path exercises tied to goals a game has
-// reached. A missing or broken learning path or progress file is an error,
-// so the game offers the goals again later; the game itself never fails.
-func (s *Server) recordGoals(game string, goals []string) error {
+// reached. A signed-in player's progress lives in the store (userID); an
+// anonymous game records nothing; without a store it is the local progress
+// file. A broken path is an error, so the game offers the goals again later;
+// the game itself never fails.
+func (s *Server) recordGoals(userID, game string, goals []string) error {
+	if s.store != nil {
+		if userID == "" {
+			return nil
+		}
+		path, err := s.loadPath()
+		if err != nil {
+			return err
+		}
+		now := time.Now()
+		var probe learning.Progress
+		var ids []string
+		for _, gl := range goals {
+			ids = append(ids, probe.RecordGoal(path, gl, "", now)...)
+		}
+		if len(ids) == 0 {
+			return nil
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_, err = s.store.RecordProgress(ctx, userID, ids, "sandbox "+game, now)
+		return err
+	}
 	s.progressMu.Lock()
 	defer s.progressMu.Unlock()
 	path, progress, err := s.loadLearning()
@@ -436,16 +505,56 @@ func (s *Server) handleSandboxStep(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, sg.state())
 }
 
-// handleSandboxSave writes the replayable record to .forgelab/sandbox/ and
-// returns it.
+// handleSandboxSave persists the replayable record. A signed-in player's save
+// is owned in the store; without a store it goes to .forgelab/sandbox/. An
+// anonymous player in store mode has nowhere to keep it (ADR-0031).
 func (s *Server) handleSandboxSave(w http.ResponseWriter, r *http.Request) {
 	sg := s.sandboxGame(w, r)
 	if sg == nil {
 		return
 	}
+	var body struct {
+		Name string `json:"name"`
+	}
+	if r.ContentLength != 0 {
+		_ = json.NewDecoder(r.Body).Decode(&body)
+	}
 	sg.mu.Lock()
 	save := sg.game.Save()
+	saveID := sg.saveID
 	sg.mu.Unlock()
+
+	if s.store != nil {
+		user, ok := s.currentUser(r)
+		if !ok {
+			writeError(w, http.StatusUnauthorized, "sign in to save a sandbox")
+			return
+		}
+		raw, _ := json.Marshal(save)
+		var err error
+		if saveID == "" {
+			var sum store.SandboxSummary
+			if sum, err = s.store.CreateSandbox(r.Context(), user.ID, body.Name, save.Ruleset, save.Seed, save.Tick, string(raw)); err == nil {
+				saveID = sum.ID
+				sg.mu.Lock()
+				sg.saveID = sum.ID
+				sg.mu.Unlock()
+			}
+		} else {
+			err = s.store.UpdateSandbox(r.Context(), user.ID, saveID, body.Name, save.Tick, string(raw))
+		}
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "%v", err)
+			return
+		}
+		writeJSON(w, http.StatusOK, struct {
+			ID   string       `json:"id,omitempty"`
+			Name string       `json:"name,omitempty"`
+			Save sandbox.Save `json:"save"`
+		}{saveID, body.Name, save})
+		return
+	}
+
 	dir := filepath.Join(s.cfg.RepoRoot, ".forgelab", "sandbox")
 	b, _ := json.MarshalIndent(save, "", "  ")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -461,6 +570,84 @@ func (s *Server) handleSandboxSave(w http.ResponseWriter, r *http.Request) {
 		Path string       `json:"path"`
 		Save sandbox.Save `json:"save"`
 	}{path, save})
+}
+
+// savedSandboxJSON is a saved sandbox as sent to the dashboard.
+type savedSandboxJSON struct {
+	ID        string       `json:"id"`
+	Name      string       `json:"name"`
+	Ruleset   string       `json:"ruleset"`
+	Seed      int64        `json:"seed"`
+	Tick      int          `json:"tick"`
+	UpdatedAt time.Time    `json:"updatedAt"`
+	Save      sandbox.Save `json:"save"`
+}
+
+func savedSummaryJSON(sum store.SandboxSummary) savedSandboxJSON {
+	return savedSandboxJSON{ID: sum.ID, Name: sum.Name, Ruleset: sum.Ruleset, Seed: sum.Seed, Tick: sum.Tick, UpdatedAt: sum.UpdatedAt}
+}
+
+// requireUser writes 401 and returns false unless the request is signed in.
+func (s *Server) requireUser(w http.ResponseWriter, r *http.Request) (store.User, bool) {
+	user, ok := s.currentUser(r)
+	if s.store == nil || !ok {
+		writeError(w, http.StatusUnauthorized, "sign in first")
+		return store.User{}, false
+	}
+	return user, true
+}
+
+func (s *Server) handleSandboxSavesList(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.requireUser(w, r)
+	if !ok {
+		return
+	}
+	list, err := s.store.ListSandboxes(r.Context(), user.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "%v", err)
+		return
+	}
+	out := make([]savedSandboxJSON, 0, len(list))
+	for _, sum := range list {
+		out = append(out, savedSummaryJSON(sum))
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) handleSandboxSaveGet(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.requireUser(w, r)
+	if !ok {
+		return
+	}
+	saved, err := s.store.GetSandbox(r.Context(), user.ID, r.PathValue("id"))
+	if errors.Is(err, store.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "unknown save %q", r.PathValue("id"))
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "%v", err)
+		return
+	}
+	out := savedSummaryJSON(saved.SandboxSummary)
+	_ = json.Unmarshal([]byte(saved.Save), &out.Save)
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) handleSandboxSaveDelete(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.requireUser(w, r)
+	if !ok {
+		return
+	}
+	err := s.store.DeleteSandbox(r.Context(), user.ID, r.PathValue("id"))
+	if errors.Is(err, store.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "unknown save %q", r.PathValue("id"))
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "%v", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // handleSandboxStream sends the game state as Server-Sent Events: once on
