@@ -84,7 +84,8 @@
       "Shell(docker:*)",
       "Shell(cd /workspaces/production-simulator && ls -la .devcontainer/ .devcontainer/scripts/ 2>&1; echo \"=== post-create ===\"; find .devcontainer -name '*post*' -o -name '*.sh' 2>/dev/null; echo \"=== devcontainer.json ===\"; cat .devcontainer/devcontainer.json 2>/dev/null)",
       "Shell(bash .devcontainer/scripts/post-create.sh)",
-      "Shell(make:*)"
+      "Shell(make:*)",
+      "Shell(cd /workspaces/production-simulator && git add .devcontainer/docker-compose.yml && git commit -F - <<'EOF' [chore] Load devcontainer env from backend/.env - read the app service's shared variables (CORS origin, public URL, provider credentials) from the gitignored backend/.env via env_file - keep DATABASE_URL and FORGELAB_TEST_DATABASE_URL overrides, since the in-container store host is the compose `db` service, not localhost EOF echo \"=== push ===\"; git push)"
     ],
     "deny": [],
     "defaultMode": "default"
