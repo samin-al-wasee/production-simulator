@@ -2,6 +2,7 @@ package secretscan
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -97,6 +98,27 @@ func TestScanWalksAppliesAllowlistAndSkips(t *testing.T) {
 	got, _ := Scan(root, cfg)
 	if len(got) != 1 || got[0].Path != "app/config.yaml" {
 		t.Fatalf("after allowlist: %+v", got)
+	}
+}
+
+func TestScanSkipsGitIgnoredFiles(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+	root := t.TempDir()
+	if out, err := exec.Command("git", "-C", root, "init", "-q").CombinedOutput(); err != nil {
+		t.Skipf("git init failed: %v %s", err, out)
+	}
+	write(t, root, ".gitignore", ".env\n")
+	write(t, root, ".env", "GITHUB_CLIENT_SECRET=abcdefgh12345678\n")
+	write(t, root, "app.yaml", "password: realpassword123\n")
+
+	got, err := Scan(root, Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Path != "app.yaml" {
+		t.Fatalf("git-ignored files must not be scanned; got %+v", got)
 	}
 }
 

@@ -19,6 +19,11 @@ services:
       # to enable sign-in, and register
       # <FORGELAB_PUBLIC_URL>/api/v1/auth/callback/<provider> with each provider.
       FORGELAB_PUBLIC_URL: http://localhost:3001
+      # Provider credentials pass through from the host shell (set them before
+      # opening the devcontainer); empty leaves sign-in off (ADR-0031). Kept
+      # out of git by interpolation.
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
     depends_on:
       db:
         condition: service_healthy

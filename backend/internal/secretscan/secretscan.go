@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -127,6 +128,25 @@ func (c Config) allowed(rel, rule string) bool {
 	return false
 }
 
+// ignoredPaths lists the untracked files git ignores under root, so the scanner
+// does not flag local files that cannot be committed (a developer's .env, build
+// output). Outside a work tree, or without git, it returns nil and everything
+// is scanned.
+func ignoredPaths(root string) map[string]bool {
+	out, err := exec.Command("git", "-C", root, "ls-files",
+		"--others", "--ignored", "--exclude-standard", "--directory", "-z").Output()
+	if err != nil {
+		return nil
+	}
+	ign := map[string]bool{}
+	for _, p := range strings.Split(string(out), "\x00") {
+		if p = strings.TrimSuffix(p, "/"); p != "" {
+			ign[p] = true
+		}
+	}
+	return ign
+}
+
 // Scan walks root and returns findings not covered by the allowlist, sorted
 // by path and line.
 func Scan(root string, cfg Config) ([]Finding, error) {
@@ -137,23 +157,27 @@ func Scan(root string, cfg Config) ([]Finding, error) {
 	for _, d := range cfg.SkipDirs {
 		skip[d] = true
 	}
+	ignored := ignoredPaths(root)
 	var out []Finding
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
+		rel, _ := filepath.Rel(root, p)
+		rel = filepath.ToSlash(rel)
 		if d.IsDir() {
-			if p != root && skip[d.Name()] {
+			if p != root && (skip[d.Name()] || ignored[rel]) {
 				return filepath.SkipDir
 			}
+			return nil
+		}
+		if ignored[rel] {
 			return nil
 		}
 		info, err := d.Info()
 		if err != nil || info.Size() > 1<<20 || !info.Mode().IsRegular() {
 			return nil
 		}
-		rel, _ := filepath.Rel(root, p)
-		rel = filepath.ToSlash(rel)
 		f, err := os.Open(p)
 		if err != nil {
 			return nil
