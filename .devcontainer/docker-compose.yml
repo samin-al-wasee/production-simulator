@@ -9,21 +9,15 @@ services:
     command: sleep infinity
     volumes:
       - ..:/workspaces/production-simulator:cached
+    # Remaining variables come from backend/.env (gitignored). Copy the
+    # template once: cp backend/.env backend/.env. The two overrides below win
+    # over it, since inside the container the store is the `db` service.
+    env_file:
+      - path: ../backend/.env
+        required: false
     environment:
       DATABASE_URL: postgres://postgres:postgres@db:5432/forgelab?sslmode=disable
       FORGELAB_TEST_DATABASE_URL: postgres://postgres:postgres@db:5432/forgelab?sslmode=disable
-      FORGELAB_ALLOW_ORIGIN: http://localhost:3001
-      # The dashboard's public origin (ADR-0033): the OAuth callback returns
-      # through the dashboard's /api/v1/auth proxy, so the session cookie lands
-      # on the dashboard. Set provider client ids and secrets (or in the shell)
-      # to enable sign-in, and register
-      # <FORGELAB_PUBLIC_URL>/api/v1/auth/callback/<provider> with each provider.
-      FORGELAB_PUBLIC_URL: http://localhost:3001
-      # Provider credentials pass through from the host shell (set them before
-      # opening the devcontainer); empty leaves sign-in off (ADR-0031). Kept
-      # out of git by interpolation.
-      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
-      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
     depends_on:
       db:
         condition: service_healthy
