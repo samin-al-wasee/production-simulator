@@ -80,7 +80,11 @@
       "Shell(node -e console.log(JSON.stringify(require('./package.json').scripts,null,2)))",
       "Shell(python3 -c  import json,glob for f in glob.glob('*-trace.network'): for line in open(f): o=json.loads(line); s=o.get('snapshot',{}); req=s.get('request',{}); res=s.get('response',{}) u=req.get('url','') if '/api/v1/auth' in u: print(res.get('status'), round(s.get('time',0)),'ms', u) print('=== console ===') for f in glob.glob('*-trace.trace'): for line in open(f): try: o=json.loads(line) except: continue if o.get('type')=='console': print(o.get('messageType'), '|', o.get('text','')[:160]) )",
       "Shell(cd /workspaces/production-simulator/frontend/test-results/auth-anonymous-is-offered-sign-in-and-keeps-nothing-chromium && rm -rf /tmp/tr3 && mkdir -p /tmp/tr3 && unzip -o -q trace.zip -d /tmp/tr3 && cd /tmp/tr3 && python3 -c \" import json,glob for f in glob.glob('*-trace.network'): for line in open(f): o=json.loads(line); s=o.get('snapshot',{}); req=s.get('request',{}); res=s.get('response',{}) u=req.get('url','') if '/api/v1/auth/providers' in u: cf=res.get('content',{}).get('_file') body='' if cf: try: body=open(cf).read() except: pass print(res.get('status'), round(s.get('time',0)),'ms body=',body[:120]) \"; echo \"=== page yaml ===\"; sed -n '/```yaml/,/```/p' ../auth-anonymous-is-offered-sign-in-and-keeps-nothing-chromium/error-context.md 2>/dev/null | head -30)",
-      "Shell(cd /workspaces/production-simulator/frontend && npx eslint . 2>&1 | grep -oE '^/[^ ]+\\.(ts|tsx|js|mjs|jsx)' | sed 's#/[^/]*$##' | sort | uniq -c | sort -rn | head; echo \"=== config ===\"; ls eslint.config.* .eslintrc* 2>/dev/null; cat eslint.config.mjs 2>/dev/null || cat eslint.config.js 2>/dev/null)"
+      "Shell(cd /workspaces/production-simulator/frontend && npx eslint . 2>&1 | grep -oE '^/[^ ]+\\.(ts|tsx|js|mjs|jsx)' | sed 's#/[^/]*$##' | sort | uniq -c | sort -rn | head; echo \"=== config ===\"; ls eslint.config.* .eslintrc* 2>/dev/null; cat eslint.config.mjs 2>/dev/null || cat eslint.config.js 2>/dev/null)",
+      "Shell(docker:*)",
+      "Shell(cd /workspaces/production-simulator && ls -la .devcontainer/ .devcontainer/scripts/ 2>&1; echo \"=== post-create ===\"; find .devcontainer -name '*post*' -o -name '*.sh' 2>/dev/null; echo \"=== devcontainer.json ===\"; cat .devcontainer/devcontainer.json 2>/dev/null)",
+      "Shell(bash .devcontainer/scripts/post-create.sh)",
+      "Shell(make:*)"
     ],
     "deny": [],
     "defaultMode": "default"
